@@ -2,9 +2,23 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>worknest-client-reactjs</title>
+    <meta
+      name="description"
+      content="WorkNest is a multi-tenant platform for workspace, workforce, and operations management."
+    />
+    <script>
+      ;(() => {
+        const themeKey = 'worknest-theme'
+        const stored = window.localStorage.getItem(themeKey)
+        const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+        const theme = stored === 'light' || stored === 'dark' ? stored : systemPrefersDark ? 'dark' : 'light'
+        const root = document.documentElement
+        root.classList.toggle('dark', theme === 'dark')
+        root.setAttribute('data-theme', theme)
+      })()
+    </script>
+    <title>WorkNest | Workspace and Workforce Management</title>
   </head>
   <body>
     <div id="root"></div>
