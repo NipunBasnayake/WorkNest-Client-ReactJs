@@ -222,3 +222,14 @@ body {
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
+
+/* ──────────────────────────────────────────
+   Utility — Scrollbar Hide (for sidebar)
+   ────────────────────────────────────────── */
+.scrollbar-hide {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
