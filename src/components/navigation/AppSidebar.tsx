@@ -2,10 +2,11 @@ import { NavLink, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, Users, User, Settings, Building2,
   LogOut, ChevronLeft, ChevronRight, X,
-  ClipboardList, CalendarCheck, Bell, MessageSquare, Briefcase, BarChart3,
+  ClipboardList, CalendarCheck, Bell, MessageSquare, Briefcase, BarChart3, CheckSquare, BellRing,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Logo } from "@/components/common/Logo";
+import { TENANT_MODULE_ACCESS } from "@/constants/access";
 
 interface SidebarNavDef {
   label: string;
@@ -24,12 +25,14 @@ interface AppSidebarProps {
 
 const TENANT_NAV: SidebarNavDef[] = [
   { label: "Dashboard",     to: "/app/dashboard",     icon: <LayoutDashboard size={18} /> },
-  { label: "Employees",     to: "/app/employees",     icon: <Users size={18} /> },
-  { label: "Teams",         to: "/app/teams",         icon: <Briefcase size={18} /> },
-  { label: "Projects",      to: "/app/projects",      icon: <ClipboardList size={18} /> },
-  { label: "Attendance",    to: "/app/attendance",    icon: <CalendarCheck size={18} /> },
-  { label: "Leave",         to: "/app/leave",         icon: <CalendarCheck size={18} /> },
-  { label: "Announcements", to: "/app/announcements", icon: <Bell size={18} /> },
+  { label: "Employees",     to: "/app/employees",     icon: <Users size={18} />, roles: TENANT_MODULE_ACCESS.employees },
+  { label: "Teams",         to: "/app/teams",         icon: <Briefcase size={18} />, roles: TENANT_MODULE_ACCESS.teams },
+  { label: "Projects",      to: "/app/projects",      icon: <ClipboardList size={18} />, roles: TENANT_MODULE_ACCESS.projects },
+  { label: "Tasks",         to: "/app/tasks",         icon: <CheckSquare size={18} />, roles: TENANT_MODULE_ACCESS.tasks },
+  { label: "Attendance",    to: "/app/attendance",    icon: <CalendarCheck size={18} />, roles: TENANT_MODULE_ACCESS.attendance },
+  { label: "Leave",         to: "/app/leave",         icon: <CalendarCheck size={18} />, roles: TENANT_MODULE_ACCESS.leave },
+  { label: "Announcements", to: "/app/announcements", icon: <Bell size={18} />, roles: TENANT_MODULE_ACCESS.announcements },
+  { label: "Notifications", to: "/app/notifications", icon: <BellRing size={18} />, roles: TENANT_MODULE_ACCESS.notifications },
   { label: "Messages",      to: "/app/messages",      icon: <MessageSquare size={18} /> },
 ];
 
@@ -48,7 +51,7 @@ const BOTTOM_NAV_PLATFORM: SidebarNavDef[] = [
   { label: "Profile", to: "/platform/profile", icon: <User size={18} /> },
 ];
 
-const COMING_SOON = ["/app/teams", "/app/projects", "/app/attendance", "/app/leave", "/app/announcements", "/app/messages", "/platform/analytics"];
+const COMING_SOON = ["/app/messages", "/platform/analytics"];
 
 function NavItem({
   item,
@@ -126,10 +129,10 @@ function NavItem({
 }
 
 export function AppSidebar({ area, collapsed, mobileOpen, onToggleCollapse, onMobileClose }: AppSidebarProps) {
-  const { user, logout } = useAuth();
+  const { user, logout, hasRole } = useAuth();
   const navigate = useNavigate();
 
-  const mainNav   = area === "tenant" ? TENANT_NAV : PLATFORM_NAV;
+  const mainNav   = area === "tenant" ? TENANT_NAV.filter((item) => !item.roles || hasRole(...item.roles)) : PLATFORM_NAV;
   const bottomNav = area === "tenant" ? BOTTOM_NAV_TENANT : BOTTOM_NAV_PLATFORM;
 
   async function handleLogout() {

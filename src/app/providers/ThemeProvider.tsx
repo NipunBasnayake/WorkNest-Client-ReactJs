@@ -1,13 +1,5 @@
-import { createContext, useCallback, useEffect, useState, type ReactNode } from "react";
-
-type Theme = "light" | "dark";
-
-interface ThemeContextValue {
-  theme: Theme;
-  toggleTheme: () => void;
-}
-
-export const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
+import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { ThemeContext, type Theme } from "@/app/providers/ThemeContext";
 
 function getInitialTheme(): Theme {
   if (typeof window === "undefined") return "light";

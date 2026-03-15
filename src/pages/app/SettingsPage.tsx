@@ -20,7 +20,7 @@ export function SettingsPage() {
           Settings
         </h2>
         <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-          Workspace configuration options will be available here in Phase 3.
+          Workspace configuration options will be expanded in the next phase.
         </p>
         <Settings size={14} className="mt-4 opacity-30" style={{ color: "var(--text-tertiary)" }} />
       </div>

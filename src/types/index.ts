@@ -93,11 +93,15 @@ export interface Tenant {
 
 export interface Employee {
   id: string;
+  firstName?: string;
+  lastName?: string;
   name: string;
   email: string;
+  position?: string;
   department?: string;
   role?: TenantRole | string;
   phone?: string;
+  salary?: number | string;
   status?: "active" | "inactive";
   joinedAt?: string;
   [key: string]: unknown;

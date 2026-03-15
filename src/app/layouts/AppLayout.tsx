@@ -1,18 +1,8 @@
-import { useState, createContext, useContext } from "react";
+import { useState } from "react";
 import { Outlet } from "react-router-dom";
 import { AppSidebar } from "@/components/navigation/AppSidebar";
 import { AppTopbar } from "@/components/navigation/AppTopbar";
-
-/* ── Page context — lets child pages set their title & breadcrumb ── */
-interface PageContextValue {
-  setTitle:      (title: string)       => void;
-  setBreadcrumb: (crumbs: string[])    => void;
-}
-export const PageContext = createContext<PageContextValue>({
-  setTitle:      () => {},
-  setBreadcrumb: () => {},
-});
-export const usePage = () => useContext(PageContext);
+import { PageContext } from "@/app/layouts/PageMetaContext";
 
 /* ── Layout ── */
 interface AppLayoutProps {
@@ -48,6 +38,7 @@ export function AppLayout({ area }: AppLayoutProps) {
         {/* Main content */}
         <div className="flex-1 flex flex-col overflow-hidden min-w-0">
           <AppTopbar
+            area={area}
             pageTitle={pageTitle}
             breadcrumb={breadcrumb}
             onMobileMenuToggle={() => setMobileOpen(true)}

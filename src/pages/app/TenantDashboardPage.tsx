@@ -1,22 +1,74 @@
 import { useEffect, useState } from "react";
-import { Users, CheckSquare, FolderOpen, CalendarClock, Briefcase, Bell, Settings, UserCheck } from "lucide-react";
+import { Users, CheckSquare, FolderOpen, CalendarClock, Briefcase, Bell, Settings, UserCheck, BellRing } from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { useAuth } from "@/hooks/useAuth";
 import { getTenantInfoApi } from "@/services/api/employeeApi";
 import { StatCard, PageSection, QuickNavCard, ErrorBanner } from "@/components/common/AppUI";
-
-const NAV_CARDS = [
-  { label: "Employees",     description: "Manage team members",          icon: <Users size={18} />,         to: "/app/employees",     disabled: false },
-  { label: "Teams",         description: "Configure team structures",     icon: <Briefcase size={18} />,     to: "/app/teams",         disabled: true },
-  { label: "Projects",      description: "Track ongoing projects",        icon: <FolderOpen size={18} />,    to: "/app/projects",      disabled: true },
-  { label: "Attendance",    description: "Daily check-in logs",           icon: <CalendarClock size={18} />, to: "/app/attendance",    disabled: true },
-  { label: "Announcements", description: "Company-wide communications",   icon: <Bell size={18} />,          to: "/app/announcements", disabled: true },
-  { label: "Settings",      description: "Workspace configuration",       icon: <Settings size={18} />,      to: "/app/settings",      disabled: false },
-];
+import { TENANT_MODULE_ACCESS } from "@/constants/access";
 
 export function TenantDashboardPage() {
   usePageMeta({ title: "Dashboard", breadcrumb: ["Workspace", "Dashboard"] });
-  const { user, tenantKey } = useAuth();
+  const { user, tenantKey, hasRole } = useAuth();
+
+  const NAV_CARDS = [
+    {
+      label: "Employees",
+      description: "Manage team members",
+      icon: <Users size={18} />,
+      to: "/app/employees",
+      disabled: !hasRole(...TENANT_MODULE_ACCESS.employees),
+    },
+    {
+      label: "Teams",
+      description: "Configure team structures",
+      icon: <Briefcase size={18} />,
+      to: "/app/teams",
+      disabled: !hasRole(...TENANT_MODULE_ACCESS.teams),
+    },
+    {
+      label: "Projects",
+      description: "Track ongoing projects",
+      icon: <FolderOpen size={18} />,
+      to: "/app/projects",
+      disabled: !hasRole(...TENANT_MODULE_ACCESS.projects),
+    },
+    {
+      label: "Tasks",
+      description: "Track execution priorities",
+      icon: <CheckSquare size={18} />,
+      to: "/app/tasks",
+      disabled: !hasRole(...TENANT_MODULE_ACCESS.tasks),
+    },
+    {
+      label: "Attendance",
+      description: "Daily check-in logs",
+      icon: <CalendarClock size={18} />,
+      to: "/app/attendance",
+      disabled: !hasRole(...TENANT_MODULE_ACCESS.attendance),
+    },
+    {
+      label: "Leave",
+      description: "Leave requests and approvals",
+      icon: <CalendarClock size={18} />,
+      to: "/app/leave",
+      disabled: !hasRole(...TENANT_MODULE_ACCESS.leave),
+    },
+    {
+      label: "Announcements",
+      description: "Company-wide communications",
+      icon: <Bell size={18} />,
+      to: "/app/announcements",
+      disabled: !hasRole(...TENANT_MODULE_ACCESS.announcements),
+    },
+    {
+      label: "Notifications",
+      description: "Track latest workspace updates",
+      icon: <BellRing size={18} />,
+      to: "/app/notifications",
+      disabled: !hasRole(...TENANT_MODULE_ACCESS.notifications),
+    },
+    { label: "Settings", description: "Workspace configuration", icon: <Settings size={18} />, to: "/app/settings", disabled: false },
+  ];
 
   const [tenantInfo, setTenantInfo]   = useState<Record<string, unknown> | null>(null);
   const [infoError,  setInfoError]    = useState<string | null>(null);

@@ -1,187 +1,269 @@
-import { useEffect, useState } from "react";
-import { Users, Search, Mail, Phone, ChevronRight } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Building2, Mail, Phone, Search, Trash2, UserPlus, Users } from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
-import { getEmployeesApi } from "@/services/api/employeeApi";
+import { deleteEmployeeApi, getEmployeesApi } from "@/services/api/employeeApi";
 import { EmptyState, ErrorBanner, SkeletonRow } from "@/components/common/AppUI";
-import type { Employee } from "@/types";
-
-const ROLE_COLOR: Record<string, { bg: string; text: string }> = {
-  ADMIN:    { bg: "rgba(147,50,234,0.12)",  text: "#9332EA" },
-  MANAGER:  { bg: "rgba(124,31,209,0.12)",  text: "#7c1fd1" },
-  HR:       { bg: "rgba(168,85,247,0.12)",  text: "#a855f7" },
-  EMPLOYEE: { bg: "rgba(99,102,241,0.12)",  text: "#6366f1" },
-};
+import { Button } from "@/components/common/Button";
+import { PageHeader } from "@/components/common/PageHeader";
+import { SectionCard } from "@/components/common/SectionCard";
+import { AvatarInitials } from "@/components/common/AvatarInitials";
+import { StatusBadge } from "@/components/common/StatusBadge";
+import { ConfirmDialog } from "@/components/common/ConfirmDialog";
+import { toEmployeeViewModel } from "@/modules/employees/utils/employeeMapper";
+import type { EmployeeViewModel } from "@/modules/employees/types";
 
 export function EmployeesPage() {
   usePageMeta({ title: "Employees", breadcrumb: ["Workspace", "Employees"] });
 
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [loading,   setLoading]   = useState(true);
-  const [error,     setError]     = useState<string | null>(null);
-  const [search,    setSearch]    = useState("");
+  const [employees, setEmployees] = useState<EmployeeViewModel[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [department, setDepartment] = useState("all");
+  const [deleteTarget, setDeleteTarget] = useState<EmployeeViewModel | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   function fetchEmployees() {
     setLoading(true);
     setError(null);
     getEmployeesApi()
-      .then(setEmployees)
+      .then((data) => setEmployees(data.map(toEmployeeViewModel)))
       .catch(() => setError("Failed to load employees. Please check your connection and try again."))
       .finally(() => setLoading(false));
   }
 
-  useEffect(() => { fetchEmployees(); }, []);
+  useEffect(() => {
+    fetchEmployees();
+  }, []);
 
-  const filtered = employees.filter((e) => {
-    const q = search.toLowerCase();
-    return (
-      !q ||
-      e.name?.toLowerCase().includes(q) ||
-      e.email?.toLowerCase().includes(q) ||
-      e.department?.toLowerCase().includes(q)
+  const departmentOptions = useMemo(() => {
+    const unique = new Set(
+      employees
+        .map((item) => item.department?.trim())
+        .filter((item): item is string => Boolean(item))
     );
-  });
+
+    return ["all", ...Array.from(unique).sort((a, b) => a.localeCompare(b))];
+  }, [employees]);
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return employees.filter((emp) => {
+      const matchesSearch = !q || [
+        emp.displayName,
+        emp.email,
+        emp.phone,
+        emp.position,
+        emp.department,
+      ].some((value) => value?.toLowerCase().includes(q));
+
+      const matchesDepartment = department === "all" || (emp.department ?? "").toLowerCase() === department.toLowerCase();
+
+      return matchesSearch && matchesDepartment;
+    });
+  }, [department, employees, search]);
+
+  async function handleDeleteConfirmed() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    setFeedback(null);
+
+    try {
+      await deleteEmployeeApi(deleteTarget.id);
+      setEmployees((prev) => prev.filter((item) => item.id !== deleteTarget.id));
+      setFeedback("Employee removed successfully.");
+      setDeleteTarget(null);
+    } catch {
+      setFeedback("Unable to delete employee. Please try again.");
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   return (
-    <div>
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-        <div>
-          <h1 className="text-xl font-bold" style={{ color: "var(--text-primary)" }}>
-            Employees
-          </h1>
-          <p className="text-sm mt-0.5" style={{ color: "var(--text-secondary)" }}>
-            {loading ? "Loading…" : `${employees.length} team member${employees.length !== 1 ? "s" : ""}`}
-          </p>
-        </div>
+    <div className="space-y-6">
+      <PageHeader
+        title="Employee Management"
+        description={loading ? "Loading employee roster..." : `${employees.length} employee record${employees.length === 1 ? "" : "s"} found.`}
+        actions={(
+          <Button variant="primary" to="/app/employees/new">
+            <UserPlus size={16} />
+            Add Employee
+          </Button>
+        )}
+      />
 
-        {/* Search */}
-        <div className="relative w-full sm:w-72">
-          <Search
-            size={16}
-            className="absolute left-3 top-1/2 -translate-y-1/2"
-            style={{ color: "var(--text-tertiary)" }}
-          />
-          <input
-            type="text"
-            placeholder="Search employees…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm border outline-none transition-all focus:ring-2 focus:ring-primary-500/30"
+      <SectionCard>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_220px]">
+          <div className="relative">
+            <Search
+              size={16}
+              className="absolute left-3 top-1/2 -translate-y-1/2"
+              style={{ color: "var(--text-tertiary)" }}
+            />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by name, email, position, department..."
+              className="w-full rounded-xl border py-2.5 pl-9 pr-3 text-sm outline-none transition-all focus:ring-2 focus:ring-primary-500/30"
+              style={{
+                backgroundColor: "var(--bg-surface)",
+                borderColor: "var(--border-default)",
+                color: "var(--text-primary)",
+              }}
+            />
+          </div>
+
+          <select
+            value={department}
+            onChange={(e) => setDepartment(e.target.value)}
+            className="w-full rounded-xl border px-3 py-2.5 text-sm outline-none transition-all focus:ring-2 focus:ring-primary-500/30"
             style={{
               backgroundColor: "var(--bg-surface)",
-              borderColor:     "var(--border-default)",
-              color:           "var(--text-primary)",
+              borderColor: "var(--border-default)",
+              color: "var(--text-primary)",
             }}
-          />
+          >
+            {departmentOptions.map((option) => (
+              <option key={option} value={option}>
+                {option === "all" ? "All Departments" : option}
+              </option>
+            ))}
+          </select>
         </div>
-      </div>
+      </SectionCard>
 
-      {error && (
-        <div className="mb-6">
-          <ErrorBanner message={error} onRetry={fetchEmployees} />
+      {feedback && (
+        <div
+          className="rounded-xl border px-4 py-3 text-sm"
+          style={{
+            borderColor: feedback.toLowerCase().includes("unable") ? "rgba(239,68,68,0.25)" : "rgba(16,185,129,0.25)",
+            backgroundColor: feedback.toLowerCase().includes("unable") ? "rgba(239,68,68,0.06)" : "rgba(16,185,129,0.08)",
+            color: feedback.toLowerCase().includes("unable") ? "#ef4444" : "#10b981",
+          }}
+        >
+          {feedback}
         </div>
       )}
 
-      {/* Table container */}
-      <div
-        className="rounded-2xl border overflow-hidden"
-        style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)" }}
-      >
-        {/* Table header */}
+      {error && <ErrorBanner message={error} onRetry={fetchEmployees} />}
+
+      <SectionCard className="overflow-hidden" contentClassName="p-0" title="Employees" subtitle="View, update, and maintain workforce records.">
         <div
-          className="hidden sm:grid grid-cols-[2fr_2fr_1.5fr_1fr_0.5fr] gap-4 px-5 py-3 text-xs font-semibold uppercase tracking-wider border-b"
+          className="hidden md:grid grid-cols-[2.2fr_1.8fr_1.2fr_1.2fr_1fr_0.9fr_1.4fr] gap-3 border-b px-5 py-3 text-xs font-semibold uppercase tracking-wider"
           style={{ color: "var(--text-tertiary)", borderColor: "var(--border-default)", backgroundColor: "var(--bg-muted)" }}
         >
           <span>Name</span>
           <span>Email</span>
+          <span>Phone</span>
+          <span>Position</span>
           <span>Department</span>
-          <span>Role</span>
-          <span />
+          <span>Status</span>
+          <span className="text-right">Actions</span>
         </div>
 
-        {/* Loading skeletons */}
-        {loading && (
-          Array.from({ length: 6 }).map((_, i) => (
-            <SkeletonRow key={i} cols={5} />
-          ))
-        )}
+        {loading && Array.from({ length: 6 }).map((_, idx) => <SkeletonRow key={idx} cols={7} />)}
 
-        {/* Empty state */}
         {!loading && !error && filtered.length === 0 && (
           <EmptyState
             icon={<Users size={28} />}
-            title={search ? "No results found" : "No employees yet"}
-            description={search ? "Try a different search term." : "Add your first employee to get started."}
+            title={search || department !== "all" ? "No matching employees" : "No employees yet"}
+            description={search || department !== "all" ? "Adjust the search or department filter." : "Add your first employee record to start managing your workforce."}
+            action={<Button variant="outline" to="/app/employees/new">Create Employee</Button>}
           />
         )}
 
-        {/* Rows */}
-        {!loading && filtered.map((emp) => {
-          const roleStyle = ROLE_COLOR[emp.role?.toUpperCase() ?? ""] ?? ROLE_COLOR.EMPLOYEE;
-          const initials = emp.name?.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2) ?? "??";
-
-          return (
-            <div
-              key={emp.id}
-              className="group flex flex-col sm:grid sm:grid-cols-[2fr_2fr_1.5fr_1fr_0.5fr] gap-2 sm:gap-4 sm:items-center px-5 py-4 border-b transition-colors hover:bg-primary-50/30 dark:hover:bg-primary-950/10 cursor-default"
-              style={{ borderColor: "var(--border-default)" }}
-            >
-              {/* Name + avatar */}
-              <div className="flex items-center gap-3 min-w-0">
+        {!loading && filtered.length > 0 && (
+          <>
+            <div className="hidden md:block">
+              {filtered.map((emp) => (
                 <div
-                  className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white shrink-0"
-                  style={{ background: "linear-gradient(135deg, #9332EA 0%, #7c1fd1 100%)" }}
+                  key={emp.id}
+                  className="grid grid-cols-[2.2fr_1.8fr_1.2fr_1.2fr_1fr_0.9fr_1.4fr] items-center gap-3 border-b px-5 py-4"
+                  style={{ borderColor: "var(--border-default)" }}
                 >
-                  {initials}
-                </div>
-                <div className="min-w-0">
-                  <div className="text-sm font-semibold truncate" style={{ color: "var(--text-primary)" }}>
-                    {emp.name ?? "—"}
-                  </div>
-                  {emp.phone && (
-                    <div className="flex items-center gap-1 text-xs" style={{ color: "var(--text-tertiary)" }}>
-                      <Phone size={11} />
-                      {emp.phone}
+                  <div className="flex items-center gap-3 min-w-0">
+                    <AvatarInitials name={emp.displayName} size="sm" />
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+                        {emp.displayName}
+                      </div>
+                      <div className="truncate text-xs" style={{ color: "var(--text-tertiary)" }}>
+                        {emp.role ?? "Employee"}
+                      </div>
                     </div>
-                  )}
+                  </div>
+                  <span className="truncate text-sm" style={{ color: "var(--text-secondary)" }}>{emp.email || "—"}</span>
+                  <span className="truncate text-sm" style={{ color: "var(--text-secondary)" }}>{emp.phone || "—"}</span>
+                  <span className="truncate text-sm" style={{ color: "var(--text-secondary)" }}>{emp.position || "—"}</span>
+                  <span className="truncate text-sm" style={{ color: "var(--text-secondary)" }}>{emp.department || "—"}</span>
+                  <StatusBadge status={emp.status ?? "active"} />
+                  <div className="flex items-center justify-end gap-1.5">
+                    <Button variant="ghost" size="sm" to={`/app/employees/${emp.id}`}>View</Button>
+                    <Button variant="outline" size="sm" to={`/app/employees/${emp.id}/edit`}>Edit</Button>
+                    <Button
+                      variant="danger"
+                      size="sm"
+                      onClick={() => setDeleteTarget(emp)}
+                    >
+                      <Trash2 size={14} />
+                    </Button>
+                  </div>
                 </div>
-              </div>
-
-              {/* Email */}
-              <div className="flex items-center gap-1.5 min-w-0">
-                <Mail size={13} className="shrink-0" style={{ color: "var(--text-tertiary)" }} />
-                <span className="text-sm truncate" style={{ color: "var(--text-secondary)" }}>
-                  {emp.email ?? "—"}
-                </span>
-              </div>
-
-              {/* Department */}
-              <div className="text-sm" style={{ color: "var(--text-secondary)" }}>
-                {emp.department ?? "—"}
-              </div>
-
-              {/* Role badge */}
-              <div>
-                <span
-                  className="inline-flex px-2.5 py-1 rounded-full text-xs font-semibold"
-                  style={{ background: roleStyle.bg, color: roleStyle.text }}
-                >
-                  {emp.role ?? "—"}
-                </span>
-              </div>
-
-              {/* Arrow */}
-              <div className="hidden sm:flex justify-end">
-                <ChevronRight
-                  size={16}
-                  className="opacity-0 group-hover:opacity-60 transition-opacity"
-                  style={{ color: "var(--text-tertiary)" }}
-                />
-              </div>
+              ))}
             </div>
-          );
-        })}
-      </div>
+
+            <div className="space-y-3 p-4 md:hidden">
+              {filtered.map((emp) => (
+                <article
+                  key={emp.id}
+                  className="rounded-xl border p-4"
+                  style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)" }}
+                >
+                  <div className="flex items-start gap-3">
+                    <AvatarInitials name={emp.displayName} size="sm" />
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-semibold truncate" style={{ color: "var(--text-primary)" }}>
+                        {emp.displayName}
+                      </div>
+                      <div className="mt-0.5 flex items-center gap-1.5 text-xs" style={{ color: "var(--text-secondary)" }}>
+                        <Building2 size={12} />
+                        {emp.department || "No department"}
+                      </div>
+                      <div className="mt-1 flex flex-col gap-1 text-xs" style={{ color: "var(--text-tertiary)" }}>
+                        <span className="inline-flex items-center gap-1.5"><Mail size={12} /> {emp.email || "—"}</span>
+                        <span className="inline-flex items-center gap-1.5"><Phone size={12} /> {emp.phone || "—"}</span>
+                      </div>
+                    </div>
+                    <StatusBadge status={emp.status ?? "active"} />
+                  </div>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <Button variant="ghost" size="sm" to={`/app/employees/${emp.id}`}>View</Button>
+                    <Button variant="outline" size="sm" to={`/app/employees/${emp.id}/edit`}>Edit</Button>
+                    <Button variant="danger" size="sm" onClick={() => setDeleteTarget(emp)}>
+                      <Trash2 size={14} />
+                      Delete
+                    </Button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </>
+        )}
+      </SectionCard>
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title="Delete employee?"
+        description={`This will permanently remove ${deleteTarget?.displayName ?? "this employee"} from your workspace records.`}
+        confirmLabel="Delete Employee"
+        cancelLabel="Keep Employee"
+        loading={deleting}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={handleDeleteConfirmed}
+      />
     </div>
   );
 }

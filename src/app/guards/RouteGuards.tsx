@@ -1,5 +1,6 @@
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuthStore } from "@/store/authStore";
+import type { TenantRole } from "@/types";
 
 /* ─── Spinner shown while bootstrapping ─── */
 function BootstrapLoader() {
@@ -72,6 +73,28 @@ export function TenantGuard() {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
   if (sessionType !== "tenant") {
+    return <Navigate to="/unauthorized" replace />;
+  }
+
+  return <Outlet />;
+}
+
+interface TenantRoleGuardProps {
+  allowedRoles: TenantRole[];
+}
+
+export function TenantRoleGuard({ allowedRoles }: TenantRoleGuardProps) {
+  const { isAuthenticated, isBootstrapping, sessionType, user } = useAuthStore();
+  const location = useLocation();
+
+  if (isBootstrapping) return <BootstrapLoader />;
+  if (!isAuthenticated) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+  if (sessionType !== "tenant") {
+    return <Navigate to="/unauthorized" replace />;
+  }
+  if (!user || !allowedRoles.includes(user.role as TenantRole)) {
     return <Navigate to="/unauthorized" replace />;
   }
 

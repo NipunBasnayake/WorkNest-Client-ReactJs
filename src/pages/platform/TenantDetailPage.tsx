@@ -14,13 +14,45 @@ export function TenantDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState<string | null>(null);
 
-  useEffect(() => {
+  async function fetchTenant() {
     if (!tenantKey) return;
     setLoading(true);
-    getTenantByKeyApi(tenantKey)
-      .then(setTenant)
-      .catch(() => setError("Failed to load tenant details."))
-      .finally(() => setLoading(false));
+    setError(null);
+
+    try {
+      const data = await getTenantByKeyApi(tenantKey);
+      setTenant(data);
+    } catch {
+      setError("Failed to load tenant details.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!tenantKey) return;
+    let active = true;
+
+    (async () => {
+      try {
+        const data = await getTenantByKeyApi(tenantKey);
+        if (active) {
+          setTenant(data);
+        }
+      } catch {
+        if (active) {
+          setError("Failed to load tenant details.");
+        }
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
   }, [tenantKey]);
 
   if (loading) {
@@ -45,7 +77,7 @@ export function TenantDetailPage() {
         Back to tenants
       </Link>
 
-      {error && <ErrorBanner message={error} />}
+      {error && <ErrorBanner message={error} onRetry={fetchTenant} />}
 
       {!error && tenant && (
         <div

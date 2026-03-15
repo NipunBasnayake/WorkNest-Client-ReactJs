@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { usePage } from "@/app/layouts/AppLayout";
+import { usePage } from "@/app/layouts/PageMetaContext";
 
 /**
  * Call at the top of any authenticated page to set the topbar title and breadcrumb.

@@ -20,16 +20,43 @@ export function PlatformTenantsPage() {
   const [error,    setError]    = useState<string | null>(null);
   const [search,   setSearch]   = useState("");
 
-  function fetchTenants() {
+  async function fetchTenants() {
     setLoading(true);
     setError(null);
-    getTenantsApi()
-      .then(setTenants)
-      .catch(() => setError("Failed to load tenants. Please try again."))
-      .finally(() => setLoading(false));
+    try {
+      const data = await getTenantsApi();
+      setTenants(data);
+    } catch {
+      setError("Failed to load tenants. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   }
 
-  useEffect(() => { fetchTenants(); }, []);
+  useEffect(() => {
+    let active = true;
+
+    (async () => {
+      try {
+        const data = await getTenantsApi();
+        if (active) {
+          setTenants(data);
+        }
+      } catch {
+        if (active) {
+          setError("Failed to load tenants. Please try again.");
+        }
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const filtered = tenants.filter((t) => {
     const q = search.toLowerCase();

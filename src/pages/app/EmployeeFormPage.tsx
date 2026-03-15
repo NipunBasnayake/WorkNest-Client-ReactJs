@@ -1,0 +1,149 @@
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { ArrowLeft, UserPlus } from "lucide-react";
+import { usePageMeta } from "@/hooks/usePageMeta";
+import { createEmployeeApi, getEmployeeByIdApi, updateEmployeeApi } from "@/services/api/employeeApi";
+import { SectionCard } from "@/components/common/SectionCard";
+import { PageHeader } from "@/components/common/PageHeader";
+import { Button } from "@/components/common/Button";
+import { ErrorBanner } from "@/components/common/AppUI";
+import { EmployeeForm } from "@/modules/employees/components/EmployeeForm";
+import { DEFAULT_EMPLOYEE_FORM, validateEmployeeForm } from "@/modules/employees/schemas/employeeForm";
+import { toEmployeeFormValues, toEmployeePayload } from "@/modules/employees/utils/employeeMapper";
+import type { EmployeeFormErrors, EmployeeFormValues } from "@/modules/employees/types";
+
+export function EmployeeFormPage() {
+  const navigate = useNavigate();
+  const { id } = useParams<{ id?: string }>();
+  const isEdit = Boolean(id);
+
+  usePageMeta({
+    title: isEdit ? "Edit Employee" : "Add Employee",
+    breadcrumb: ["Workspace", "Employees", isEdit ? "Edit" : "Create"],
+  });
+
+  const [form, setForm] = useState<EmployeeFormValues>(DEFAULT_EMPLOYEE_FORM);
+  const [errors, setErrors] = useState<EmployeeFormErrors>({});
+  const [loading, setLoading] = useState(isEdit);
+  const [submitting, setSubmitting] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [fatalError, setFatalError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!id) return;
+
+    let active = true;
+    setLoading(true);
+    getEmployeeByIdApi(id)
+      .then((res) => {
+        if (active) setForm(toEmployeeFormValues(res));
+      })
+      .catch(() => {
+        if (active) setFatalError("Unable to load employee for editing.");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [id]);
+
+  const title = useMemo(() => (isEdit ? "Update Employee" : "Create Employee"), [isEdit]);
+
+  async function handleSubmit() {
+    setMessage(null);
+    const validation = validateEmployeeForm(form);
+    setErrors(validation);
+    if (Object.keys(validation).length > 0) return;
+
+    setSubmitting(true);
+    try {
+      const payload = toEmployeePayload(form);
+      if (id) {
+        await updateEmployeeApi(id, payload);
+        setMessage("Employee details updated successfully.");
+      } else {
+        await createEmployeeApi(payload);
+        setMessage("Employee created successfully.");
+      }
+
+      setTimeout(() => {
+        navigate("/app/employees", { replace: true });
+      }, 500);
+    } catch {
+      setMessage("Failed to save employee. Please verify details and try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        title={title}
+        description="Capture core employee profile data and keep your workforce records up to date."
+        actions={(
+          <Button variant="ghost" onClick={() => navigate("/app/employees")}>
+            <ArrowLeft size={16} />
+            Back to Employees
+          </Button>
+        )}
+      />
+
+      {loading && (
+        <div className="py-20 flex items-center justify-center">
+          <div
+            className="w-10 h-10 rounded-full border-4 border-transparent animate-spin"
+            style={{ borderTopColor: "#9332EA", borderLeftColor: "rgba(147,50,234,0.3)" }}
+          />
+        </div>
+      )}
+
+      {!loading && fatalError && <ErrorBanner message={fatalError} />}
+
+      {!loading && !fatalError && (
+        <SectionCard
+          title={isEdit ? "Edit Employee Record" : "New Employee Record"}
+          subtitle="Fields marked by validation are required before submission."
+          action={!isEdit ? (
+            <span
+              className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold"
+              style={{ color: "var(--color-primary-600)", borderColor: "rgba(147,50,234,0.25)", background: "rgba(147,50,234,0.08)" }}
+            >
+              <UserPlus size={12} />
+              New Hire
+            </span>
+          ) : undefined}
+        >
+          {message && (
+            <div
+              className="mb-4 rounded-xl border px-4 py-3 text-sm"
+              style={{
+                borderColor: message.toLowerCase().includes("failed") ? "rgba(239,68,68,0.25)" : "rgba(16,185,129,0.25)",
+                backgroundColor: message.toLowerCase().includes("failed") ? "rgba(239,68,68,0.06)" : "rgba(16,185,129,0.08)",
+                color: message.toLowerCase().includes("failed") ? "#ef4444" : "#10b981",
+              }}
+            >
+              {message}
+            </div>
+          )}
+
+          <EmployeeForm
+            values={form}
+            errors={errors}
+            submitting={submitting}
+            submitLabel={isEdit ? "Save Changes" : "Create Employee"}
+            onChange={(next) => {
+              setForm(next);
+              if (Object.keys(errors).length) setErrors({});
+            }}
+            onSubmit={handleSubmit}
+            onCancel={() => navigate("/app/employees")}
+          />
+        </SectionCard>
+      )}
+    </div>
+  );
+}
