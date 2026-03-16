@@ -60,7 +60,7 @@ export function Navbar() {
             <Button
               variant="primary"
               size="sm"
-              to="/register"
+              to="/register-company"
               className="shadow-md shadow-primary-500/25"
             >
               Get Started

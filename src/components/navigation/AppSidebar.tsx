@@ -29,17 +29,19 @@ const TENANT_NAV: SidebarNavDef[] = [
   { label: "Teams",         to: "/app/teams",         icon: <Briefcase size={18} />, roles: TENANT_MODULE_ACCESS.teams },
   { label: "Projects",      to: "/app/projects",      icon: <ClipboardList size={18} />, roles: TENANT_MODULE_ACCESS.projects },
   { label: "Tasks",         to: "/app/tasks",         icon: <CheckSquare size={18} />, roles: TENANT_MODULE_ACCESS.tasks },
+  { label: "Analytics",     to: "/app/analytics",     icon: <BarChart3 size={18} />, roles: TENANT_MODULE_ACCESS.analytics },
   { label: "Attendance",    to: "/app/attendance",    icon: <CalendarCheck size={18} />, roles: TENANT_MODULE_ACCESS.attendance },
   { label: "Leave",         to: "/app/leave",         icon: <CalendarCheck size={18} />, roles: TENANT_MODULE_ACCESS.leave },
   { label: "Announcements", to: "/app/announcements", icon: <Bell size={18} />, roles: TENANT_MODULE_ACCESS.announcements },
   { label: "Notifications", to: "/app/notifications", icon: <BellRing size={18} />, roles: TENANT_MODULE_ACCESS.notifications },
-  { label: "Messages",      to: "/app/messages",      icon: <MessageSquare size={18} /> },
+  { label: "Chat",          to: "/app/chat",          icon: <MessageSquare size={18} />, roles: TENANT_MODULE_ACCESS.chat },
 ];
 
 const PLATFORM_NAV: SidebarNavDef[] = [
   { label: "Dashboard", to: "/platform/dashboard", icon: <LayoutDashboard size={18} /> },
   { label: "Tenants",   to: "/platform/tenants",   icon: <Building2 size={18} /> },
   { label: "Analytics", to: "/platform/analytics", icon: <BarChart3 size={18} /> },
+  { label: "Settings",  to: "/platform/settings",  icon: <Settings size={18} /> },
 ];
 
 const BOTTOM_NAV_TENANT: SidebarNavDef[] = [
@@ -51,7 +53,7 @@ const BOTTOM_NAV_PLATFORM: SidebarNavDef[] = [
   { label: "Profile", to: "/platform/profile", icon: <User size={18} /> },
 ];
 
-const COMING_SOON = ["/app/messages", "/platform/analytics"];
+const COMING_SOON: string[] = [];
 
 function NavItem({
   item,

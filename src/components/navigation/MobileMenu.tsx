@@ -56,7 +56,7 @@ export function MobileMenu({ open, onClose, showNavLinks }: MobileMenuProps) {
             <Button variant="ghost" size="md" to="/login" onClick={onClose}>
               Sign In
             </Button>
-            <Button variant="primary" size="md" to="/register" onClick={onClose}>
+            <Button variant="primary" size="md" to="/register-company" onClick={onClose}>
               Get Started Free
             </Button>
           </div>

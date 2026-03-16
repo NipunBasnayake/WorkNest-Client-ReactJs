@@ -9,7 +9,7 @@ const quickLinks = [
 
 const productLinks = [
   { label: "Sign In",           href: "/login" },
-  { label: "Register Company",  href: "/register" },
+  { label: "Register Company",  href: "/register-company" },
 ];
 
 export function Footer() {

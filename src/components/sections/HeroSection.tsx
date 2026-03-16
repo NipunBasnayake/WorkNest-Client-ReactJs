@@ -63,7 +63,7 @@ export function HeroSection() {
               <Button
                 variant="primary"
                 size="lg"
-                to="/register"
+                to="/register-company"
                 className="shadow-lg! shadow-primary-500/30! hover:scale-[1.02] active:scale-[0.98]"
               >
                 Get Started Free

@@ -1,4 +1,5 @@
 import { useAuthStore } from "@/store/authStore";
+import { hasTenantRole } from "@/constants/access";
 import type { LoginPayload, SessionType, TenantRole, PlatformRole } from "@/types";
 
 export function useAuth() {
@@ -21,11 +22,11 @@ export function useAuth() {
 
   const hasRole = (...roles: string[]): boolean => {
     if (!user) return false;
-    return roles.includes(user.role);
+    return hasTenantRole(user.role, roles as TenantRole[]);
   };
 
   const isPlatformAdmin = () => hasRole("PLATFORM_ADMIN");
-  const isTenantAdmin   = () => hasRole("ADMIN");
+  const isTenantAdmin   = () => hasRole("TENANT_ADMIN", "ADMIN");
   const isManager       = () => hasRole("MANAGER");
   const isHR            = () => hasRole("HR");
   const isEmployee      = () => hasRole("EMPLOYEE");

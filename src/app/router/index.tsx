@@ -33,10 +33,17 @@ import { AnnouncementsPage } from "@/pages/app/AnnouncementsPage";
 import { AnnouncementDetailPage } from "@/pages/app/AnnouncementDetailPage";
 import { AnnouncementFormPage } from "@/pages/app/AnnouncementFormPage";
 import { NotificationsPage } from "@/pages/app/NotificationsPage";
+import { ChatPage } from "@/pages/app/ChatPage";
+import { AnalyticsPage } from "@/pages/app/AnalyticsPage";
+import { AppSettingsLayoutPage } from "@/pages/app/settings/AppSettingsLayoutPage";
+import { AppSettingsProfilePage } from "@/pages/app/settings/AppSettingsProfilePage";
+import { AppSettingsWorkspacePage } from "@/pages/app/settings/AppSettingsWorkspacePage";
+import { AppSettingsPreferencesPage } from "@/pages/app/settings/AppSettingsPreferencesPage";
 import { ProfilePage } from "@/pages/app/ProfilePage";
-import { SettingsPage } from "@/pages/app/SettingsPage";
 
 import { PlatformDashboardPage } from "@/pages/platform/PlatformDashboardPage";
+import { PlatformAnalyticsPage } from "@/pages/platform/PlatformAnalyticsPage";
+import { PlatformSettingsPage } from "@/pages/platform/PlatformSettingsPage";
 import { PlatformTenantsPage } from "@/pages/platform/PlatformTenantsPage";
 import { TenantDetailPage } from "@/pages/platform/TenantDetailPage";
 
@@ -50,6 +57,7 @@ const router = createBrowserRouter([
         children: [
           { path: "login", element: <LoginPage /> },
           { path: "register", element: <RegisterCompanyPage /> },
+          { path: "register-company", element: <RegisterCompanyPage /> },
           { path: "session-expired", element: <SessionExpiredPage /> },
         ],
       },
@@ -148,8 +156,31 @@ const router = createBrowserRouter([
             ],
           },
 
+          {
+            element: <TenantRoleGuard allowedRoles={TENANT_MODULE_ACCESS.chat} />,
+            children: [
+              { path: "app/chat", element: <ChatPage /> },
+            ],
+          },
+
+          {
+            element: <TenantRoleGuard allowedRoles={TENANT_MODULE_ACCESS.analytics} />,
+            children: [
+              { path: "app/analytics", element: <AnalyticsPage /> },
+            ],
+          },
+
           { path: "app/profile", element: <ProfilePage /> },
-          { path: "app/settings", element: <SettingsPage /> },
+          {
+            path: "app/settings",
+            element: <AppSettingsLayoutPage />,
+            children: [
+              { index: true, element: <Navigate to="profile" replace /> },
+              { path: "profile", element: <AppSettingsProfilePage /> },
+              { path: "workspace", element: <AppSettingsWorkspacePage /> },
+              { path: "preferences", element: <AppSettingsPreferencesPage /> },
+            ],
+          },
           { path: "app/*", element: <ComingSoonPage /> },
         ],
       },
@@ -164,9 +195,11 @@ const router = createBrowserRouter([
         children: [
           { path: "platform", element: <Navigate to="/platform/dashboard" replace /> },
           { path: "platform/dashboard", element: <PlatformDashboardPage /> },
+          { path: "platform/analytics", element: <PlatformAnalyticsPage /> },
           { path: "platform/tenants", element: <PlatformTenantsPage /> },
           { path: "platform/tenants/:tenantKey", element: <TenantDetailPage /> },
           { path: "platform/profile", element: <ProfilePage /> },
+          { path: "platform/settings", element: <PlatformSettingsPage /> },
           { path: "platform/*", element: <ComingSoonPage /> },
         ],
       },

@@ -1,5 +1,6 @@
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuthStore } from "@/store/authStore";
+import { hasTenantRole } from "@/constants/access";
 import type { TenantRole } from "@/types";
 
 /* ─── Spinner shown while bootstrapping ─── */
@@ -94,7 +95,7 @@ export function TenantRoleGuard({ allowedRoles }: TenantRoleGuardProps) {
   if (sessionType !== "tenant") {
     return <Navigate to="/unauthorized" replace />;
   }
-  if (!user || !allowedRoles.includes(user.role as TenantRole)) {
+  if (!user || !hasTenantRole(user.role, allowedRoles)) {
     return <Navigate to="/unauthorized" replace />;
   }
 

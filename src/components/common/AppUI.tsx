@@ -172,12 +172,14 @@ export function QuickNavCard({
   icon,
   to,
   disabled,
+  disabledHint = "Coming Soon",
 }: {
   label:       string;
   description: string;
   icon:        ReactNode;
   to:          string;
   disabled?:   boolean;
+  disabledHint?: string;
 }) {
   if (disabled) {
     return (
@@ -194,7 +196,7 @@ export function QuickNavCard({
         <div>
           <div className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{label}</div>
           <div className="text-xs mt-0.5" style={{ color: "var(--text-secondary)" }}>{description}</div>
-          <span className="text-[10px] font-semibold text-primary-400 mt-1 inline-block">Coming Soon</span>
+          <span className="text-[10px] font-semibold text-primary-400 mt-1 inline-block">{disabledHint}</span>
         </div>
       </div>
     );

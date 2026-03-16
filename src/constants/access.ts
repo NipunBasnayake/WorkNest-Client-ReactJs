@@ -1,9 +1,23 @@
 import type { TenantRole } from "@/types";
 
-export const TENANT_ALL_ROLES: TenantRole[] = ["ADMIN", "MANAGER", "HR", "EMPLOYEE"];
-export const TENANT_MANAGERIAL_ROLES: TenantRole[] = ["ADMIN", "MANAGER"];
-export const TENANT_PEOPLE_ROLES: TenantRole[] = ["ADMIN", "MANAGER", "HR"];
-export const TENANT_COMMUNICATION_ROLES: TenantRole[] = ["ADMIN", "MANAGER", "HR"];
+export const TENANT_ADMIN_EQUIVALENT_ROLES: TenantRole[] = ["TENANT_ADMIN", "ADMIN"];
+
+export const TENANT_ALL_ROLES: TenantRole[] = ["TENANT_ADMIN", "ADMIN", "MANAGER", "HR", "EMPLOYEE"];
+export const TENANT_MANAGERIAL_ROLES: TenantRole[] = ["TENANT_ADMIN", "ADMIN", "MANAGER"];
+export const TENANT_PEOPLE_ROLES: TenantRole[] = ["TENANT_ADMIN", "ADMIN", "MANAGER", "HR"];
+export const TENANT_COMMUNICATION_ROLES: TenantRole[] = ["TENANT_ADMIN", "ADMIN", "MANAGER", "HR"];
+
+function normalizeTenantRole(role: string | null | undefined): string {
+  const normalized = (role ?? "").toUpperCase();
+  if (normalized === "TENANT_ADMIN") return "ADMIN";
+  return normalized;
+}
+
+export function hasTenantRole(userRole: string | null | undefined, allowedRoles: TenantRole[]): boolean {
+  const normalizedUserRole = normalizeTenantRole(userRole);
+  const normalizedAllowed = new Set(allowedRoles.map((role) => normalizeTenantRole(role)));
+  return normalizedAllowed.has(normalizedUserRole);
+}
 
 export const TENANT_MODULE_ACCESS: Record<
   | "employees"
@@ -13,15 +27,19 @@ export const TENANT_MODULE_ACCESS: Record<
   | "attendance"
   | "leave"
   | "announcements"
-  | "notifications",
+  | "notifications"
+  | "chat"
+  | "analytics",
   TenantRole[]
 > = {
-  employees: ["ADMIN", "MANAGER", "HR"],
-  teams: ["ADMIN", "MANAGER"],
-  projects: ["ADMIN", "MANAGER"],
-  tasks: ["ADMIN", "MANAGER", "HR", "EMPLOYEE"],
-  attendance: ["ADMIN", "MANAGER", "HR", "EMPLOYEE"],
-  leave: ["ADMIN", "MANAGER", "HR", "EMPLOYEE"],
-  announcements: ["ADMIN", "MANAGER", "HR", "EMPLOYEE"],
-  notifications: ["ADMIN", "MANAGER", "HR", "EMPLOYEE"],
+  employees: ["TENANT_ADMIN", "ADMIN", "MANAGER", "HR"],
+  teams: ["TENANT_ADMIN", "ADMIN", "MANAGER"],
+  projects: ["TENANT_ADMIN", "ADMIN", "MANAGER"],
+  tasks: ["TENANT_ADMIN", "ADMIN", "MANAGER", "HR", "EMPLOYEE"],
+  attendance: ["TENANT_ADMIN", "ADMIN", "MANAGER", "HR", "EMPLOYEE"],
+  leave: ["TENANT_ADMIN", "ADMIN", "MANAGER", "HR", "EMPLOYEE"],
+  announcements: ["TENANT_ADMIN", "ADMIN", "MANAGER", "HR", "EMPLOYEE"],
+  notifications: ["TENANT_ADMIN", "ADMIN", "MANAGER", "HR", "EMPLOYEE"],
+  chat: ["TENANT_ADMIN", "ADMIN", "MANAGER", "HR", "EMPLOYEE"],
+  analytics: ["TENANT_ADMIN", "ADMIN", "MANAGER", "HR"],
 };
