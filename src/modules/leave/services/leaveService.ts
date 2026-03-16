@@ -1,9 +1,9 @@
-import { tokenStorage } from "@/services/http/client";
-import { createNotification } from "@/modules/notifications/services/notificationService";
+import { apiClient } from "@/services/http/client";
+import { unwrapApiData } from "@/services/http/response";
+import { asRecord, extractList, firstDefined, getId, getNumber, getString, toIsoDate, toIsoDateTime } from "@/services/http/parsers";
+import { useAuthStore } from "@/store/authStore";
 import type { LeavePayload, LeaveRequest, LeaveStatus } from "@/modules/leave/types";
-
-const STORAGE_ROOT = "wn_mock_leave_requests";
-const LATENCY_MS = 220;
+import type { ApiResponse } from "@/types";
 
 interface ReviewPayload {
   reviewerId: string;
@@ -11,185 +11,113 @@ interface ReviewPayload {
   comment?: string;
 }
 
-function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+function normalizeLeaveStatus(value: unknown): LeaveStatus {
+  const status = getString(value)?.toUpperCase();
+  if (status === "APPROVED") return "APPROVED";
+  if (status === "REJECTED") return "REJECTED";
+  if (status === "CANCELLED") return "CANCELLED";
+  return "PENDING";
 }
 
-function randomId() {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return crypto.randomUUID();
-  }
-  return `leave_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+function normalizeLeave(input: unknown): LeaveRequest {
+  const value = asRecord(input);
+  return {
+    id: getId(firstDefined(value.id, value.leaveId)),
+    employeeId: getId(firstDefined(value.employeeId, value.requesterEmployeeId, asRecord(value.employee).id)),
+    employeeName: firstDefined(
+      getString(value.employeeName),
+      getString(value.requesterName),
+      getString(asRecord(value.employee).fullName),
+      getString(asRecord(value.employee).name)
+    ) ?? "Employee",
+    leaveType: (getString(firstDefined(value.leaveType, value.type))?.toUpperCase() ?? "ANNUAL") as LeaveRequest["leaveType"],
+    startDate: toIsoDate(firstDefined(value.startDate, value.fromDate)),
+    endDate: toIsoDate(firstDefined(value.endDate, value.toDate)),
+    reason: getString(value.reason) ?? "",
+    status: normalizeLeaveStatus(firstDefined(value.status, value.leaveStatus)),
+    reviewerId: firstDefined(
+      getString(value.reviewerId),
+      getString(value.approverEmployeeId),
+      getString(asRecord(value.reviewer).id)
+    ),
+    reviewerName: firstDefined(
+      getString(value.reviewerName),
+      getString(value.approverName),
+      getString(asRecord(value.reviewer).fullName),
+      getString(asRecord(value.reviewer).name)
+    ),
+    reviewComment: firstDefined(
+      getString(value.reviewComment),
+      getString(value.comment),
+      getString(value.approvalReason)
+    ),
+    createdAt: toIsoDateTime(firstDefined(value.createdAt, value.createdDate)),
+    updatedAt: toIsoDateTime(firstDefined(value.updatedAt, value.updatedDate, value.modifiedAt)),
+  };
 }
 
-function storageKey() {
-  const tenantKey = tokenStorage.getTenantKey() ?? "default";
-  return `${STORAGE_ROOT}_${tenantKey}`;
-}
-
-function seedLeaveRequests(): LeaveRequest[] {
-  const now = new Date().toISOString();
-  return [
-    {
-      id: randomId(),
-      employeeId: "seed_emp_1",
-      employeeName: "Asha Fernando",
-      leaveType: "ANNUAL",
-      startDate: new Date().toISOString().slice(0, 10),
-      endDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
-      reason: "Planned personal travel.",
-      status: "PENDING",
-      createdAt: now,
-      updatedAt: now,
-    },
-    {
-      id: randomId(),
-      employeeId: "seed_emp_2",
-      employeeName: "Nimal Silva",
-      leaveType: "SICK",
-      startDate: new Date().toISOString().slice(0, 10),
-      endDate: new Date().toISOString().slice(0, 10),
-      reason: "Medical rest advised.",
-      status: "APPROVED",
-      reviewerId: "seed_admin",
-      reviewerName: "Workspace Admin",
-      createdAt: now,
-      updatedAt: now,
-    },
-  ];
-}
-
-function readLeaveRequests(): LeaveRequest[] {
-  const key = storageKey();
-  const raw = localStorage.getItem(key);
-
-  if (!raw) {
-    const seeded = seedLeaveRequests();
-    localStorage.setItem(key, JSON.stringify(seeded));
-    return seeded;
-  }
-
-  try {
-    const parsed = JSON.parse(raw) as LeaveRequest[];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-function writeLeaveRequests(requests: LeaveRequest[]) {
-  localStorage.setItem(storageKey(), JSON.stringify(requests));
-}
-
-async function notifyLeaveUpdate(title: string, message: string, link?: string) {
-  try {
-    await createNotification({ type: "LEAVE_UPDATE", title, message, link });
-  } catch {
-    // Notification failures should not block leave actions.
-  }
+function isReviewerRole(role?: string): boolean {
+  const normalized = role?.toUpperCase();
+  return normalized === "TENANT_ADMIN" || normalized === "ADMIN" || normalized === "MANAGER" || normalized === "HR";
 }
 
 export async function getLeaveRequests(): Promise<LeaveRequest[]> {
-  await sleep(LATENCY_MS);
-  return readLeaveRequests().sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const role = useAuthStore.getState().user?.role;
+  if (isReviewerRole(typeof role === "string" ? role : undefined)) {
+    const { data } = await apiClient.get<ApiResponse<unknown> | unknown>("/api/tenant/leaves/paged", {
+      params: { page: 0, size: 100, sortBy: "createdAt", sortDir: "desc" },
+    });
+    return extractList(unwrapApiData<unknown>(data)).map(normalizeLeave);
+  }
+
+  const { data } = await apiClient.get<ApiResponse<unknown> | unknown>("/api/tenant/leaves/my");
+  return extractList(unwrapApiData<unknown>(data)).map(normalizeLeave);
 }
 
 export async function getLeaveRequestById(id: string): Promise<LeaveRequest> {
-  await sleep(LATENCY_MS);
-  const request = readLeaveRequests().find((item) => item.id === id);
-  if (!request) throw new Error("Leave request not found");
-  return request;
+  const { data } = await apiClient.get<ApiResponse<unknown> | unknown>(`/api/tenant/leaves/${id}`);
+  return normalizeLeave(unwrapApiData<unknown>(data));
 }
 
 export async function createLeaveRequest(payload: LeavePayload): Promise<LeaveRequest> {
-  await sleep(LATENCY_MS);
-
-  const now = new Date().toISOString();
-  const request: LeaveRequest = {
-    id: randomId(),
-    employeeId: payload.employeeId,
-    employeeName: payload.employeeName,
+  const { data } = await apiClient.post<ApiResponse<unknown> | unknown>("/api/tenant/leaves/apply", {
     leaveType: payload.leaveType,
     startDate: payload.startDate,
     endDate: payload.endDate,
     reason: payload.reason.trim(),
-    status: "PENDING",
-    createdAt: now,
-    updatedAt: now,
-  };
-
-  const next = [request, ...readLeaveRequests()];
-  writeLeaveRequests(next);
-  await notifyLeaveUpdate("Leave request submitted", `${request.employeeName} submitted a leave request.`, `/app/leave/${request.id}`);
-  return request;
+  });
+  return normalizeLeave(unwrapApiData<unknown>(data));
 }
 
 export async function updateLeaveRequest(id: string, payload: Omit<LeavePayload, "employeeId" | "employeeName">): Promise<LeaveRequest> {
-  await sleep(LATENCY_MS);
-
-  const requests = readLeaveRequests();
-  const index = requests.findIndex((item) => item.id === id);
-  if (index < 0) throw new Error("Leave request not found");
-  if (requests[index].status !== "PENDING") throw new Error("Only pending leave requests can be edited.");
-
-  const next: LeaveRequest = {
-    ...requests[index],
+  const { data } = await apiClient.put<ApiResponse<unknown> | unknown>(`/api/tenant/leaves/${id}`, {
     leaveType: payload.leaveType,
     startDate: payload.startDate,
     endDate: payload.endDate,
     reason: payload.reason.trim(),
-    updatedAt: new Date().toISOString(),
-  };
-
-  requests[index] = next;
-  writeLeaveRequests(requests);
-  await notifyLeaveUpdate("Leave request updated", `${next.employeeName} updated a leave request.`, `/app/leave/${next.id}`);
-  return next;
+  });
+  return normalizeLeave(unwrapApiData<unknown>(data));
 }
 
 export async function cancelLeaveRequest(id: string): Promise<LeaveRequest> {
-  await sleep(LATENCY_MS);
-
-  const requests = readLeaveRequests();
-  const index = requests.findIndex((item) => item.id === id);
-  if (index < 0) throw new Error("Leave request not found");
-  if (requests[index].status !== "PENDING") throw new Error("Only pending leave requests can be cancelled.");
-
-  const next: LeaveRequest = {
-    ...requests[index],
-    status: "CANCELLED",
-    updatedAt: new Date().toISOString(),
-  };
-
-  requests[index] = next;
-  writeLeaveRequests(requests);
-  await notifyLeaveUpdate("Leave request cancelled", `${next.employeeName} cancelled a leave request.`, `/app/leave/${next.id}`);
-  return next;
+  void id;
+  throw new Error("Leave cancellation endpoint is not available in the current backend API.");
 }
 
-export async function reviewLeaveRequest(id: string, status: Extract<LeaveStatus, "APPROVED" | "REJECTED">, review: ReviewPayload): Promise<LeaveRequest> {
-  await sleep(LATENCY_MS);
+export async function reviewLeaveRequest(
+  id: string,
+  status: Extract<LeaveStatus, "APPROVED" | "REJECTED">,
+  review: ReviewPayload
+): Promise<LeaveRequest> {
+  const endpoint = status === "APPROVED" ? "approve" : "reject";
+  const approverEmployeeId = getNumber(review.reviewerId) ?? review.reviewerId;
 
-  const requests = readLeaveRequests();
-  const index = requests.findIndex((item) => item.id === id);
-  if (index < 0) throw new Error("Leave request not found");
-  if (requests[index].status !== "PENDING") throw new Error("Only pending leave requests can be reviewed.");
-
-  const next: LeaveRequest = {
-    ...requests[index],
-    status,
-    reviewerId: review.reviewerId,
-    reviewerName: review.reviewerName,
-    reviewComment: review.comment?.trim() || undefined,
-    updatedAt: new Date().toISOString(),
-  };
-
-  requests[index] = next;
-  writeLeaveRequests(requests);
-  await notifyLeaveUpdate(
-    status === "APPROVED" ? "Leave approved" : "Leave rejected",
-    `${next.employeeName}'s leave request is now ${status.toLowerCase()}.`,
-    `/app/leave/${next.id}`
+  const { data } = await apiClient.post<ApiResponse<unknown> | unknown>(
+    `/api/tenant/leaves/${id}/${endpoint}`,
+    {
+      approverEmployeeId,
+      reason: review.comment?.trim() || `${status} by ${review.reviewerName}`,
+    }
   );
-  return next;
+  return normalizeLeave(unwrapApiData<unknown>(data));
 }

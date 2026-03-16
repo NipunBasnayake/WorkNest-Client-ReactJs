@@ -3,7 +3,9 @@ import { useParams } from "react-router-dom";
 import { ArrowLeft, Users, UserCircle2, BriefcaseBusiness } from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { getTeamById } from "@/modules/teams/services/teamService";
-import { getEmployeesApi } from "@/services/api/employeeApi";
+import { getEmployees } from "@/modules/employees/services/employeeService";
+import { getProjects } from "@/modules/projects/services/projectService";
+import { getTasks } from "@/modules/tasks/services/taskService";
 import { getEmployeeDisplayName } from "@/modules/employees/utils/employeeMapper";
 import { SectionCard } from "@/components/common/SectionCard";
 import { Button } from "@/components/common/Button";
@@ -12,6 +14,8 @@ import { AvatarInitials } from "@/components/common/AvatarInitials";
 import { EmptyState, ErrorBanner } from "@/components/common/AppUI";
 import type { Team } from "@/modules/teams/types";
 import type { Employee } from "@/types";
+import type { Project } from "@/modules/projects/types";
+import type { Task } from "@/modules/tasks/types";
 
 export function TeamDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -19,6 +23,8 @@ export function TeamDetailPage() {
 
   const [team, setTeam] = useState<Team | null>(null);
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(Boolean(id));
   const [error, setError] = useState<string | null>(null);
   const resolvedError = !id ? "Invalid team id." : error;
@@ -28,11 +34,18 @@ export function TeamDetailPage() {
 
     let active = true;
 
-    Promise.all([getTeamById(id), getEmployeesApi().catch(() => [])])
-      .then(([teamRes, employeeRes]) => {
+    Promise.all([
+      getTeamById(id),
+      getEmployees().catch(() => []),
+      getProjects().catch(() => []),
+      getTasks().catch(() => []),
+    ])
+      .then(([teamRes, employeeRes, projectRes, taskRes]) => {
         if (!active) return;
         setTeam(teamRes);
         setEmployees(employeeRes);
+        setProjects(projectRes);
+        setTasks(taskRes);
       })
       .catch(() => {
         if (active) setError("Unable to load team details.");
@@ -63,6 +76,17 @@ export function TeamDetailPage() {
       };
     });
   }, [employeeMap, team]);
+
+  const assignedProjects = useMemo(() => {
+    if (!team) return [];
+    return projects.filter((project) => project.teamIds.includes(team.id));
+  }, [projects, team]);
+
+  const teamTasks = useMemo(() => {
+    if (!team) return [];
+    const memberSet = new Set(team.memberIds);
+    return tasks.filter((task) => (task.assigneeId ? memberSet.has(task.assigneeId) : false));
+  }, [tasks, team]);
 
   return (
     <div className="space-y-6">
@@ -133,10 +157,40 @@ export function TeamDetailPage() {
             <SectionCard title="Workspace Scope">
               <div className="flex items-center gap-2 text-sm" style={{ color: "var(--text-secondary)" }}>
                 <BriefcaseBusiness size={16} style={{ color: "var(--color-primary-500)" }} />
-                Team module ready for projects/tasks linking.
+                {assignedProjects.length} linked project{assignedProjects.length === 1 ? "" : "s"} and {teamTasks.length} assigned task{teamTasks.length === 1 ? "" : "s"}.
               </div>
             </SectionCard>
           </div>
+
+          <SectionCard title="Assigned Projects" subtitle="Projects currently linked to this team.">
+            {assignedProjects.length === 0 && (
+              <EmptyState
+                icon={<BriefcaseBusiness size={22} />}
+                title="No projects linked"
+                description="Assign this team to projects to activate cross-module workflow."
+              />
+            )}
+
+            {assignedProjects.length > 0 && (
+              <div className="space-y-2">
+                {assignedProjects.map((project) => (
+                  <div key={project.id} className="flex items-center justify-between gap-2 rounded-xl border px-3 py-2" style={{ borderColor: "var(--border-default)" }}>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+                        {project.name}
+                      </p>
+                      <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
+                        {project.status.replace("_", " ")}
+                      </p>
+                    </div>
+                    <Button size="sm" variant="ghost" to={`/app/projects/${project.id}`}>
+                      View
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </SectionCard>
 
           <SectionCard title="Team Members" subtitle="Current members assigned to this team.">
             {members.length === 0 && (

@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Building2, ChevronRight, Search, ExternalLink } from "lucide-react";
 import { Link } from "react-router-dom";
 import { usePageMeta } from "@/hooks/usePageMeta";
-import { getTenantsApi } from "@/services/api/platformApi";
+import { getPlatformTenants } from "@/modules/platform/services/platformTenantService";
 import { EmptyState, ErrorBanner, SkeletonRow } from "@/components/common/AppUI";
 import type { Tenant } from "@/types";
 
@@ -20,43 +20,22 @@ export function PlatformTenantsPage() {
   const [error,    setError]    = useState<string | null>(null);
   const [search,   setSearch]   = useState("");
 
-  async function fetchTenants() {
+  const fetchTenants = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await getTenantsApi();
+      const data = await getPlatformTenants();
       setTenants(data);
     } catch {
       setError("Failed to load tenants. Please try again.");
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
   useEffect(() => {
-    let active = true;
-
-    (async () => {
-      try {
-        const data = await getTenantsApi();
-        if (active) {
-          setTenants(data);
-        }
-      } catch {
-        if (active) {
-          setError("Failed to load tenants. Please try again.");
-        }
-      } finally {
-        if (active) {
-          setLoading(false);
-        }
-      }
-    })();
-
-    return () => {
-      active = false;
-    };
-  }, []);
+    fetchTenants();
+  }, [fetchTenants]);
 
   const filtered = tenants.filter((t) => {
     const q = search.toLowerCase();

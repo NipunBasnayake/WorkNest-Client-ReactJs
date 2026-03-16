@@ -2,14 +2,14 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, UserPlus } from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
-import { createEmployeeApi, getEmployeeByIdApi, updateEmployeeApi } from "@/services/api/employeeApi";
+import { createEmployee, getEmployeeById, updateEmployee } from "@/modules/employees/services/employeeService";
 import { SectionCard } from "@/components/common/SectionCard";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/common/Button";
 import { ErrorBanner } from "@/components/common/AppUI";
 import { EmployeeForm } from "@/modules/employees/components/EmployeeForm";
 import { DEFAULT_EMPLOYEE_FORM, validateEmployeeForm } from "@/modules/employees/schemas/employeeForm";
-import { toEmployeeFormValues, toEmployeePayload } from "@/modules/employees/utils/employeeMapper";
+import { generateEmployeeCode, toEmployeeFormValues, toEmployeePayload } from "@/modules/employees/utils/employeeMapper";
 import type { EmployeeFormErrors, EmployeeFormValues } from "@/modules/employees/types";
 
 export function EmployeeFormPage() {
@@ -22,7 +22,10 @@ export function EmployeeFormPage() {
     breadcrumb: ["Workspace", "Employees", isEdit ? "Edit" : "Create"],
   });
 
-  const [form, setForm] = useState<EmployeeFormValues>(DEFAULT_EMPLOYEE_FORM);
+  const [form, setForm] = useState<EmployeeFormValues>(() => ({
+    ...DEFAULT_EMPLOYEE_FORM,
+    employeeCode: generateEmployeeCode(),
+  }));
   const [errors, setErrors] = useState<EmployeeFormErrors>({});
   const [loading, setLoading] = useState(isEdit);
   const [submitting, setSubmitting] = useState(false);
@@ -34,7 +37,7 @@ export function EmployeeFormPage() {
 
     let active = true;
     setLoading(true);
-    getEmployeeByIdApi(id)
+    getEmployeeById(id)
       .then((res) => {
         if (active) setForm(toEmployeeFormValues(res));
       })
@@ -62,10 +65,10 @@ export function EmployeeFormPage() {
     try {
       const payload = toEmployeePayload(form);
       if (id) {
-        await updateEmployeeApi(id, payload);
+        await updateEmployee(id, payload);
         setMessage("Employee details updated successfully.");
       } else {
-        await createEmployeeApi(payload);
+        await createEmployee(payload);
         setMessage("Employee created successfully.");
       }
 

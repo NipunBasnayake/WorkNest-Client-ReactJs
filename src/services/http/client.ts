@@ -129,6 +129,7 @@ apiClient.interceptors.response.use(
       isRefreshing = true;
 
       const refreshToken = tokenStorage.getRefresh();
+      const tenantKey = tokenStorage.getTenantKey();
       if (!refreshToken) {
         processQueue(error, null);
         isRefreshing = false;
@@ -139,7 +140,10 @@ apiClient.interceptors.response.use(
       try {
         const { data } = await publicClient.post<ApiResponse<RefreshResponse> | RefreshResponse>(
           "/api/auth/refresh",
-          { refreshToken }
+          {
+            refreshToken,
+            ...(tenantKey ? { tenantKey } : {}),
+          }
         );
 
         const parsed = unwrapApiData<RefreshResponse>(data);

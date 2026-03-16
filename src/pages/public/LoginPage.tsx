@@ -29,11 +29,14 @@ export function LoginPage() {
   const navigate  = useNavigate();
   const location  = useLocation();
   const { login, isLoading, error, clearError } = useAuth();
+  const queryParams = new URLSearchParams(location.search);
+  const initialTenantKey = queryParams.get("tenant") ?? "";
+  const initialEmail = queryParams.get("email") ?? "";
 
   const [mode,        setMode]        = useState<LoginMode>("tenant");
-  const [email,       setEmail]       = useState("");
+  const [email,       setEmail]       = useState(initialEmail);
   const [password,    setPassword]    = useState("");
-  const [tenantKey,   setTenantKey]   = useState("");
+  const [tenantKey,   setTenantKey]   = useState(initialTenantKey);
   const [showPwd,     setShowPwd]     = useState(false);
   const [errors,      setErrors]      = useState<FormErrors>({});
 
@@ -312,7 +315,7 @@ export function LoginPage() {
             >
               Don&apos;t have an account?{" "}
               <Link
-                to="/register"
+                to="/register-company"
                 className="font-semibold text-primary-600 dark:text-primary-400 no-underline hover:text-primary-700 transition-colors"
               >
                 Register your company

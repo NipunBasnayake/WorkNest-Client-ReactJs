@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Building2, Mail, Phone, Search, Trash2, UserPlus, Users } from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
-import { deleteEmployeeApi, getEmployeesApi } from "@/services/api/employeeApi";
+import { deleteEmployee, getEmployees } from "@/modules/employees/services/employeeService";
 import { EmptyState, ErrorBanner, SkeletonRow } from "@/components/common/AppUI";
 import { Button } from "@/components/common/Button";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -27,7 +27,7 @@ export function EmployeesPage() {
   function fetchEmployees() {
     setLoading(true);
     setError(null);
-    getEmployeesApi()
+    getEmployees()
       .then((data) => setEmployees(data.map(toEmployeeViewModel)))
       .catch(() => setError("Failed to load employees. Please check your connection and try again."))
       .finally(() => setLoading(false));
@@ -70,7 +70,7 @@ export function EmployeesPage() {
     setFeedback(null);
 
     try {
-      await deleteEmployeeApi(deleteTarget.id);
+      await deleteEmployee(deleteTarget.id);
       setEmployees((prev) => prev.filter((item) => item.id !== deleteTarget.id));
       setFeedback("Employee removed successfully.");
       setDeleteTarget(null);

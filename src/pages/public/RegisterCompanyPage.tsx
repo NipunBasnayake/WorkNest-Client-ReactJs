@@ -1,9 +1,10 @@
 import { useState, type FormEvent } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Building2, User, Eye, EyeOff, ArrowRight } from "lucide-react";
 import { Logo } from "@/components/common/Logo";
 import { Button } from "@/components/common/Button";
 import { Input } from "@/components/common/Input";
+import { registerTenantPublicApi } from "@/services/api/platformApi";
 
 
 interface FormData {
@@ -40,13 +41,19 @@ const STEPS_INFO = [
 ];
 
 export function RegisterCompanyPage() {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [errors, setErrors] = useState<FormErrors>({});
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [serverError, setServerError] = useState<string | null>(null);
+  const [serverMessage, setServerMessage] = useState<string | null>(null);
 
   function updateField(field: keyof FormData, value: string) {
     setFormData((prev) => ({ ...prev, [field]: value }));
+    setServerError(null);
+    setServerMessage(null);
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: undefined }));
     }
@@ -72,10 +79,30 @@ export function RegisterCompanyPage() {
     return Object.keys(e).length === 0;
   }
 
-  function handleSubmit(ev: FormEvent) {
+  async function handleSubmit(ev: FormEvent) {
     ev.preventDefault();
     if (!validate()) return;
-    console.log("Register submitted:", formData);
+
+    setSubmitting(true);
+    setServerError(null);
+    setServerMessage(null);
+
+    try {
+      await registerTenantPublicApi({
+        companyName: formData.companyName.trim(),
+        tenantKey: formData.workspaceKey.trim(),
+        adminFullName: formData.adminName.trim(),
+        adminEmail: formData.adminEmail.trim(),
+        adminPassword: formData.password,
+      });
+
+      setServerMessage("Workspace registration completed. You can now sign in.");
+      navigate(`/login?tenant=${encodeURIComponent(formData.workspaceKey.trim())}&email=${encodeURIComponent(formData.adminEmail.trim())}`);
+    } catch (error: unknown) {
+      setServerError(extractMessage(error) ?? "Unable to register workspace right now. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -145,6 +172,24 @@ export function RegisterCompanyPage() {
               Set up your company on WorkNest in minutes &mdash; no credit card required.
             </p>
           </div>
+
+          {serverMessage && (
+            <div
+              className="mb-4 rounded-xl border px-4 py-3 text-sm"
+              style={{ borderColor: "rgba(16,185,129,0.3)", backgroundColor: "rgba(16,185,129,0.08)", color: "#10b981" }}
+            >
+              {serverMessage}
+            </div>
+          )}
+
+          {serverError && (
+            <div
+              className="mb-4 rounded-xl border px-4 py-3 text-sm"
+              style={{ borderColor: "rgba(239,68,68,0.3)", backgroundColor: "rgba(239,68,68,0.08)", color: "#ef4444" }}
+            >
+              {serverError}
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-6" noValidate>
             {/* Company section */}
@@ -290,9 +335,10 @@ export function RegisterCompanyPage() {
               variant="primary"
               size="lg"
               className="w-full shadow-lg! shadow-primary-500/25!"
+              disabled={submitting}
             >
-              Create Workspace
-              <ArrowRight size={18} />
+              {submitting ? "Creating Workspace..." : "Create Workspace"}
+              {!submitting && <ArrowRight size={18} />}
             </Button>
           </form>
 
@@ -317,4 +363,12 @@ export function RegisterCompanyPage() {
       </div>
     </div>
   );
+}
+
+function extractMessage(error: unknown): string | null {
+  if (typeof error === "object" && error !== null) {
+    const value = error as { response?: { data?: { message?: string } }; message?: string };
+    return value.response?.data?.message ?? value.message ?? null;
+  }
+  return null;
 }

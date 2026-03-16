@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Search } from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
-import { getTasks } from "@/modules/tasks/services/taskService";
+import { getTasks, updateTaskStatus } from "@/modules/tasks/services/taskService";
 import { KanbanColumn } from "@/modules/tasks/components/KanbanColumn";
 import { TASK_STATUS_OPTIONS, type Task } from "@/modules/tasks/types";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -12,9 +12,9 @@ import { EmptyState, ErrorBanner } from "@/components/common/AppUI";
 const BOARD_LABELS: Record<typeof TASK_STATUS_OPTIONS[number], string> = {
   TODO: "Backlog",
   IN_PROGRESS: "In Progress",
-  REVIEW: "In Review",
-  COMPLETED: "Done",
+  IN_REVIEW: "In Review",
   BLOCKED: "Blocked",
+  DONE: "Done",
 };
 
 export function TaskBoardPage() {
@@ -24,6 +24,8 @@ export function TaskBoardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [movingTaskId, setMovingTaskId] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<string | null>(null);
 
   async function fetchTasks() {
     setLoading(true);
@@ -58,11 +60,28 @@ export function TaskBoardPage() {
     }, {
       TODO: [],
       IN_PROGRESS: [],
-      REVIEW: [],
-      COMPLETED: [],
+      IN_REVIEW: [],
       BLOCKED: [],
+      DONE: [],
     });
   }, [filtered]);
+
+  async function handleMoveTask(taskId: string, nextStatus: typeof TASK_STATUS_OPTIONS[number]) {
+    const current = tasks.find((task) => task.id === taskId);
+    if (!current || current.status === nextStatus) return;
+
+    setMovingTaskId(taskId);
+    setFeedback(null);
+    try {
+      const updated = await updateTaskStatus(taskId, nextStatus);
+      setTasks((prev) => prev.map((task) => (task.id === taskId ? updated : task)));
+      setFeedback(`Task moved to ${BOARD_LABELS[nextStatus]}.`);
+    } catch {
+      setFeedback("Unable to move task right now.");
+    } finally {
+      setMovingTaskId(null);
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -93,6 +112,19 @@ export function TaskBoardPage() {
 
       {error && <ErrorBanner message={error} onRetry={fetchTasks} />}
 
+      {feedback && (
+        <div
+          className="rounded-xl border px-4 py-3 text-sm"
+          style={{
+            borderColor: feedback.toLowerCase().includes("unable") ? "rgba(239,68,68,0.25)" : "rgba(16,185,129,0.25)",
+            backgroundColor: feedback.toLowerCase().includes("unable") ? "rgba(239,68,68,0.06)" : "rgba(16,185,129,0.08)",
+            color: feedback.toLowerCase().includes("unable") ? "#ef4444" : "#10b981",
+          }}
+        >
+          {feedback}
+        </div>
+      )}
+
       {loading && (
         <SectionCard>
           <div className="h-64 animate-pulse rounded-xl" style={{ backgroundColor: "var(--bg-muted)" }} />
@@ -111,7 +143,14 @@ export function TaskBoardPage() {
         <div className="overflow-x-auto pb-2">
           <div className="flex min-w-max gap-4">
             {TASK_STATUS_OPTIONS.map((status) => (
-              <KanbanColumn key={status} status={status} title={BOARD_LABELS[status]} tasks={grouped[status]} />
+              <KanbanColumn
+                key={status}
+                status={status}
+                title={BOARD_LABELS[status]}
+                tasks={grouped[status]}
+                onMoveTask={handleMoveTask}
+                movingTaskId={movingTaskId}
+              />
             ))}
           </div>
         </div>

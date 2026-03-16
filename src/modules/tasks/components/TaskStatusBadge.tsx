@@ -17,23 +17,23 @@ const STATUS_STYLE: Record<TaskStatus, { bg: string; text: string; dot: string; 
     dot: "#9332EA",
     label: "In Progress",
   },
-  REVIEW: {
+  IN_REVIEW: {
     bg: "rgba(245,158,11,0.12)",
     text: "#d97706",
     dot: "#d97706",
-    label: "Review",
-  },
-  COMPLETED: {
-    bg: "rgba(16,185,129,0.12)",
-    text: "#10b981",
-    dot: "#10b981",
-    label: "Completed",
+    label: "In Review",
   },
   BLOCKED: {
     bg: "rgba(239,68,68,0.12)",
     text: "#ef4444",
     dot: "#ef4444",
     label: "Blocked",
+  },
+  DONE: {
+    bg: "rgba(16,185,129,0.12)",
+    text: "#10b981",
+    dot: "#10b981",
+    label: "Done",
   },
 };
 

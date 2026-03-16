@@ -40,7 +40,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   login: async (payload: LoginPayload) => {
     set({ isLoading: true, error: null });
     try {
-      const { tokens } = await loginApi(payload);
+      const { tokens, user: loginUser } = await loginApi(payload);
 
       const sessionType: SessionType = payload.tenantKey ? "tenant" : "platform";
       const tenantKey = payload.tenantKey ?? null;
@@ -48,8 +48,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       tokenStorage.setTokens(tokens.accessToken, tokens.refreshToken);
       tokenStorage.setContext(tenantKey, sessionType);
 
-      // Fetch full user info from /api/auth/me
-      const user = await getMeApi();
+      const user = loginUser ?? await getMeApi();
       const resolvedSession = deriveSessionType(user);
       const resolvedTenantKey = user.tenantKey ?? tenantKey;
 
@@ -75,9 +74,10 @@ export const useAuthStore = create<AuthState>((set) => ({
   /* ── Logout ── */
   logout: async () => {
     const refreshToken = tokenStorage.getRefresh();
+    const tenantKey = tokenStorage.getTenantKey();
     try {
       if (refreshToken) {
-        await logoutApi(refreshToken);
+        await logoutApi(refreshToken, tenantKey);
       }
     } catch {
       // Even if logout API fails, clear locally
@@ -96,9 +96,10 @@ export const useAuthStore = create<AuthState>((set) => ({
   /* ── Bootstrap — restore session on app load ── */
   bootstrap: async () => {
     set({ isBootstrapping: true });
+    const accessToken = tokenStorage.getAccess();
     const refreshToken = tokenStorage.getRefresh();
 
-    if (!refreshToken) {
+    if (!accessToken && !refreshToken) {
       tokenStorage.clear();
       set({ isBootstrapping: false, isAuthenticated: false });
       return;

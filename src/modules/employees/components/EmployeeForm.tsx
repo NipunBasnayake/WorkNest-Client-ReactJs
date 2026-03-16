@@ -32,6 +32,42 @@ export function EmployeeForm({
     >
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <Input
+          id="employee-code"
+          label="Employee Code"
+          value={values.employeeCode}
+          onChange={(e) => onChange({ ...values, employeeCode: e.target.value.toUpperCase() })}
+          error={errors.employeeCode}
+          placeholder="EMP-1001"
+        />
+        <div className="flex flex-col gap-1.5">
+          <label
+            htmlFor="employee-role"
+            className="text-sm font-medium"
+            style={{ color: "var(--text-secondary)" }}
+          >
+            Role
+          </label>
+          <select
+            id="employee-role"
+            value={values.role}
+            onChange={(e) => onChange({ ...values, role: e.target.value as EmployeeFormValues["role"] })}
+            className="w-full rounded-xl border px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/60"
+            style={{
+              backgroundColor: "var(--bg-surface)",
+              borderColor: "var(--border-default)",
+              color: "var(--text-primary)",
+            }}
+          >
+            <option value="EMPLOYEE">Employee</option>
+            <option value="HR">HR</option>
+            <option value="MANAGER">Manager</option>
+            <option value="ADMIN">Admin</option>
+          </select>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <Input
           id="employee-first-name"
           label="First Name"
           value={values.firstName}
@@ -85,6 +121,27 @@ export function EmployeeForm({
           onChange={(e) => onChange({ ...values, department: e.target.value })}
           error={errors.department}
           placeholder="Engineering"
+        />
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <Input
+          id="employee-password"
+          type="password"
+          label="Temporary Password"
+          value={values.password}
+          onChange={(e) => onChange({ ...values, password: e.target.value })}
+          error={errors.password}
+          hint="Optional when editing. Leave blank to keep existing password."
+          placeholder="Min 8 characters"
+        />
+        <Input
+          id="employee-joined-date"
+          type="date"
+          label="Joined Date"
+          value={values.joinedDate}
+          onChange={(e) => onChange({ ...values, joinedDate: e.target.value })}
+          error={errors.joinedDate}
         />
       </div>
 

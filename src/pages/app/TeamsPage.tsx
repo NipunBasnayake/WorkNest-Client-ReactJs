@@ -1,13 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { Search, Trash2, Users, UserPlus2 } from "lucide-react";
+import { Search, Users, UserPlus2 } from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
-import { getTeams, deleteTeam } from "@/modules/teams/services/teamService";
+import { getTeams } from "@/modules/teams/services/teamService";
 import { SectionCard } from "@/components/common/SectionCard";
 import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState, ErrorBanner, SkeletonRow } from "@/components/common/AppUI";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { Button } from "@/components/common/Button";
-import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import type { Team } from "@/modules/teams/types";
 
 export function TeamsPage() {
@@ -16,22 +15,24 @@ export function TeamsPage() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [feedback, setFeedback] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  const [deleteTarget, setDeleteTarget] = useState<Team | null>(null);
-  const [deleting, setDeleting] = useState(false);
 
-  function fetchTeams() {
+  async function fetchTeams() {
+    await Promise.resolve();
     setLoading(true);
     setError(null);
-    getTeams()
-      .then(setTeams)
-      .catch(() => setError("Failed to load teams."))
-      .finally(() => setLoading(false));
+    try {
+      const response = await getTeams();
+      setTeams(response);
+    } catch {
+      setError("Failed to load teams.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
-    fetchTeams();
+    void fetchTeams();
   }, []);
 
   const filtered = useMemo(() => {
@@ -40,23 +41,6 @@ export function TeamsPage() {
       return !q || [team.name, team.description, team.managerName].some((value) => value?.toLowerCase().includes(q));
     });
   }, [search, teams]);
-
-  async function handleDelete() {
-    if (!deleteTarget) return;
-    setDeleting(true);
-    setFeedback(null);
-
-    try {
-      await deleteTeam(deleteTarget.id);
-      setTeams((prev) => prev.filter((item) => item.id !== deleteTarget.id));
-      setDeleteTarget(null);
-      setFeedback("Team deleted successfully.");
-    } catch {
-      setFeedback("Could not delete team right now.");
-    } finally {
-      setDeleting(false);
-    }
-  }
 
   return (
     <div className="space-y-6">
@@ -84,19 +68,6 @@ export function TeamsPage() {
           />
         </div>
       </SectionCard>
-
-      {feedback && (
-        <div
-          className="rounded-xl border px-4 py-3 text-sm"
-          style={{
-            borderColor: feedback.toLowerCase().includes("could") ? "rgba(239,68,68,0.25)" : "rgba(16,185,129,0.25)",
-            backgroundColor: feedback.toLowerCase().includes("could") ? "rgba(239,68,68,0.06)" : "rgba(16,185,129,0.08)",
-            color: feedback.toLowerCase().includes("could") ? "#ef4444" : "#10b981",
-          }}
-        >
-          {feedback}
-        </div>
-      )}
 
       {error && <ErrorBanner message={error} onRetry={fetchTeams} />}
 
@@ -142,9 +113,6 @@ export function TeamsPage() {
                   <div className="flex items-center justify-end gap-1.5">
                     <Button variant="ghost" size="sm" to={`/app/teams/${team.id}`}>View</Button>
                     <Button variant="outline" size="sm" to={`/app/teams/${team.id}/edit`}>Edit</Button>
-                    <Button variant="danger" size="sm" onClick={() => setDeleteTarget(team)}>
-                      <Trash2 size={14} />
-                    </Button>
                   </div>
                 </div>
               ))}
@@ -170,10 +138,6 @@ export function TeamsPage() {
                   <div className="mt-4 flex flex-wrap gap-2">
                     <Button variant="ghost" size="sm" to={`/app/teams/${team.id}`}>View</Button>
                     <Button variant="outline" size="sm" to={`/app/teams/${team.id}/edit`}>Edit</Button>
-                    <Button variant="danger" size="sm" onClick={() => setDeleteTarget(team)}>
-                      <Trash2 size={14} />
-                      Delete
-                    </Button>
                   </div>
                 </article>
               ))}
@@ -181,16 +145,6 @@ export function TeamsPage() {
           </>
         )}
       </SectionCard>
-
-      <ConfirmDialog
-        open={Boolean(deleteTarget)}
-        title="Delete team?"
-        description={`This action removes ${deleteTarget?.name ?? "this team"} from your workspace.`}
-        confirmLabel="Delete Team"
-        loading={deleting}
-        onCancel={() => setDeleteTarget(null)}
-        onConfirm={handleDelete}
-      />
     </div>
   );
 }

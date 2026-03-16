@@ -1,118 +1,43 @@
-import { tokenStorage } from "@/services/http/client";
-import { createNotification } from "@/modules/notifications/services/notificationService";
-import type { AttendanceActor, AttendanceRecord, AttendanceSummary, AttendanceStatus } from "@/modules/attendance/types";
+import { apiClient } from "@/services/http/client";
+import { unwrapApiData } from "@/services/http/response";
+import { asRecord, extractList, firstDefined, getId, getNumber, getString, toIsoDate } from "@/services/http/parsers";
+import type { AttendanceActor, AttendanceRecord, AttendanceStatus, AttendanceSummary } from "@/modules/attendance/types";
+import type { ApiResponse } from "@/types";
 
-const STORAGE_ROOT = "wn_mock_attendance";
-const LATENCY_MS = 180;
-
-function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+function statusFrom(value: unknown): AttendanceStatus {
+  const normalized = getString(value)?.toUpperCase();
+  if (normalized === "LATE") return "LATE";
+  if (normalized === "ABSENT") return "ABSENT";
+  if (normalized === "HALF_DAY") return "HALF_DAY";
+  return "PRESENT";
 }
 
-function randomId() {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return crypto.randomUUID();
-  }
-  return `attendance_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+function normalizeRecord(input: unknown): AttendanceRecord {
+  const value = asRecord(input);
+  const checkIn = firstDefined(getString(value.checkIn), getString(value.checkInTime));
+  const checkOut = firstDefined(getString(value.checkOut), getString(value.checkOutTime));
+
+  return {
+    id: getId(firstDefined(value.id, value.attendanceId)),
+    employeeId: getId(firstDefined(value.employeeId, asRecord(value.employee).id)),
+    employeeName: firstDefined(
+      getString(value.employeeName),
+      getString(asRecord(value.employee).fullName),
+      getString(asRecord(value.employee).name)
+    ) ?? "Employee",
+    date: toIsoDate(firstDefined(value.date, value.workDate, value.attendanceDate)),
+    checkIn,
+    checkOut,
+    status: statusFrom(firstDefined(value.status, value.attendanceStatus)),
+    workedMinutes: firstDefined(
+      getNumber(value.workedMinutes),
+      getNumber(value.workMinutes),
+      getNumber(value.totalMinutes)
+    ),
+  };
 }
 
-function storageKey() {
-  const tenantKey = tokenStorage.getTenantKey() ?? "default";
-  return `${STORAGE_ROOT}_${tenantKey}`;
-}
-
-function todayKey() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function toTimeString(value: Date) {
-  return value.toTimeString().slice(0, 5);
-}
-
-function seedRecords(): AttendanceRecord[] {
-  const date = todayKey();
-  return [
-    {
-      id: randomId(),
-      employeeId: "seed_emp_1",
-      employeeName: "Asha Fernando",
-      date,
-      checkIn: "08:59",
-      checkOut: "17:05",
-      status: "PRESENT",
-      workedMinutes: 486,
-    },
-    {
-      id: randomId(),
-      employeeId: "seed_emp_2",
-      employeeName: "Nimal Silva",
-      date,
-      checkIn: "09:42",
-      status: "LATE",
-    },
-    {
-      id: randomId(),
-      employeeId: "seed_emp_3",
-      employeeName: "Anjali Perera",
-      date,
-      status: "ABSENT",
-    },
-  ];
-}
-
-function readRecords(): AttendanceRecord[] {
-  const key = storageKey();
-  const raw = localStorage.getItem(key);
-  if (!raw) {
-    const seeded = seedRecords();
-    localStorage.setItem(key, JSON.stringify(seeded));
-    return seeded;
-  }
-
-  try {
-    const parsed = JSON.parse(raw) as AttendanceRecord[];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-function writeRecords(records: AttendanceRecord[]) {
-  localStorage.setItem(storageKey(), JSON.stringify(records));
-}
-
-function statusFromCheckIn(time: string): AttendanceStatus {
-  return time > "09:30" ? "LATE" : "PRESENT";
-}
-
-function workedMinutes(start: string, end: string): number {
-  const [startHour, startMinute] = start.split(":").map(Number);
-  const [endHour, endMinute] = end.split(":").map(Number);
-  const startTotal = startHour * 60 + startMinute;
-  const endTotal = endHour * 60 + endMinute;
-  return Math.max(0, endTotal - startTotal);
-}
-
-async function notifyAttendanceUpdate(title: string, message: string) {
-  try {
-    await createNotification({ type: "SYSTEM", title, message, link: "/app/attendance" });
-  } catch {
-    // Notification updates should not block attendance actions.
-  }
-}
-
-export async function getAttendanceRecords(date?: string): Promise<AttendanceRecord[]> {
-  await sleep(LATENCY_MS);
-  const selectedDate = date || todayKey();
-
-  return readRecords()
-    .filter((item) => item.date === selectedDate)
-    .sort((a, b) => a.employeeName.localeCompare(b.employeeName));
-}
-
-export async function getAttendanceSummary(date?: string): Promise<AttendanceSummary> {
-  const records = await getAttendanceRecords(date);
-
+function summarize(records: AttendanceRecord[]): AttendanceSummary {
   return records.reduce<AttendanceSummary>(
     (acc, record) => {
       acc.total += 1;
@@ -126,68 +51,83 @@ export async function getAttendanceSummary(date?: string): Promise<AttendanceSum
   );
 }
 
-export async function checkIn(actor: AttendanceActor): Promise<AttendanceRecord> {
-  await sleep(LATENCY_MS);
+function today(): string {
+  return new Date().toISOString().slice(0, 10);
+}
 
-  const records = readRecords();
-  const date = todayKey();
-  const time = toTimeString(new Date());
-  const index = records.findIndex((item) => item.date === date && item.employeeId === actor.employeeId);
-  const status = statusFromCheckIn(time);
-
-  if (index >= 0) {
-    const next = {
-      ...records[index],
-      employeeName: actor.employeeName,
-      checkIn: time,
-      status,
-    };
-    records[index] = next;
-    writeRecords(records);
-    await notifyAttendanceUpdate("Checked in", `${actor.employeeName} checked in at ${time}.`);
-    return next;
+export async function getAttendanceRecords(date?: string): Promise<AttendanceRecord[]> {
+  const targetDate = date ?? today();
+  try {
+    const { data } = await apiClient.get<ApiResponse<unknown> | unknown>(`/api/tenant/attendance/date/${targetDate}`);
+    const list = extractList(unwrapApiData<unknown>(data));
+    return list.map(normalizeRecord).sort((a, b) => a.employeeName.localeCompare(b.employeeName));
+  } catch {
+    const { data } = await apiClient.get<ApiResponse<unknown> | unknown>("/api/tenant/attendance/my");
+    const list = extractList(unwrapApiData<unknown>(data)).map(normalizeRecord);
+    return list.filter((item) => item.date === targetDate);
   }
+}
 
-  const next: AttendanceRecord = {
-    id: randomId(),
-    employeeId: actor.employeeId,
-    employeeName: actor.employeeName,
-    date,
-    checkIn: time,
-    status,
-  };
+export async function getAllAttendanceRecords(): Promise<AttendanceRecord[]> {
+  const { data } = await apiClient.get<ApiResponse<unknown> | unknown>("/api/tenant/attendance/my");
+  return extractList(unwrapApiData<unknown>(data))
+    .map(normalizeRecord)
+    .sort((a, b) => b.date.localeCompare(a.date));
+}
 
-  writeRecords([next, ...records]);
-  await notifyAttendanceUpdate("Checked in", `${actor.employeeName} checked in at ${time}.`);
-  return next;
+export async function getAttendanceSummary(date?: string): Promise<AttendanceSummary> {
+  const workDate = date ?? today();
+  try {
+    const { data } = await apiClient.get<ApiResponse<unknown> | unknown>("/api/tenant/attendance/summary/daily", {
+      params: { workDate },
+    });
+    const summary = asRecord(unwrapApiData<unknown>(data));
+    return {
+      total: getNumber(summary.total) ?? 0,
+      present: getNumber(summary.present) ?? 0,
+      late: getNumber(summary.late) ?? 0,
+      absent: getNumber(summary.absent) ?? 0,
+      halfDay: getNumber(firstDefined(summary.halfDay, summary.half_day)) ?? 0,
+    };
+  } catch {
+    return summarize(await getAttendanceRecords(workDate));
+  }
+}
+
+export async function checkIn(actor: AttendanceActor): Promise<AttendanceRecord> {
+  void actor;
+  const { data } = await apiClient.post<ApiResponse<unknown> | unknown>("/api/tenant/attendance/my/check-in");
+  return normalizeRecord(unwrapApiData<unknown>(data));
 }
 
 export async function checkOut(actor: AttendanceActor): Promise<AttendanceRecord> {
-  await sleep(LATENCY_MS);
+  void actor;
+  const { data } = await apiClient.post<ApiResponse<unknown> | unknown>("/api/tenant/attendance/my/check-out");
+  return normalizeRecord(unwrapApiData<unknown>(data));
+}
 
-  const records = readRecords();
-  const date = todayKey();
-  const time = toTimeString(new Date());
-  const index = records.findIndex((item) => item.date === date && item.employeeId === actor.employeeId);
+export async function getAttendanceTrend(days = 7): Promise<Array<{ date: string; present: number; late: number; absent: number }>> {
+  const toDate = new Date();
+  const fromDate = new Date();
+  fromDate.setDate(toDate.getDate() - Math.max(1, days - 1));
 
-  if (index < 0) {
-    throw new Error("Check-in required before checkout.");
-  }
-
-  const existing = records[index];
-  if (!existing.checkIn) {
-    throw new Error("Check-in required before checkout.");
-  }
-
-  const next: AttendanceRecord = {
-    ...existing,
-    employeeName: actor.employeeName,
-    checkOut: time,
-    workedMinutes: workedMinutes(existing.checkIn, time),
+  const params = {
+    fromDate: fromDate.toISOString().slice(0, 10),
+    toDate: toDate.toISOString().slice(0, 10),
   };
 
-  records[index] = next;
-  writeRecords(records);
-  await notifyAttendanceUpdate("Checked out", `${actor.employeeName} checked out at ${time}.`);
-  return next;
+  const { data } = await apiClient.get<ApiResponse<unknown> | unknown>("/api/tenant/analytics/attendance/trend", {
+    params,
+  });
+  const list = extractList(unwrapApiData<unknown>(data));
+
+  return list.map((item) => {
+    const value = asRecord(item);
+    return {
+      date: toIsoDate(firstDefined(value.date, value.workDate, value.day)),
+      present: getNumber(value.present) ?? 0,
+      late: getNumber(value.late) ?? 0,
+      absent: getNumber(value.absent) ?? 0,
+    };
+  });
 }

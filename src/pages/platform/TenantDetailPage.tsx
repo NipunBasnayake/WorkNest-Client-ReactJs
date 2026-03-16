@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Building2, ArrowLeft, Mail, Calendar, Key } from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
-import { getTenantByKeyApi } from "@/services/api/platformApi";
+import { getPlatformTenantByKey } from "@/modules/platform/services/platformTenantService";
 import { ErrorBanner } from "@/components/common/AppUI";
 import type { Tenant } from "@/types";
 
@@ -14,46 +14,24 @@ export function TenantDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState<string | null>(null);
 
-  async function fetchTenant() {
+  const fetchTenant = useCallback(async () => {
     if (!tenantKey) return;
     setLoading(true);
     setError(null);
 
     try {
-      const data = await getTenantByKeyApi(tenantKey);
+      const data = await getPlatformTenantByKey(tenantKey);
       setTenant(data);
     } catch {
       setError("Failed to load tenant details.");
     } finally {
       setLoading(false);
     }
-  }
+  }, [tenantKey]);
 
   useEffect(() => {
-    if (!tenantKey) return;
-    let active = true;
-
-    (async () => {
-      try {
-        const data = await getTenantByKeyApi(tenantKey);
-        if (active) {
-          setTenant(data);
-        }
-      } catch {
-        if (active) {
-          setError("Failed to load tenant details.");
-        }
-      } finally {
-        if (active) {
-          setLoading(false);
-        }
-      }
-    })();
-
-    return () => {
-      active = false;
-    };
-  }, [tenantKey]);
+    fetchTenant();
+  }, [fetchTenant]);
 
   if (loading) {
     return (

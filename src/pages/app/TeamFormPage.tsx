@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { createTeam, getTeamById, updateTeam } from "@/modules/teams/services/teamService";
-import { getEmployeesApi } from "@/services/api/employeeApi";
+import { getEmployees } from "@/modules/employees/services/employeeService";
 import { getEmployeeDisplayName } from "@/modules/employees/utils/employeeMapper";
 import { DEFAULT_TEAM_FORM, validateTeamForm } from "@/modules/teams/schemas/teamForm";
 import { TeamForm } from "@/modules/teams/components/TeamForm";
@@ -38,7 +38,7 @@ export function TeamFormPage() {
   const [fatalError, setFatalError] = useState<string | null>(null);
 
   useEffect(() => {
-    getEmployeesApi()
+    getEmployees()
       .then((employees) => {
         const options = employees.map((emp: Employee) => ({
           id: emp.id,

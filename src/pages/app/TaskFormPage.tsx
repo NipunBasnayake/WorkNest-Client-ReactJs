@@ -5,7 +5,7 @@ import { usePageMeta } from "@/hooks/usePageMeta";
 import { createTask, getTaskById, updateTask } from "@/modules/tasks/services/taskService";
 import { DEFAULT_TASK_FORM, validateTaskForm } from "@/modules/tasks/schemas/taskForm";
 import { TaskForm } from "@/modules/tasks/components/TaskForm";
-import { getEmployeesApi } from "@/services/api/employeeApi";
+import { getEmployees } from "@/modules/employees/services/employeeService";
 import { getEmployeeDisplayName } from "@/modules/employees/utils/employeeMapper";
 import { getProjects } from "@/modules/projects/services/projectService";
 import { SectionCard } from "@/components/common/SectionCard";
@@ -39,7 +39,7 @@ export function TaskFormPage() {
   const [fatalError, setFatalError] = useState<string | null>(null);
 
   useEffect(() => {
-    Promise.all([getEmployeesApi().catch(() => []), getProjects().catch(() => [])]).then(([employeeRes, projectRes]) => {
+    Promise.all([getEmployees().catch(() => []), getProjects().catch(() => [])]).then(([employeeRes, projectRes]) => {
       setAssignees(employeeRes.map((employee) => ({ id: employee.id, label: getEmployeeDisplayName(employee) })));
       setProjects(projectRes.map((project) => ({ id: project.id, label: project.name })));
     });

@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft, Building2, BriefcaseBusiness, Mail, Phone, DollarSign, CircleAlert } from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
-import { getEmployeeByIdApi } from "@/services/api/employeeApi";
+import { getEmployeeById } from "@/modules/employees/services/employeeService";
 import { SectionCard } from "@/components/common/SectionCard";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { AvatarInitials } from "@/components/common/AvatarInitials";
@@ -25,7 +25,7 @@ export function EmployeeDetailPage() {
 
     let active = true;
 
-    getEmployeeByIdApi(id)
+    getEmployeeById(id)
       .then((res) => {
         if (active) setEmployee(toEmployeeViewModel(res));
       })

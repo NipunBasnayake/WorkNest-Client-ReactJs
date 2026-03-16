@@ -63,6 +63,7 @@ export function ProjectForm({
             <option value="active">Active</option>
             <option value="on_hold">On Hold</option>
             <option value="completed">Completed</option>
+            <option value="cancelled">Cancelled</option>
           </select>
         </div>
       </div>

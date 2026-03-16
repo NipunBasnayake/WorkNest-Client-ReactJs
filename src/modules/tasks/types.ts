@@ -1,8 +1,8 @@
-export type TaskStatus = "TODO" | "IN_PROGRESS" | "REVIEW" | "COMPLETED" | "BLOCKED";
-export type TaskPriority = "LOW" | "MEDIUM" | "HIGH" | "URGENT";
+export type TaskStatus = "TODO" | "IN_PROGRESS" | "IN_REVIEW" | "BLOCKED" | "DONE";
+export type TaskPriority = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 
-export const TASK_STATUS_OPTIONS: TaskStatus[] = ["TODO", "IN_PROGRESS", "REVIEW", "COMPLETED", "BLOCKED"];
-export const TASK_PRIORITY_OPTIONS: TaskPriority[] = ["LOW", "MEDIUM", "HIGH", "URGENT"];
+export const TASK_STATUS_OPTIONS: TaskStatus[] = ["TODO", "IN_PROGRESS", "IN_REVIEW", "BLOCKED", "DONE"];
+export const TASK_PRIORITY_OPTIONS: TaskPriority[] = ["LOW", "MEDIUM", "HIGH", "CRITICAL"];
 
 export interface Task {
   id: string;
@@ -29,6 +29,15 @@ export interface TaskPayload {
   assigneeName?: string;
   projectId?: string;
   projectName?: string;
+}
+
+export interface TaskComment {
+  id: string;
+  taskId: string;
+  comment: string;
+  createdAt: string;
+  authorId: string;
+  authorName: string;
 }
 
 export interface TaskFormValues {

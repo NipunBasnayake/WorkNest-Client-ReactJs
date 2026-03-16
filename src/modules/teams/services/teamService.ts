@@ -1,131 +1,138 @@
-import { tokenStorage } from "@/services/http/client";
+import { apiClient } from "@/services/http/client";
+import { unwrapApiData } from "@/services/http/response";
+import { asRecord, extractList, firstDefined, getId, getString, toIsoDateTime } from "@/services/http/parsers";
 import type { Team, TeamFormValues } from "@/modules/teams/types";
+import type { ApiResponse } from "@/types";
 
-const STORAGE_ROOT = "wn_mock_teams";
-const LATENCY_MS = 220;
+function normalizeTeam(input: unknown, memberIds: string[] = []): Team {
+  const value = asRecord(input);
+  const statusRaw = getString(value.status)?.toLowerCase();
 
-function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+  return {
+    id: getId(firstDefined(value.id, value.teamId)),
+    name: firstDefined(getString(value.name), getString(value.teamName)) ?? "Team",
+    description: firstDefined(getString(value.description), getString(value.summary)),
+    managerName: firstDefined(
+      getString(value.managerName),
+      getString(asRecord(value.manager).fullName),
+      getString(asRecord(value.manager).name)
+    ) ?? "Unassigned",
+    managerEmployeeId: firstDefined(
+      getString(value.managerEmployeeId),
+      getString(value.managerId),
+      getString(asRecord(value.manager).id)
+    ),
+    memberIds,
+    status:
+      statusRaw === "archived" ? "archived" :
+      statusRaw === "planning" ? "planning" :
+      "active",
+    createdAt: toIsoDateTime(firstDefined(value.createdAt, value.createdDate)),
+    updatedAt: toIsoDateTime(firstDefined(value.updatedAt, value.updatedDate, value.modifiedAt)),
+  };
 }
 
-function getScopedStorageKey() {
-  const tenantKey = tokenStorage.getTenantKey() ?? "default";
-  return `${STORAGE_ROOT}_${tenantKey}`;
-}
-
-function randomId() {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return crypto.randomUUID();
-  }
-  return `team_${Date.now()}_${Math.random().toString(16).slice(2)}`;
-}
-
-function seedTeams(): Team[] {
-  const now = new Date().toISOString();
-  return [
-    {
-      id: randomId(),
-      name: "Product Engineering",
-      description: "Owns product architecture and feature delivery.",
-      managerName: "Asha Fernando",
-      managerEmployeeId: "",
-      memberIds: [],
-      status: "active",
-      createdAt: now,
-      updatedAt: now,
-    },
-    {
-      id: randomId(),
-      name: "Operations Excellence",
-      description: "Handles process optimization and workspace operations.",
-      managerName: "Nimal Silva",
-      managerEmployeeId: "",
-      memberIds: [],
-      status: "planning",
-      createdAt: now,
-      updatedAt: now,
-    },
-  ];
-}
-
-function readTeams(): Team[] {
-  const key = getScopedStorageKey();
-  const raw = localStorage.getItem(key);
-  if (!raw) {
-    const seeded = seedTeams();
-    localStorage.setItem(key, JSON.stringify(seeded));
-    return seeded;
-  }
-
+async function listTeamMembers(teamId: string): Promise<string[]> {
   try {
-    const parsed = JSON.parse(raw) as Team[];
-    return Array.isArray(parsed) ? parsed : [];
+    const { data } = await apiClient.get<ApiResponse<unknown> | unknown>(
+      `/api/tenant/teams/${teamId}/members`
+    );
+    const members = extractList(unwrapApiData<unknown>(data));
+    return members
+      .map((item) => {
+        const value = asRecord(item);
+        return getId(
+          firstDefined(
+            value.id,
+            value.employeeId,
+            asRecord(value.employee).id
+          )
+        );
+      })
+      .filter(Boolean);
   } catch {
     return [];
   }
 }
 
-function writeTeams(data: Team[]) {
-  localStorage.setItem(getScopedStorageKey(), JSON.stringify(data));
+async function addMember(teamId: string, employeeId: string): Promise<void> {
+  await apiClient.post(`/api/tenant/teams/${teamId}/members`, { employeeId });
+}
+
+async function removeMember(teamId: string, employeeId: string): Promise<void> {
+  await apiClient.delete(`/api/tenant/teams/${teamId}/members/${employeeId}`);
+}
+
+async function syncTeamMembers(teamId: string, expectedMembers: string[]) {
+  const existing = await listTeamMembers(teamId);
+  const expectedSet = new Set(expectedMembers.filter(Boolean));
+  const existingSet = new Set(existing.filter(Boolean));
+
+  const toAdd = [...expectedSet].filter((memberId) => !existingSet.has(memberId));
+  const toRemove = [...existingSet].filter((memberId) => !expectedSet.has(memberId));
+
+  await Promise.all([
+    ...toAdd.map((memberId) => addMember(teamId, memberId)),
+    ...toRemove.map((memberId) => removeMember(teamId, memberId)),
+  ]);
 }
 
 export async function getTeams(): Promise<Team[]> {
-  await sleep(LATENCY_MS);
-  const teams = readTeams().sort((a, b) => a.name.localeCompare(b.name));
-  return teams;
+  const { data } = await apiClient.get<ApiResponse<unknown> | unknown>("/api/tenant/teams");
+  const list = extractList(unwrapApiData<unknown>(data));
+
+  const withMembers = await Promise.all(
+    list.map(async (item) => {
+      const teamId = getId(firstDefined(asRecord(item).id, asRecord(item).teamId));
+      const memberIds = teamId ? await listTeamMembers(teamId) : [];
+      return normalizeTeam(item, memberIds);
+    })
+  );
+
+  return withMembers.sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export async function getTeamById(id: string): Promise<Team> {
-  await sleep(LATENCY_MS);
-  const team = readTeams().find((item) => item.id === id);
-  if (!team) throw new Error("Team not found");
-  return team;
+  const { data } = await apiClient.get<ApiResponse<unknown> | unknown>(`/api/tenant/teams/${id}`);
+  const payload = asRecord(unwrapApiData<unknown>(data));
+  const nestedTeam = asRecord(firstDefined(payload.team, payload));
+
+  const nestedMemberIds = extractList(firstDefined(payload.members, payload.memberList))
+    .map((item) => {
+      const value = asRecord(item);
+      return getId(firstDefined(value.employeeId, asRecord(value.employee).id, value.id));
+    })
+    .filter(Boolean);
+
+  const memberIds = nestedMemberIds.length > 0 ? nestedMemberIds : await listTeamMembers(id);
+  return normalizeTeam(nestedTeam, memberIds);
 }
 
 export async function createTeam(values: TeamFormValues): Promise<Team> {
-  await sleep(LATENCY_MS);
-  const now = new Date().toISOString();
-  const team: Team = {
-    id: randomId(),
+  const { data } = await apiClient.post<ApiResponse<unknown> | unknown>("/api/tenant/teams", {
     name: values.name.trim(),
-    description: values.description.trim() || undefined,
-    managerName: values.managerName.trim(),
-    managerEmployeeId: values.managerEmployeeId || undefined,
-    memberIds: values.memberIds,
-    status: values.status,
-    createdAt: now,
-    updatedAt: now,
-  };
+    managerId: values.managerEmployeeId || undefined,
+  });
 
-  const next = [team, ...readTeams()];
-  writeTeams(next);
-  return team;
+  const created = unwrapApiData<unknown>(data);
+  const teamId = getId(firstDefined(asRecord(created).id, asRecord(created).teamId));
+  if (!teamId) throw new Error("Team creation succeeded but did not return an id.");
+
+  await syncTeamMembers(teamId, values.memberIds);
+  return getTeamById(teamId);
 }
 
 export async function updateTeam(id: string, values: TeamFormValues): Promise<Team> {
-  await sleep(LATENCY_MS);
-  const teams = readTeams();
-  const index = teams.findIndex((item) => item.id === id);
-  if (index === -1) throw new Error("Team not found");
-
-  const updated: Team = {
-    ...teams[index],
+  await apiClient.put(`/api/tenant/teams/${id}`, {
     name: values.name.trim(),
-    description: values.description.trim() || undefined,
-    managerName: values.managerName.trim(),
-    managerEmployeeId: values.managerEmployeeId || undefined,
-    memberIds: values.memberIds,
-    status: values.status,
-    updatedAt: new Date().toISOString(),
-  };
+    managerId: values.managerEmployeeId || undefined,
+  });
 
-  teams[index] = updated;
-  writeTeams(teams);
-  return updated;
+  await syncTeamMembers(id, values.memberIds);
+  return getTeamById(id);
 }
 
 export async function deleteTeam(id: string): Promise<void> {
-  await sleep(LATENCY_MS);
-  const teams = readTeams().filter((item) => item.id !== id);
-  writeTeams(teams);
+  void id;
+  throw new Error("Team deletion is not supported by the current backend API.");
 }

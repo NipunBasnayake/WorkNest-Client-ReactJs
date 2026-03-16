@@ -1,14 +1,19 @@
-import type { Employee } from "@/types";
+import type { Employee, TenantRole } from "@/types";
 
 export type EmployeeStatus = "active" | "inactive";
+export type EmployeeRole = TenantRole;
 
 export interface EmployeeFormValues {
+  employeeCode: string;
   firstName: string;
   lastName: string;
   email: string;
+  password: string;
   phone: string;
   position: string;
   department: string;
+  role: EmployeeRole;
+  joinedDate: string;
   salary: string;
   status: EmployeeStatus;
 }

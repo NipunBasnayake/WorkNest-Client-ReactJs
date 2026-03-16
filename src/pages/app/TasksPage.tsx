@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { Search, Trash2, PlusCircle, LayoutGrid } from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
+import { useAuth } from "@/hooks/useAuth";
 import { getTasks, deleteTask, updateTaskStatus } from "@/modules/tasks/services/taskService";
 import { TaskPriorityBadge } from "@/modules/tasks/components/TaskPriorityBadge";
 import { TaskStatusBadge } from "@/modules/tasks/components/TaskStatusBadge";
 import { TASK_PRIORITY_OPTIONS, TASK_STATUS_OPTIONS, type Task, type TaskStatus } from "@/modules/tasks/types";
-import { getEmployeesApi } from "@/services/api/employeeApi";
+import { getEmployees } from "@/modules/employees/services/employeeService";
 import { getEmployeeDisplayName } from "@/modules/employees/utils/employeeMapper";
 import { getProjects } from "@/modules/projects/services/projectService";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -29,6 +30,8 @@ function statusLabel(value: string): string {
 
 export function TasksPage() {
   usePageMeta({ title: "Tasks", breadcrumb: ["Workspace", "Tasks"] });
+  const { user, hasRole } = useAuth();
+  const isEmployeeOnly = hasRole("EMPLOYEE") && !hasRole("TENANT_ADMIN", "ADMIN", "MANAGER", "HR");
 
   const [tasks, setTasks] = useState<Task[]>([]);
   const [assignees, setAssignees] = useState<Option[]>([]);
@@ -51,7 +54,7 @@ export function TasksPage() {
     try {
       const [taskRes, employeeRes, projectRes] = await Promise.all([
         getTasks(),
-        getEmployeesApi().catch(() => []),
+        getEmployees().catch(() => []),
         getProjects().catch(() => []),
       ]);
 
@@ -69,20 +72,30 @@ export function TasksPage() {
     fetchData();
   }, []);
 
+  useEffect(() => {
+    if (isEmployeeOnly && user?.id) {
+      setAssigneeFilter(user.id);
+    }
+  }, [isEmployeeOnly, user?.id]);
+
   const filtered = useMemo(() => {
+    const scopedTasks = isEmployeeOnly && user?.id
+      ? tasks.filter((task) => task.assigneeId === user.id)
+      : tasks;
+    const effectiveAssigneeFilter = isEmployeeOnly && user?.id ? user.id : assigneeFilter;
     const query = search.trim().toLowerCase();
-    return tasks.filter((task) => {
+    return scopedTasks.filter((task) => {
       const matchesQuery =
         !query ||
         [task.title, task.description || "", task.assigneeName || "", task.projectName || ""]
           .some((value) => value.toLowerCase().includes(query));
       const matchesStatus = statusFilter === "ALL" || task.status === statusFilter;
       const matchesPriority = priorityFilter === "ALL" || task.priority === priorityFilter;
-      const matchesAssignee = assigneeFilter === "ALL" || task.assigneeId === assigneeFilter;
+      const matchesAssignee = effectiveAssigneeFilter === "ALL" || task.assigneeId === effectiveAssigneeFilter;
       const matchesProject = projectFilter === "ALL" || task.projectId === projectFilter;
       return matchesQuery && matchesStatus && matchesPriority && matchesAssignee && matchesProject;
     });
-  }, [assigneeFilter, priorityFilter, projectFilter, search, statusFilter, tasks]);
+  }, [assigneeFilter, isEmployeeOnly, priorityFilter, projectFilter, search, statusFilter, tasks, user?.id]);
 
   async function handleDelete() {
     if (!deleteTarget) return;
@@ -113,18 +126,20 @@ export function TasksPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Task Management"
-        description={loading ? "Loading tasks..." : `${tasks.length} task${tasks.length === 1 ? "" : "s"} in workflow.`}
+        title={isEmployeeOnly ? "My Tasks" : "Task Management"}
+        description={loading ? "Loading tasks..." : `${filtered.length} task${filtered.length === 1 ? "" : "s"} in workflow.`}
         actions={(
           <>
             <Button variant="outline" to="/app/tasks/board">
               <LayoutGrid size={16} />
               Board View
             </Button>
-            <Button variant="primary" to="/app/tasks/new">
-              <PlusCircle size={16} />
-              Add Task
-            </Button>
+            {!isEmployeeOnly && (
+              <Button variant="primary" to="/app/tasks/new">
+                <PlusCircle size={16} />
+                Add Task
+              </Button>
+            )}
           </>
         )}
       />
@@ -174,15 +189,18 @@ export function TasksPage() {
           <select
             value={assigneeFilter}
             onChange={(event) => setAssigneeFilter(event.target.value)}
+            disabled={isEmployeeOnly}
             className="rounded-xl border px-3 py-2.5 text-sm outline-none transition-all focus:ring-2 focus:ring-primary-500/30"
             style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)", color: "var(--text-primary)" }}
           >
-            <option value="ALL">All Assignees</option>
-            {assignees.map((assignee) => (
-              <option key={assignee.id} value={assignee.id}>
-                {assignee.label}
-              </option>
-            ))}
+            {!isEmployeeOnly && <option value="ALL">All Assignees</option>}
+            {assignees
+              .filter((assignee) => !isEmployeeOnly || assignee.id === user?.id)
+              .map((assignee) => (
+                <option key={assignee.id} value={assignee.id}>
+                  {isEmployeeOnly ? "My Tasks" : assignee.label}
+                </option>
+              ))}
           </select>
 
           <select
@@ -236,7 +254,7 @@ export function TasksPage() {
           <EmptyState
             title={search || statusFilter !== "ALL" || priorityFilter !== "ALL" || assigneeFilter !== "ALL" || projectFilter !== "ALL" ? "No matching tasks" : "No tasks yet"}
             description={search || statusFilter !== "ALL" || priorityFilter !== "ALL" || assigneeFilter !== "ALL" || projectFilter !== "ALL" ? "Adjust filters to find tasks." : "Create your first task to start tracking workflow."}
-            action={<Button variant="outline" to="/app/tasks/new">Create Task</Button>}
+            action={!isEmployeeOnly ? <Button variant="outline" to="/app/tasks/new">Create Task</Button> : undefined}
           />
         )}
 
@@ -271,6 +289,7 @@ export function TasksPage() {
                   <div className="flex items-center justify-end gap-1.5">
                     <select
                       value={task.status}
+                      disabled={isEmployeeOnly && task.assigneeId !== user?.id}
                       onChange={(event) => handleStatusChange(task.id, event.target.value as TaskStatus)}
                       className="rounded-lg border px-2 py-1 text-xs outline-none focus:ring-2 focus:ring-primary-500/30"
                       style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)", color: "var(--text-secondary)" }}
@@ -282,10 +301,14 @@ export function TasksPage() {
                       ))}
                     </select>
                     <Button variant="ghost" size="sm" to={`/app/tasks/${task.id}`}>View</Button>
-                    <Button variant="outline" size="sm" to={`/app/tasks/${task.id}/edit`}>Edit</Button>
-                    <Button variant="danger" size="sm" onClick={() => setDeleteTarget(task)}>
-                      <Trash2 size={14} />
-                    </Button>
+                    {!isEmployeeOnly && (
+                      <>
+                        <Button variant="outline" size="sm" to={`/app/tasks/${task.id}/edit`}>Edit</Button>
+                        <Button variant="danger" size="sm" onClick={() => setDeleteTarget(task)}>
+                          <Trash2 size={14} />
+                        </Button>
+                      </>
+                    )}
                   </div>
                 </div>
               ))}
@@ -318,11 +341,15 @@ export function TasksPage() {
 
                   <div className="mt-4 flex flex-wrap gap-2">
                     <Button variant="ghost" size="sm" to={`/app/tasks/${task.id}`}>View</Button>
-                    <Button variant="outline" size="sm" to={`/app/tasks/${task.id}/edit`}>Edit</Button>
-                    <Button variant="danger" size="sm" onClick={() => setDeleteTarget(task)}>
-                      <Trash2 size={14} />
-                      Delete
-                    </Button>
+                    {!isEmployeeOnly && (
+                      <>
+                        <Button variant="outline" size="sm" to={`/app/tasks/${task.id}/edit`}>Edit</Button>
+                        <Button variant="danger" size="sm" onClick={() => setDeleteTarget(task)}>
+                          <Trash2 size={14} />
+                          Delete
+                        </Button>
+                      </>
+                    )}
                   </div>
                 </article>
               ))}

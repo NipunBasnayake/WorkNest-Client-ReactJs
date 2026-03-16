@@ -1,14 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
-import { Calendar, Search, Trash2, FolderKanban } from "lucide-react";
+import { Calendar, Search, FolderKanban } from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
-import { getProjects, deleteProject } from "@/modules/projects/services/projectService";
+import { getProjects } from "@/modules/projects/services/projectService";
 import { getTeams } from "@/modules/teams/services/teamService";
 import { PageHeader } from "@/components/common/PageHeader";
 import { SectionCard } from "@/components/common/SectionCard";
 import { EmptyState, ErrorBanner, SkeletonRow } from "@/components/common/AppUI";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { Button } from "@/components/common/Button";
-import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import type { Project } from "@/modules/projects/types";
 import type { Team } from "@/modules/teams/types";
 
@@ -19,25 +18,25 @@ export function ProjectsPage() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [feedback, setFeedback] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  const [deleteTarget, setDeleteTarget] = useState<Project | null>(null);
-  const [deleting, setDeleting] = useState(false);
 
-  function fetchData() {
+  async function fetchData() {
+    await Promise.resolve();
     setLoading(true);
     setError(null);
-    Promise.all([getProjects(), getTeams()])
-      .then(([projectRes, teamRes]) => {
-        setProjects(projectRes);
-        setTeams(teamRes);
-      })
-      .catch(() => setError("Failed to load projects."))
-      .finally(() => setLoading(false));
+    try {
+      const [projectRes, teamRes] = await Promise.all([getProjects(), getTeams()]);
+      setProjects(projectRes);
+      setTeams(teamRes);
+    } catch {
+      setError("Failed to load projects.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
-    fetchData();
+    void fetchData();
   }, []);
 
   const teamNameMap = useMemo(() => {
@@ -52,23 +51,6 @@ export function ProjectsPage() {
       return !q || [project.name, project.description, project.status].some((value) => value?.toLowerCase().includes(q));
     });
   }, [projects, search]);
-
-  async function handleDelete() {
-    if (!deleteTarget) return;
-    setDeleting(true);
-    setFeedback(null);
-
-    try {
-      await deleteProject(deleteTarget.id);
-      setProjects((prev) => prev.filter((item) => item.id !== deleteTarget.id));
-      setDeleteTarget(null);
-      setFeedback("Project deleted successfully.");
-    } catch {
-      setFeedback("Could not delete project right now.");
-    } finally {
-      setDeleting(false);
-    }
-  }
 
   return (
     <div className="space-y-6">
@@ -96,19 +78,6 @@ export function ProjectsPage() {
           />
         </div>
       </SectionCard>
-
-      {feedback && (
-        <div
-          className="rounded-xl border px-4 py-3 text-sm"
-          style={{
-            borderColor: feedback.toLowerCase().includes("could") ? "rgba(239,68,68,0.25)" : "rgba(16,185,129,0.25)",
-            backgroundColor: feedback.toLowerCase().includes("could") ? "rgba(239,68,68,0.06)" : "rgba(16,185,129,0.08)",
-            color: feedback.toLowerCase().includes("could") ? "#ef4444" : "#10b981",
-          }}
-        >
-          {feedback}
-        </div>
-      )}
 
       {error && <ErrorBanner message={error} onRetry={fetchData} />}
 
@@ -158,9 +127,6 @@ export function ProjectsPage() {
                   <div className="flex items-center justify-end gap-1.5">
                     <Button variant="ghost" size="sm" to={`/app/projects/${project.id}`}>View</Button>
                     <Button variant="outline" size="sm" to={`/app/projects/${project.id}/edit`}>Edit</Button>
-                    <Button variant="danger" size="sm" onClick={() => setDeleteTarget(project)}>
-                      <Trash2 size={14} />
-                    </Button>
                   </div>
                 </div>
               ))}
@@ -190,10 +156,6 @@ export function ProjectsPage() {
                   <div className="mt-4 flex flex-wrap gap-2">
                     <Button variant="ghost" size="sm" to={`/app/projects/${project.id}`}>View</Button>
                     <Button variant="outline" size="sm" to={`/app/projects/${project.id}/edit`}>Edit</Button>
-                    <Button variant="danger" size="sm" onClick={() => setDeleteTarget(project)}>
-                      <Trash2 size={14} />
-                      Delete
-                    </Button>
                   </div>
                 </article>
               ))}
@@ -201,16 +163,6 @@ export function ProjectsPage() {
           </>
         )}
       </SectionCard>
-
-      <ConfirmDialog
-        open={Boolean(deleteTarget)}
-        title="Delete project?"
-        description={`This will remove ${deleteTarget?.name ?? "this project"} from your workspace records.`}
-        confirmLabel="Delete Project"
-        loading={deleting}
-        onCancel={() => setDeleteTarget(null)}
-        onConfirm={handleDelete}
-      />
     </div>
   );
 }
