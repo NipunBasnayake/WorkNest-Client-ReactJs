@@ -28,9 +28,8 @@ export function TeamForm({
   onSubmit,
   onCancel,
 }: TeamFormProps) {
-  const selectedManager = employeeOptions.find((opt) => opt.id === values.managerEmployeeId);
-
   function toggleMember(id: string) {
+    if (id === values.managerEmployeeId) return;
     const exists = values.memberIds.includes(id);
     const next = exists
       ? values.memberIds.filter((item) => item !== id)
@@ -90,41 +89,37 @@ export function TeamForm({
         />
       </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="team-manager-employee" className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
-            Manager (Select Employee)
-          </label>
-          <select
-            id="team-manager-employee"
-            value={values.managerEmployeeId}
-            onChange={(e) => {
-              const managerEmployeeId = e.target.value;
-              const manager = employeeOptions.find((opt) => opt.id === managerEmployeeId);
-              onChange({
-                ...values,
-                managerEmployeeId,
-                managerName: manager?.name ?? values.managerName,
-              });
-            }}
-            className="w-full rounded-xl border px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/60"
-            style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)", color: "var(--text-primary)" }}
-          >
-            <option value="">Select manager</option>
-            {employeeOptions.map((opt) => (
-              <option key={opt.id} value={opt.id}>{opt.name}</option>
-            ))}
-          </select>
-        </div>
-
-        <Input
-          id="team-manager-name"
-          label="Manager Name"
-          value={selectedManager?.name ?? values.managerName}
-          onChange={(e) => onChange({ ...values, managerName: e.target.value })}
-          error={errors.managerName}
-          placeholder="e.g. Asha Fernando"
-        />
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="team-manager-employee" className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
+          Manager (Select Employee)
+        </label>
+        <select
+          id="team-manager-employee"
+          value={values.managerEmployeeId}
+          onChange={(e) => {
+            const managerEmployeeId = e.target.value;
+            onChange({
+              ...values,
+              managerEmployeeId,
+              memberIds: managerEmployeeId
+                ? Array.from(new Set([...values.memberIds, managerEmployeeId]))
+                : values.memberIds.filter((memberId) => memberId !== values.managerEmployeeId),
+            });
+          }}
+          className="w-full rounded-xl border px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/60"
+          style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)", color: "var(--text-primary)" }}
+        >
+          <option value="">Select manager</option>
+          {employeeOptions.map((opt) => (
+            <option key={opt.id} value={opt.id}>{opt.name}</option>
+          ))}
+        </select>
+        {errors.managerEmployeeId && (
+          <p className="text-xs text-red-500">{errors.managerEmployeeId}</p>
+        )}
+        <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>
+          The selected manager is auto-included in team members.
+        </p>
       </div>
 
       <div>
@@ -141,18 +136,29 @@ export function TeamForm({
             </p>
           )}
           {employeeOptions.map((emp) => (
-            <label
+            <div
               key={emp.id}
-              className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-sm cursor-pointer hover:bg-primary-50/40 dark:hover:bg-primary-950/15"
+              className="flex items-center justify-between gap-2.5 rounded-lg px-2 py-1.5 text-sm hover:bg-primary-50/40 dark:hover:bg-primary-950/15"
               style={{ color: "var(--text-primary)" }}
             >
-              <input
-                type="checkbox"
-                checked={values.memberIds.includes(emp.id)}
-                onChange={() => toggleMember(emp.id)}
-              />
-              <span className="truncate">{emp.name}</span>
-            </label>
+              <label className="flex min-w-0 cursor-pointer items-center gap-2.5">
+                <input
+                  type="checkbox"
+                  checked={values.memberIds.includes(emp.id)}
+                  disabled={values.managerEmployeeId === emp.id}
+                  onChange={() => toggleMember(emp.id)}
+                />
+                <span className="truncate">{emp.name}</span>
+              </label>
+              {values.managerEmployeeId === emp.id && (
+                <span
+                  className="inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                  style={{ background: "rgba(147,50,234,0.12)", color: "var(--color-primary-600)" }}
+                >
+                  Manager
+                </span>
+              )}
+            </div>
           ))}
         </div>
         {errors.memberIds && (

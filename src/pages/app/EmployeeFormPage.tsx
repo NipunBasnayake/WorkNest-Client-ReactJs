@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, UserPlus } from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
-import { createEmployee, getEmployeeById, updateEmployee } from "@/modules/employees/services/employeeService";
+import { createEmployee, DEFAULT_EMPLOYEE_TEMP_PASSWORD, getEmployeeById, updateEmployee } from "@/modules/employees/services/employeeService";
 import { SectionCard } from "@/components/common/SectionCard";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/common/Button";
@@ -75,8 +75,8 @@ export function EmployeeFormPage() {
       setTimeout(() => {
         navigate("/app/employees", { replace: true });
       }, 500);
-    } catch {
-      setMessage("Failed to save employee. Please verify details and try again.");
+    } catch (err: unknown) {
+      setMessage(extractErrorMessage(err) ?? "Failed to save employee. Please verify details and try again.");
     } finally {
       setSubmitting(false);
     }
@@ -120,6 +120,19 @@ export function EmployeeFormPage() {
             </span>
           ) : undefined}
         >
+          {!isEdit && (
+            <div
+              className="mb-4 rounded-xl border px-4 py-3 text-xs"
+              style={{
+                borderColor: "rgba(147,50,234,0.25)",
+                backgroundColor: "rgba(147,50,234,0.08)",
+                color: "var(--text-secondary)",
+              }}
+            >
+              Onboarding note: if no temporary password is provided, backend default <span className="font-semibold" style={{ color: "var(--text-primary)" }}>{DEFAULT_EMPLOYEE_TEMP_PASSWORD}</span> is applied.
+            </div>
+          )}
+
           {message && (
             <div
               className="mb-4 rounded-xl border px-4 py-3 text-sm"
@@ -137,6 +150,7 @@ export function EmployeeFormPage() {
             values={form}
             errors={errors}
             submitting={submitting}
+            isEdit={isEdit}
             submitLabel={isEdit ? "Save Changes" : "Create Employee"}
             onChange={(next) => {
               setForm(next);
@@ -149,4 +163,12 @@ export function EmployeeFormPage() {
       )}
     </div>
   );
+}
+
+function extractErrorMessage(err: unknown): string | null {
+  if (typeof err === "object" && err !== null) {
+    const error = err as { response?: { data?: { message?: string } }; message?: string };
+    return error.response?.data?.message ?? error.message ?? null;
+  }
+  return null;
 }

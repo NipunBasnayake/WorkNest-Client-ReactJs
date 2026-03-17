@@ -1,9 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Search } from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
-import { getTasks, updateTaskStatus } from "@/modules/tasks/services/taskService";
+import { useAuth } from "@/hooks/useAuth";
+import {
+  filterTasksForViewer,
+  getTasks,
+  hasTaskViewerIdentity,
+  isTaskAssignedToViewer,
+  resolveTaskViewerIdentity,
+  updateTaskStatus,
+  type TaskViewerIdentity,
+} from "@/modules/tasks/services/taskService";
 import { KanbanColumn } from "@/modules/tasks/components/KanbanColumn";
-import { TASK_STATUS_OPTIONS, type Task } from "@/modules/tasks/types";
+import { TASK_STATUS_OPTIONS, type Task, type TaskStatus } from "@/modules/tasks/types";
 import { PageHeader } from "@/components/common/PageHeader";
 import { SectionCard } from "@/components/common/SectionCard";
 import { Button } from "@/components/common/Button";
@@ -17,9 +26,18 @@ const BOARD_LABELS: Record<typeof TASK_STATUS_OPTIONS[number], string> = {
   DONE: "Done",
 };
 
+type EmployeeStatusFlow = Extract<TaskStatus, "TODO" | "IN_PROGRESS" | "IN_REVIEW" | "DONE">;
+const EMPLOYEE_STATUS_OPTIONS: EmployeeStatusFlow[] = ["TODO", "IN_PROGRESS", "IN_REVIEW", "DONE"];
+const EMPLOYEE_STATUS_SET = new Set<TaskStatus>(EMPLOYEE_STATUS_OPTIONS);
+
 export function TaskBoardPage() {
   usePageMeta({ title: "Task Board", breadcrumb: ["Workspace", "Tasks", "Board"] });
+  const { hasRole, user } = useAuth();
 
+  const canManageTasks = hasRole("TENANT_ADMIN", "ADMIN", "MANAGER");
+  const isEmployeeOnly = hasRole("EMPLOYEE") && !canManageTasks;
+
+  const [viewerIdentity, setViewerIdentity] = useState<TaskViewerIdentity | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -31,27 +49,36 @@ export function TaskBoardPage() {
     setLoading(true);
     setError(null);
     try {
-      const data = await getTasks();
+      const identityPromise = isEmployeeOnly ? resolveTaskViewerIdentity() : Promise.resolve(null);
+      const [data, identity] = await Promise.all([getTasks(), identityPromise]);
       setTasks(data);
-    } catch {
-      setError("Unable to load board tasks.");
+      setViewerIdentity(identity);
+    } catch (err: unknown) {
+      setError(extractErrorMessage(err) ?? "Unable to load board tasks.");
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => {
-    fetchTasks();
-  }, []);
+    void fetchTasks();
+  }, [isEmployeeOnly, user?.id]);
+
+  const scopedTasks = useMemo(() => {
+    if (!isEmployeeOnly) return tasks;
+    return filterTasksForViewer(tasks, viewerIdentity);
+  }, [isEmployeeOnly, tasks, viewerIdentity]);
+
+  const identityResolved = !isEmployeeOnly || hasTaskViewerIdentity(viewerIdentity);
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
-    if (!query) return tasks;
-    return tasks.filter((task) =>
+    if (!query) return scopedTasks;
+    return scopedTasks.filter((task) =>
       [task.title, task.description || "", task.assigneeName || "", task.projectName || ""]
         .some((value) => value.toLowerCase().includes(query))
     );
-  }, [search, tasks]);
+  }, [search, scopedTasks]);
 
   const grouped = useMemo(() => {
     return TASK_STATUS_OPTIONS.reduce<Record<typeof TASK_STATUS_OPTIONS[number], Task[]>>((acc, status) => {
@@ -66,9 +93,22 @@ export function TaskBoardPage() {
     });
   }, [filtered]);
 
+  const canDragTask = (task: Task): boolean => {
+    if (canManageTasks) return true;
+    return isEmployeeOnly && isTaskAssignedToViewer(task, viewerIdentity);
+  };
+
   async function handleMoveTask(taskId: string, nextStatus: typeof TASK_STATUS_OPTIONS[number]) {
     const current = tasks.find((task) => task.id === taskId);
     if (!current || current.status === nextStatus) return;
+
+    const canMove = canManageTasks || (isEmployeeOnly && isTaskAssignedToViewer(current, viewerIdentity));
+    if (!canMove) return;
+
+    if (!canManageTasks && !EMPLOYEE_STATUS_SET.has(nextStatus)) {
+      setFeedback("This status transition is restricted for your role.");
+      return;
+    }
 
     setMovingTaskId(taskId);
     setFeedback(null);
@@ -76,8 +116,8 @@ export function TaskBoardPage() {
       const updated = await updateTaskStatus(taskId, nextStatus);
       setTasks((prev) => prev.map((task) => (task.id === taskId ? updated : task)));
       setFeedback(`Task moved to ${BOARD_LABELS[nextStatus]}.`);
-    } catch {
-      setFeedback("Unable to move task right now.");
+    } catch (err: unknown) {
+      setFeedback(extractErrorMessage(err) ?? "Unable to move task right now.");
     } finally {
       setMovingTaskId(null);
     }
@@ -86,8 +126,8 @@ export function TaskBoardPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Kanban Board"
-        description="Visualize tasks by workflow stage and quickly spot bottlenecks."
+        title={isEmployeeOnly ? "My Task Board" : "Kanban Board"}
+        description={isEmployeeOnly ? "Track your assigned tasks by workflow stage." : "Visualize tasks by workflow stage and quickly spot bottlenecks."}
         actions={(
           <Button variant="ghost" to="/app/tasks">
             <ArrowLeft size={16} />
@@ -111,6 +151,12 @@ export function TaskBoardPage() {
       </SectionCard>
 
       {error && <ErrorBanner message={error} onRetry={fetchTasks} />}
+      {!error && isEmployeeOnly && !identityResolved && (
+        <ErrorBanner
+          message="Unable to resolve your employee identity for task scoping. Please refresh or contact your workspace admin."
+          onRetry={fetchTasks}
+        />
+      )}
 
       {feedback && (
         <div
@@ -134,8 +180,8 @@ export function TaskBoardPage() {
       {!loading && !error && filtered.length === 0 && (
         <EmptyState
           title={search ? "No matching board cards" : "No tasks available"}
-          description={search ? "Adjust your search to see matching tasks." : "Create tasks to start using the Kanban board."}
-          action={<Button variant="outline" to="/app/tasks/new">Create Task</Button>}
+          description={search ? "Adjust your search to see matching tasks." : (isEmployeeOnly ? "No tasks are assigned to you right now." : "Create tasks to start using the Kanban board.")}
+          action={canManageTasks ? <Button variant="outline" to="/app/tasks/new">Create Task</Button> : undefined}
         />
       )}
 
@@ -148,7 +194,8 @@ export function TaskBoardPage() {
                 status={status}
                 title={BOARD_LABELS[status]}
                 tasks={grouped[status]}
-                onMoveTask={handleMoveTask}
+                onMoveTask={(taskId, nextStatus) => void handleMoveTask(taskId, nextStatus)}
+                canDragTask={canDragTask}
                 movingTaskId={movingTaskId}
               />
             ))}
@@ -157,4 +204,12 @@ export function TaskBoardPage() {
       )}
     </div>
   );
+}
+
+function extractErrorMessage(err: unknown): string | null {
+  if (typeof err === "object" && err !== null) {
+    const error = err as { response?: { data?: { message?: string } }; message?: string };
+    return error.response?.data?.message ?? error.message ?? null;
+  }
+  return null;
 }

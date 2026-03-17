@@ -26,13 +26,20 @@ export function ProjectFormPage() {
   const [form, setForm] = useState<ProjectFormValues>(DEFAULT_PROJECT_FORM);
   const [errors, setErrors] = useState<ProjectFormErrors>({});
   const [teams, setTeams] = useState<Team[]>([]);
+  const [teamLoadError, setTeamLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(isEdit);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [fatalError, setFatalError] = useState<string | null>(null);
 
   useEffect(() => {
-    getTeams().then(setTeams).catch(() => setTeams([]));
+    setTeamLoadError(null);
+    getTeams()
+      .then(setTeams)
+      .catch((err: unknown) => {
+        setTeams([]);
+        setTeamLoadError(extractErrorMessage(err) ?? "Unable to load teams for assignment.");
+      });
   }, []);
 
   useEffect(() => {
@@ -50,7 +57,6 @@ export function ProjectFormPage() {
           status: project.status,
           startDate: project.startDate,
           endDate: project.endDate ?? "",
-          progress: String(project.progress),
           teamIds: project.teamIds,
         });
       })
@@ -85,8 +91,8 @@ export function ProjectFormPage() {
       }
 
       setTimeout(() => navigate("/app/projects", { replace: true }), 500);
-    } catch {
-      setMessage("Unable to save project right now.");
+    } catch (err: unknown) {
+      setMessage(extractErrorMessage(err) ?? "Unable to save project right now.");
     } finally {
       setSubmitting(false);
     }
@@ -118,6 +124,8 @@ export function ProjectFormPage() {
 
       {!loading && !fatalError && (
         <SectionCard title={isEdit ? "Edit Project Details" : "New Project"} subtitle="Set the scope and assign teams to kick off delivery.">
+          {teamLoadError && <ErrorBanner message={teamLoadError} />}
+
           {message && (
             <div
               className="mb-4 rounded-xl border px-4 py-3 text-sm"
@@ -148,4 +156,12 @@ export function ProjectFormPage() {
       )}
     </div>
   );
+}
+
+function extractErrorMessage(err: unknown): string | null {
+  if (typeof err === "object" && err !== null) {
+    const error = err as { response?: { data?: { message?: string } }; message?: string };
+    return error.response?.data?.message ?? error.message ?? null;
+  }
+  return null;
 }

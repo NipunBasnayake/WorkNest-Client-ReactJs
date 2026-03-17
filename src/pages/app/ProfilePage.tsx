@@ -69,9 +69,10 @@ function InfoField({ icon, label, value }: { icon: React.ReactNode; label: strin
           {label}
         </div>
         <div className="text-sm font-medium truncate" style={{ color: "var(--text-primary)" }}>
-          {value ?? "—"}
+          {value ?? "-"}
         </div>
       </div>
     </div>
   );
 }
+
