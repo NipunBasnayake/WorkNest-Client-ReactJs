@@ -19,7 +19,6 @@ export interface ProjectFormValues {
   status: ProjectStatus;
   startDate: string;
   endDate: string;
-  progress: string;
   teamIds: string[];
 }
 

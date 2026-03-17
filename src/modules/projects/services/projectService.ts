@@ -22,12 +22,28 @@ function toUiStatus(status: unknown): ProjectStatus {
   return "planned";
 }
 
+function normalizeTeamIds(value: unknown): string[] {
+  const list = Array.isArray(value) ? value : extractList(value);
+  const ids = list
+    .map((item) => {
+      if (typeof item === "string") return item.trim();
+      const team = asRecord(item);
+      return getId(firstDefined(team.id, team.teamId));
+    })
+    .filter(Boolean);
+
+  return Array.from(new Set(ids));
+}
+
 function normalizeProject(input: unknown, teamIds: string[] = []): Project {
   const value = asRecord(input);
   const progress = firstDefined(
     getNumber(value.progress),
     getNumber(value.progressPercentage),
     getNumber(value.completionPercentage)
+  );
+  const fallbackTeamIds = normalizeTeamIds(
+    firstDefined(value.teamIds, value.teams, value.projectTeams, value.assignedTeams)
   );
 
   return {
@@ -41,7 +57,7 @@ function normalizeProject(input: unknown, teamIds: string[] = []): Project {
       progress !== undefined
         ? Math.max(0, Math.min(100, progress))
         : (toUiStatus(firstDefined(value.status, value.projectStatus)) === "completed" ? 100 : 0),
-    teamIds,
+    teamIds: teamIds.length > 0 ? teamIds : fallbackTeamIds,
     createdAt: toIsoDateTime(firstDefined(value.createdAt, value.createdDate)),
     updatedAt: toIsoDateTime(firstDefined(value.updatedAt, value.updatedDate, value.modifiedAt)),
   };
@@ -51,30 +67,40 @@ async function getProjectTeams(projectId: string): Promise<string[]> {
   try {
     const { data } = await apiClient.get<ApiResponse<unknown> | unknown>(`/api/tenant/projects/${projectId}/teams`);
     const teams = extractList(unwrapApiData<unknown>(data));
-    return teams
-      .map((team) => getId(firstDefined(asRecord(team).id, asRecord(team).teamId)))
-      .filter(Boolean);
+    return normalizeTeamIds(teams);
   } catch {
     return [];
   }
 }
 
+export async function assignTeamToProject(projectId: string, teamId: string): Promise<void> {
+  const normalizedTeamId = Number(teamId);
+  await apiClient.post(`/api/tenant/projects/${projectId}/teams`, {
+    teamId: Number.isNaN(normalizedTeamId) ? teamId : normalizedTeamId,
+  });
+}
+
+export async function removeTeamFromProject(projectId: string, teamId: string): Promise<void> {
+  await apiClient.delete(`/api/tenant/projects/${projectId}/teams/${teamId}`);
+}
+
 async function syncProjectTeams(projectId: string, expectedTeamIds: string[]) {
   const existing = await getProjectTeams(projectId);
-  const existingSet = new Set(existing);
+  const existingSet = new Set(existing.filter(Boolean));
   const expectedSet = new Set(expectedTeamIds.filter(Boolean));
 
   const toAdd = [...expectedSet].filter((teamId) => !existingSet.has(teamId));
   const toRemove = [...existingSet].filter((teamId) => !expectedSet.has(teamId));
 
   await Promise.all([
-    ...toAdd.map((teamId) => apiClient.post(`/api/tenant/projects/${projectId}/teams`, { teamId })),
-    ...toRemove.map((teamId) => apiClient.delete(`/api/tenant/projects/${projectId}/teams/${teamId}`)),
+    ...toAdd.map((teamId) => assignTeamToProject(projectId, teamId)),
+    ...toRemove.map((teamId) => removeTeamFromProject(projectId, teamId)),
   ]);
 }
 
 function toProjectPayload(values: ProjectFormValues, includeCreator: boolean) {
   const currentUserId = useAuthStore.getState().user?.id;
+  const currentUserIdNum = currentUserId ? Number(currentUserId) : undefined;
   const payload: Record<string, unknown> = {
     name: values.name.trim(),
     description: values.description.trim() || undefined,
@@ -84,7 +110,7 @@ function toProjectPayload(values: ProjectFormValues, includeCreator: boolean) {
   };
 
   if (includeCreator && currentUserId) {
-    payload.createdByEmployeeId = currentUserId;
+    payload.createdByEmployeeId = Number.isNaN(currentUserIdNum) ? currentUserId : currentUserIdNum;
   }
 
   return payload;
@@ -96,9 +122,15 @@ export async function getProjects(): Promise<Project[]> {
 
   const items = await Promise.all(
     list.map(async (item) => {
-      const projectId = getId(firstDefined(asRecord(item).id, asRecord(item).projectId));
-      const teamIds = projectId ? await getProjectTeams(projectId) : [];
-      return normalizeProject(item, teamIds);
+      const record = asRecord(item);
+      const projectId = getId(firstDefined(record.id, record.projectId));
+      const nestedTeamIds = normalizeTeamIds(
+        firstDefined(record.teamIds, record.teams, record.projectTeams, record.assignedTeams)
+      );
+      const teamIds = nestedTeamIds.length > 0 || !projectId
+        ? nestedTeamIds
+        : await getProjectTeams(projectId);
+      return normalizeProject(record, teamIds);
     })
   );
 
@@ -109,10 +141,17 @@ export async function getProjectById(id: string): Promise<Project> {
   const { data } = await apiClient.get<ApiResponse<unknown> | unknown>(`/api/tenant/projects/${id}`);
   const payload = asRecord(unwrapApiData<unknown>(data));
   const nestedProject = asRecord(firstDefined(payload.project, payload));
-
-  const nestedTeamIds = extractList(firstDefined(payload.teams, payload.projectTeams))
-    .map((team) => getId(firstDefined(asRecord(team).teamId, asRecord(team).id)))
-    .filter(Boolean);
+  const nestedTeamIds = normalizeTeamIds(
+    firstDefined(
+      payload.teams,
+      payload.projectTeams,
+      payload.teamIds,
+      payload.assignedTeams,
+      nestedProject.teamIds,
+      nestedProject.teams,
+      nestedProject.projectTeams
+    )
+  );
 
   const teamIds = nestedTeamIds.length > 0 ? nestedTeamIds : await getProjectTeams(id);
   return normalizeProject(nestedProject, teamIds);
@@ -138,6 +177,5 @@ export async function updateProject(id: string, values: ProjectFormValues): Prom
 }
 
 export async function deleteProject(id: string): Promise<void> {
-  void id;
-  throw new Error("Project deletion is not supported by the current backend API.");
+  await apiClient.delete(`/api/tenant/projects/${id}`);
 }

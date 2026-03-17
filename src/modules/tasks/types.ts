@@ -12,6 +12,9 @@ export interface Task {
   priority: TaskPriority;
   dueDate: string;
   assigneeId?: string;
+  assigneeEmployeeId?: string;
+  assigneeUserId?: string;
+  assigneeEmail?: string;
   assigneeName?: string;
   projectId?: string;
   projectName?: string;
@@ -29,6 +32,26 @@ export interface TaskPayload {
   assigneeName?: string;
   projectId?: string;
   projectName?: string;
+}
+
+export interface TaskCreateRequest {
+  projectId?: number;
+  title: string;
+  description: string;
+  status: TaskStatus;
+  priority: TaskPriority;
+  assigneeId?: number;
+  createdByEmployeeId?: number;
+  dueDate?: string;
+}
+
+export interface TaskUpdateRequest {
+  title: string;
+  description: string;
+  status: TaskStatus;
+  priority: TaskPriority;
+  assigneeId?: number;
+  dueDate?: string;
 }
 
 export interface TaskComment {

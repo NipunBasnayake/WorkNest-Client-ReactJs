@@ -6,6 +6,7 @@ interface EmployeeFormProps {
   values: EmployeeFormValues;
   errors: EmployeeFormErrors;
   submitting: boolean;
+  isEdit: boolean;
   submitLabel: string;
   onChange: (next: EmployeeFormValues) => void;
   onSubmit: () => void;
@@ -16,6 +17,7 @@ export function EmployeeForm({
   values,
   errors,
   submitting,
+  isEdit,
   submitLabel,
   onChange,
   onSubmit,
@@ -38,6 +40,8 @@ export function EmployeeForm({
           onChange={(e) => onChange({ ...values, employeeCode: e.target.value.toUpperCase() })}
           error={errors.employeeCode}
           placeholder="EMP-1001"
+          disabled={isEdit}
+          hint={isEdit ? "Employee code is locked after onboarding." : undefined}
         />
         <div className="flex flex-col gap-1.5">
           <label
@@ -58,6 +62,7 @@ export function EmployeeForm({
               color: "var(--text-primary)",
             }}
           >
+            <option value="TENANT_ADMIN">Tenant Admin</option>
             <option value="EMPLOYEE">Employee</option>
             <option value="HR">HR</option>
             <option value="MANAGER">Manager</option>
@@ -108,7 +113,7 @@ export function EmployeeForm({
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <Input
           id="employee-position"
-          label="Position"
+          label="Designation"
           value={values.position}
           onChange={(e) => onChange({ ...values, position: e.target.value })}
           error={errors.position}
@@ -132,7 +137,7 @@ export function EmployeeForm({
           value={values.password}
           onChange={(e) => onChange({ ...values, password: e.target.value })}
           error={errors.password}
-          hint="Optional when editing. Leave blank to keep existing password."
+          hint={isEdit ? "Optional when editing. Leave blank to keep existing password." : "Optional. If blank, backend default onboarding password will be used."}
           placeholder="Min 8 characters"
         />
         <Input

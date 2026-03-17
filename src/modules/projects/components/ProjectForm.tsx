@@ -83,7 +83,7 @@ export function ProjectForm({
         />
       </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <Input
           id="project-start-date"
           type="date"
@@ -99,16 +99,6 @@ export function ProjectForm({
           value={values.endDate}
           onChange={(e) => onChange({ ...values, endDate: e.target.value })}
           error={errors.endDate}
-        />
-        <Input
-          id="project-progress"
-          type="number"
-          min={0}
-          max={100}
-          label="Progress %"
-          value={values.progress}
-          onChange={(e) => onChange({ ...values, progress: e.target.value })}
-          error={errors.progress}
         />
       </div>
 

@@ -1,10 +1,19 @@
 import {
+  addEmployeeSkillApi,
   createEmployeeApi,
+  deleteEmployeeSkillApi,
   getEmployeeByIdApi,
+  getEmployeeSkillsApi,
   getEmployeesApi,
+  getMyEmployeeProfileApi,
+  provisionEmployeeAccountApi,
+  updateEmployeeSkillApi,
   updateEmployeeApi,
   updateEmployeeStatusApi,
-  type EmployeeApiPayload,
+  type EmployeeApiRole,
+  type EmployeeApiStatus,
+  type EmployeeCreateRequest,
+  type EmployeeUpdateRequest,
 } from "@/services/api/employeeApi";
 import {
   asRecord,
@@ -15,6 +24,21 @@ import {
   toIsoDate,
 } from "@/services/http/parsers";
 import type { Employee } from "@/types";
+import type { EmployeeSkill, EmployeeSkillPayload } from "@/modules/employees/types";
+
+export const DEFAULT_EMPLOYEE_TEMP_PASSWORD = "ChangeMe123!";
+
+function toApiRole(role: unknown): EmployeeApiRole {
+  const value = getString(role)?.toUpperCase();
+  if (value === "TENANT_ADMIN" || value === "ADMIN" || value === "MANAGER" || value === "HR" || value === "EMPLOYEE") {
+    return value;
+  }
+  return "EMPLOYEE";
+}
+
+function toApiStatus(status: unknown): EmployeeApiStatus {
+  return getString(status)?.toUpperCase() === "INACTIVE" ? "INACTIVE" : "ACTIVE";
+}
 
 function normalizeEmployee(input: unknown): Employee {
   const value = asRecord(input);
@@ -49,34 +73,70 @@ function normalizeEmployee(input: unknown): Employee {
   };
 }
 
-function buildUpsertPayload(payload: Partial<Employee>, isCreate: boolean): EmployeeApiPayload {
+function normalizeSkill(input: unknown): EmployeeSkill {
+  const value = asRecord(input);
+  const name = firstDefined(getString(value.name), getString(value.skillName)) ?? "Skill";
+  const normalizedLevel = (firstDefined(
+    getString(value.level),
+    getString(value.skillLevel),
+    getString(value.proficiency)
+  ) ?? "INTERMEDIATE").toUpperCase();
+
+  const level =
+    normalizedLevel === "BEGINNER" ||
+    normalizedLevel === "INTERMEDIATE" ||
+    normalizedLevel === "ADVANCED" ||
+    normalizedLevel === "EXPERT"
+      ? normalizedLevel
+      : "INTERMEDIATE";
+
+  return {
+    id: getId(firstDefined(value.id, value.skillId)),
+    name,
+    level,
+    yearsOfExperience: firstDefined(
+      getNumber(value.yearsOfExperience),
+      getNumber(value.experienceYears)
+    ),
+  };
+}
+
+function buildUpsertPayload(payload: Partial<Employee>, isCreate: true): EmployeeCreateRequest;
+function buildUpsertPayload(payload: Partial<Employee>, isCreate: false): EmployeeUpdateRequest;
+function buildUpsertPayload(payload: Partial<Employee>, isCreate: boolean): EmployeeCreateRequest | EmployeeUpdateRequest {
   const firstName = getString(payload.firstName) ?? "";
   const lastName = getString(payload.lastName) ?? "";
   const designation = firstDefined(getString(payload.position), getString(payload.designation)) ?? "";
   const joinedDate = toIsoDate(firstDefined(payload.joinedDate, payload.joinedAt));
   const salary = getNumber(payload.salary);
-  const status = getString(payload.status)?.toUpperCase() === "INACTIVE" ? "INACTIVE" : "ACTIVE";
+  const status = toApiStatus(payload.status);
   const password =
     getString(payload.password) ??
-    (isCreate ? "ChangeMe123!" : undefined);
+    (isCreate ? DEFAULT_EMPLOYEE_TEMP_PASSWORD : undefined);
 
-  const requestPayload: EmployeeApiPayload = {
-    employeeCode: getString(payload.employeeCode) ?? `EMP-${Date.now().toString().slice(-5)}`,
+  const basePayload: EmployeeUpdateRequest = {
     firstName,
     lastName,
     email: getString(payload.email) ?? "",
-    role: getString(payload.role) ?? "EMPLOYEE",
+    role: toApiRole(payload.role),
     designation,
     joinedDate: joinedDate || new Date().toISOString().slice(0, 10),
     status,
   };
 
-  if (password) requestPayload.password = password;
-  if (getString(payload.phone)) requestPayload.phone = getString(payload.phone);
-  if (getString(payload.department)) requestPayload.department = getString(payload.department);
-  if (salary !== undefined) requestPayload.salary = salary;
+  if (password) basePayload.password = password;
+  if (getString(payload.department)) basePayload.department = getString(payload.department);
+  if (getString(payload.phone)) basePayload.phone = getString(payload.phone);
+  if (salary !== undefined) basePayload.salary = salary;
 
-  return requestPayload;
+  if (isCreate) {
+    return {
+      employeeCode: getString(payload.employeeCode) ?? `EMP-${Date.now().toString().slice(-5)}`,
+      ...basePayload,
+    };
+  }
+
+  return basePayload;
 }
 
 function sortEmployees(items: Employee[]): Employee[] {
@@ -90,6 +150,11 @@ export async function getEmployees(): Promise<Employee[]> {
 
 export async function getEmployeeById(id: string): Promise<Employee> {
   const employee = await getEmployeeByIdApi(id);
+  return normalizeEmployee(employee);
+}
+
+export async function getMyEmployeeProfile(): Promise<Employee> {
+  const employee = await getMyEmployeeProfileApi();
   return normalizeEmployee(employee);
 }
 
@@ -109,6 +174,39 @@ export async function updateEmployee(id: string, payload: Partial<Employee>): Pr
   return normalizeEmployee(updated);
 }
 
+export async function updateEmployeeStatus(id: string, status: "active" | "inactive"): Promise<void> {
+  await updateEmployeeStatusApi(id, status === "inactive" ? "INACTIVE" : "ACTIVE");
+}
+
 export async function deleteEmployee(id: string): Promise<void> {
-  await updateEmployeeStatusApi(id, "INACTIVE");
+  await updateEmployeeStatus(id, "inactive");
+}
+
+export async function getEmployeeSkills(employeeId: string): Promise<EmployeeSkill[]> {
+  const list = await getEmployeeSkillsApi(employeeId);
+  return list.map(normalizeSkill).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export async function addEmployeeSkill(employeeId: string, payload: EmployeeSkillPayload): Promise<EmployeeSkill> {
+  const created = await addEmployeeSkillApi(employeeId, {
+    skillName: payload.name.trim(),
+    skillLevel: payload.level,
+  });
+  return normalizeSkill(created);
+}
+
+export async function updateEmployeeSkill(employeeId: string, skillId: string, payload: EmployeeSkillPayload): Promise<EmployeeSkill> {
+  const updated = await updateEmployeeSkillApi(employeeId, skillId, {
+    skillName: payload.name.trim(),
+    skillLevel: payload.level,
+  });
+  return normalizeSkill(updated);
+}
+
+export async function deleteEmployeeSkill(employeeId: string, skillId: string): Promise<void> {
+  await deleteEmployeeSkillApi(employeeId, skillId);
+}
+
+export async function provisionEmployeeAccount(employeeId: string, temporaryPassword: string): Promise<void> {
+  await provisionEmployeeAccountApi(employeeId, { temporaryPassword });
 }

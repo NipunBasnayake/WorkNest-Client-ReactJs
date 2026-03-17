@@ -135,15 +135,20 @@ export function TaskForm({
             value={values.assigneeId}
             onChange={(event) => onChange({ ...values, assigneeId: event.target.value })}
             className="w-full rounded-xl border px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/60"
-            style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)", color: "var(--text-primary)" }}
+            style={{
+              backgroundColor: "var(--bg-surface)",
+              borderColor: errors.assigneeId ? "rgba(239,68,68,0.4)" : "var(--border-default)",
+              color: "var(--text-primary)",
+            }}
           >
-            <option value="">Unassigned</option>
+            <option value="">Select assignee</option>
             {assignees.map((assignee) => (
               <option key={assignee.id} value={assignee.id}>
                 {assignee.label}
               </option>
             ))}
           </select>
+          {errors.assigneeId && <p className="text-xs text-red-500">{errors.assigneeId}</p>}
         </div>
 
         <div className="flex flex-col gap-1.5">
@@ -155,15 +160,20 @@ export function TaskForm({
             value={values.projectId}
             onChange={(event) => onChange({ ...values, projectId: event.target.value })}
             className="w-full rounded-xl border px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/60"
-            style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)", color: "var(--text-primary)" }}
+            style={{
+              backgroundColor: "var(--bg-surface)",
+              borderColor: errors.projectId ? "rgba(239,68,68,0.4)" : "var(--border-default)",
+              color: "var(--text-primary)",
+            }}
           >
-            <option value="">No project</option>
+            <option value="">Select project</option>
             {projects.map((project) => (
               <option key={project.id} value={project.id}>
                 {project.label}
               </option>
             ))}
           </select>
+          {errors.projectId && <p className="text-xs text-red-500">{errors.projectId}</p>}
         </div>
       </div>
 

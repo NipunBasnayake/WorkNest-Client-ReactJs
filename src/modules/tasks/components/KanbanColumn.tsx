@@ -10,10 +10,11 @@ interface KanbanColumnProps {
   title: string;
   tasks: Task[];
   onMoveTask?: (taskId: string, nextStatus: TaskStatus) => void;
+  canDragTask?: (task: Task) => boolean;
   movingTaskId?: string | null;
 }
 
-export function KanbanColumn({ status, title, tasks, onMoveTask, movingTaskId }: KanbanColumnProps) {
+export function KanbanColumn({ status, title, tasks, onMoveTask, canDragTask, movingTaskId }: KanbanColumnProps) {
   const [isDragOver, setIsDragOver] = useState(false);
 
   function handleDrop(taskId: string) {
@@ -71,45 +72,54 @@ export function KanbanColumn({ status, title, tasks, onMoveTask, movingTaskId }:
         )}
 
         {tasks.map((task) => (
-          <Link
-            key={task.id}
-            to={`/app/tasks/${task.id}`}
-            draggable={Boolean(onMoveTask)}
-            onDragStart={(event) => {
-              event.dataTransfer.effectAllowed = "move";
-              event.dataTransfer.setData("application/worknest-task-id", task.id);
-            }}
-            className="block rounded-xl border p-3 no-underline transition-colors hover:bg-primary-50/30 dark:hover:bg-primary-950/10"
-            style={{
-              backgroundColor: "var(--bg-surface)",
-              borderColor: movingTaskId === task.id ? "rgba(147,50,234,0.5)" : "var(--border-default)",
-              opacity: movingTaskId === task.id ? 0.6 : 1,
-              cursor: onMoveTask ? "grab" : "pointer",
-            }}
-          >
-            <p className="line-clamp-2 text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-              {task.title}
-            </p>
+          (() => {
+            const canDrag = Boolean(onMoveTask && (!canDragTask || canDragTask(task)));
+            return (
+              <Link
+                key={task.id}
+                to={`/app/tasks/${task.id}`}
+                draggable={canDrag}
+                onDragStart={(event) => {
+                  if (!canDrag) {
+                    event.preventDefault();
+                    return;
+                  }
+                  event.dataTransfer.effectAllowed = "move";
+                  event.dataTransfer.setData("application/worknest-task-id", task.id);
+                }}
+                className="block rounded-xl border p-3 no-underline transition-colors hover:bg-primary-50/30 dark:hover:bg-primary-950/10"
+                style={{
+                  backgroundColor: "var(--bg-surface)",
+                  borderColor: movingTaskId === task.id ? "rgba(147,50,234,0.5)" : "var(--border-default)",
+                  opacity: movingTaskId === task.id ? 0.6 : 1,
+                  cursor: canDrag ? "grab" : "pointer",
+                }}
+              >
+                <p className="line-clamp-2 text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+                  {task.title}
+                </p>
 
-            <div className="mt-2 flex items-center gap-2">
-              <TaskPriorityBadge priority={task.priority} />
-            </div>
+                <div className="mt-2 flex items-center gap-2">
+                  <TaskPriorityBadge priority={task.priority} />
+                </div>
 
-            <div className="mt-3 space-y-1.5 text-xs" style={{ color: "var(--text-secondary)" }}>
-              <div className="inline-flex items-center gap-1.5">
-                <User size={12} />
-                {task.assigneeName || "Unassigned"}
-              </div>
-              <div className="inline-flex items-center gap-1.5">
-                <CalendarClock size={12} />
-                Due {formatDate(task.dueDate)}
-              </div>
-              <div className="inline-flex items-center gap-1.5">
-                <FolderKanban size={12} />
-                {task.projectName || "No project"}
-              </div>
-            </div>
-          </Link>
+                <div className="mt-3 space-y-1.5 text-xs" style={{ color: "var(--text-secondary)" }}>
+                  <div className="inline-flex items-center gap-1.5">
+                    <User size={12} />
+                    {task.assigneeName || "Unassigned"}
+                  </div>
+                  <div className="inline-flex items-center gap-1.5">
+                    <CalendarClock size={12} />
+                    Due {formatDate(task.dueDate)}
+                  </div>
+                  <div className="inline-flex items-center gap-1.5">
+                    <FolderKanban size={12} />
+                    {task.projectName || "No project"}
+                  </div>
+                </div>
+              </Link>
+            );
+          })()
         ))}
       </div>
     </section>

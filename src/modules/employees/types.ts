@@ -2,6 +2,19 @@ import type { Employee, TenantRole } from "@/types";
 
 export type EmployeeStatus = "active" | "inactive";
 export type EmployeeRole = TenantRole;
+export type SkillLevel = "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | "EXPERT";
+
+export interface EmployeeSkill {
+  id: string;
+  name: string;
+  level: SkillLevel;
+  yearsOfExperience?: number;
+}
+
+export interface EmployeeSkillPayload {
+  name: string;
+  level: SkillLevel;
+}
 
 export interface EmployeeFormValues {
   employeeCode: string;

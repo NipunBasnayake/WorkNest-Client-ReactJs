@@ -100,8 +100,8 @@ export async function updateLeaveRequest(id: string, payload: Omit<LeavePayload,
 }
 
 export async function cancelLeaveRequest(id: string): Promise<LeaveRequest> {
-  void id;
-  throw new Error("Leave cancellation endpoint is not available in the current backend API.");
+  const { data } = await apiClient.post<ApiResponse<unknown> | unknown>(`/api/tenant/leaves/${id}/cancel`);
+  return normalizeLeave(unwrapApiData<unknown>(data));
 }
 
 export async function reviewLeaveRequest(
@@ -109,11 +109,13 @@ export async function reviewLeaveRequest(
   status: Extract<LeaveStatus, "APPROVED" | "REJECTED">,
   review: ReviewPayload
 ): Promise<LeaveRequest> {
-  const endpoint = status === "APPROVED" ? "approve" : "reject";
+  const endpoint = status === "APPROVED"
+    ? `/api/tenant/leaves/${id}/approve`
+    : `/api/tenant/leaves/${id}/reject`;
   const approverEmployeeId = getNumber(review.reviewerId) ?? review.reviewerId;
 
   const { data } = await apiClient.post<ApiResponse<unknown> | unknown>(
-    `/api/tenant/leaves/${id}/${endpoint}`,
+    endpoint,
     {
       approverEmployeeId,
       reason: review.comment?.trim() || `${status} by ${review.reviewerName}`,

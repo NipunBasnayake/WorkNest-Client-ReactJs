@@ -17,8 +17,20 @@ export function validateTaskForm(values: TaskFormValues): TaskFormErrors {
     errors.title = "Task title is required.";
   }
 
+  if (!values.description.trim()) {
+    errors.description = "Task description is required.";
+  }
+
   if (!values.dueDate) {
     errors.dueDate = "Due date is required.";
+  }
+
+  if (!values.assigneeId.trim()) {
+    errors.assigneeId = "Assignee is required.";
+  }
+
+  if (!values.projectId.trim()) {
+    errors.projectId = "Project is required.";
   }
 
   if (values.description.trim().length > 1500) {
