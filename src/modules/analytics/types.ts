@@ -44,6 +44,32 @@ export interface NotificationPreview {
   title: string;
   createdAt: string;
   read: boolean;
+  link?: string;
+}
+
+export interface DashboardTaskStatusSummary {
+  TODO: number;
+  IN_PROGRESS: number;
+  IN_REVIEW: number;
+  BLOCKED: number;
+  DONE: number;
+}
+
+export interface DashboardLeaveStatusSummary {
+  PENDING: number;
+  APPROVED: number;
+  REJECTED: number;
+  CANCELLED: number;
+}
+
+export interface DashboardAttendanceSummary {
+  total: number;
+  present: number;
+  late: number;
+  absent: number;
+  halfDay: number;
+  myTodayStatus: "PRESENT" | "LATE" | "ABSENT" | "HALF_DAY" | "NOT_MARKED";
+  myWorkedMinutes: number;
 }
 
 export interface TenantAnalyticsData {
@@ -62,11 +88,19 @@ export interface TenantAnalyticsData {
 
 export interface TenantDashboardSnapshot {
   totalEmployees: number;
+  activeTeams: number;
   activeProjects: number;
+  completedTasks: number;
   openTasks: number;
   pendingLeaves: number;
   presentToday: number;
+  unreadNotifications: number;
+  taskStatusSummary: DashboardTaskStatusSummary;
+  leaveStatusSummary: DashboardLeaveStatusSummary;
+  attendanceSummary: DashboardAttendanceSummary;
+  dueSoonTasks: TaskPreview[];
   recentTasks: TaskPreview[];
+  recentLeaves: LeavePreview[];
   pendingApprovals: LeavePreview[];
   announcements: AnnouncementPreview[];
   notifications: NotificationPreview[];

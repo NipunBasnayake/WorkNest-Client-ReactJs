@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Logo } from "@/components/common/Logo";
-import { TENANT_MODULE_ACCESS } from "@/constants/access";
+import { TENANT_MODULE_ACCESS, TENANT_PROJECT_VIEW_ROLES, TENANT_TEAM_VIEW_ROLES } from "@/constants/access";
 
 interface SidebarNavDef {
   label: string;
@@ -26,8 +26,8 @@ interface AppSidebarProps {
 const TENANT_NAV: SidebarNavDef[] = [
   { label: "Dashboard",     to: "/app/dashboard",     icon: <LayoutDashboard size={18} /> },
   { label: "Employees",     to: "/app/employees",     icon: <Users size={18} />, roles: TENANT_MODULE_ACCESS.employees },
-  { label: "Teams",         to: "/app/teams",         icon: <Briefcase size={18} />, roles: TENANT_MODULE_ACCESS.teams },
-  { label: "Projects",      to: "/app/projects",      icon: <ClipboardList size={18} />, roles: TENANT_MODULE_ACCESS.projects },
+  { label: "Teams",         to: "/app/teams",         icon: <Briefcase size={18} />, roles: TENANT_TEAM_VIEW_ROLES },
+  { label: "Projects",      to: "/app/projects",      icon: <ClipboardList size={18} />, roles: TENANT_PROJECT_VIEW_ROLES },
   { label: "Tasks",         to: "/app/tasks",         icon: <CheckSquare size={18} />, roles: TENANT_MODULE_ACCESS.tasks },
   { label: "Analytics",     to: "/app/analytics",     icon: <BarChart3 size={18} />, roles: TENANT_MODULE_ACCESS.analytics },
   { label: "Attendance",    to: "/app/attendance",    icon: <CalendarCheck size={18} />, roles: TENANT_MODULE_ACCESS.attendance },

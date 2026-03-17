@@ -2,7 +2,16 @@ import { createBrowserRouter, Navigate, RouterProvider } from "react-router-dom"
 import { PublicLayout } from "@/app/layouts/PublicLayout";
 import { PlatformLayout, TenantLayout } from "@/app/layouts/AppLayout";
 import { GuestGuard, PlatformGuard, TenantGuard, TenantRoleGuard } from "@/app/guards/RouteGuards";
-import { TENANT_COMMUNICATION_ROLES, TENANT_MODULE_ACCESS } from "@/constants/access";
+import {
+  TENANT_COMMUNICATION_ROLES,
+  TENANT_MODULE_ACCESS,
+  TENANT_PROJECT_MANAGEMENT_ROLES,
+  TENANT_PROJECT_VIEW_ROLES,
+  TENANT_TASK_MANAGEMENT_ROLES,
+  TENANT_TASK_VIEW_ROLES,
+  TENANT_TEAM_MANAGEMENT_ROLES,
+  TENANT_TEAM_VIEW_ROLES,
+} from "@/constants/access";
 
 import { LandingPage } from "@/pages/public/LandingPage";
 import { LoginPage } from "@/pages/public/LoginPage";
@@ -86,32 +95,50 @@ const router = createBrowserRouter([
           },
 
           {
-            element: <TenantRoleGuard allowedRoles={TENANT_MODULE_ACCESS.teams} />,
+            element: <TenantRoleGuard allowedRoles={TENANT_TEAM_VIEW_ROLES} />,
             children: [
               { path: "app/teams", element: <TeamsPage /> },
-              { path: "app/teams/new", element: <TeamFormPage /> },
               { path: "app/teams/:id", element: <TeamDetailPage /> },
+            ],
+          },
+
+          {
+            element: <TenantRoleGuard allowedRoles={TENANT_TEAM_MANAGEMENT_ROLES} />,
+            children: [
+              { path: "app/teams/new", element: <TeamFormPage /> },
               { path: "app/teams/:id/edit", element: <TeamFormPage /> },
             ],
           },
 
           {
-            element: <TenantRoleGuard allowedRoles={TENANT_MODULE_ACCESS.projects} />,
+            element: <TenantRoleGuard allowedRoles={TENANT_PROJECT_VIEW_ROLES} />,
             children: [
               { path: "app/projects", element: <ProjectsPage /> },
-              { path: "app/projects/new", element: <ProjectFormPage /> },
               { path: "app/projects/:id", element: <ProjectDetailPage /> },
+            ],
+          },
+
+          {
+            element: <TenantRoleGuard allowedRoles={TENANT_PROJECT_MANAGEMENT_ROLES} />,
+            children: [
+              { path: "app/projects/new", element: <ProjectFormPage /> },
               { path: "app/projects/:id/edit", element: <ProjectFormPage /> },
             ],
           },
 
           {
-            element: <TenantRoleGuard allowedRoles={TENANT_MODULE_ACCESS.tasks} />,
+            element: <TenantRoleGuard allowedRoles={TENANT_TASK_VIEW_ROLES} />,
             children: [
               { path: "app/tasks", element: <TasksPage /> },
               { path: "app/tasks/board", element: <TaskBoardPage /> },
-              { path: "app/tasks/new", element: <TaskFormPage /> },
               { path: "app/tasks/:id", element: <TaskDetailPage /> },
+            ],
+          },
+
+          {
+            element: <TenantRoleGuard allowedRoles={TENANT_TASK_MANAGEMENT_ROLES} />,
+            children: [
+              { path: "app/tasks/new", element: <TaskFormPage /> },
               { path: "app/tasks/:id/edit", element: <TaskFormPage /> },
             ],
           },
