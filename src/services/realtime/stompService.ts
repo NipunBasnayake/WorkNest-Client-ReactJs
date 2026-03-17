@@ -85,10 +85,12 @@ class RealtimeStompClient {
 
     const client = new Client({
       brokerURL: resolveBrokerUrl(),
-      connectHeaders: this.getHeaders(),
       reconnectDelay: 5000,
       heartbeatIncoming: 10000,
       heartbeatOutgoing: 10000,
+      beforeConnect: () => {
+        client.connectHeaders = this.getHeaders();
+      },
     });
 
     client.onConnect = () => {

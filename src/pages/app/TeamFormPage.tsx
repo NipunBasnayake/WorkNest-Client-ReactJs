@@ -32,12 +32,15 @@ export function TeamFormPage() {
   const [form, setForm] = useState<TeamFormValues>(DEFAULT_TEAM_FORM);
   const [errors, setErrors] = useState<TeamFormErrors>({});
   const [employeeOptions, setEmployeeOptions] = useState<EmployeeOption[]>([]);
+  const [employeeLoadError, setEmployeeLoadError] = useState<string | null>(null);
+  const [managerNameHint, setManagerNameHint] = useState<string>("");
   const [loading, setLoading] = useState(isEdit);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [fatalError, setFatalError] = useState<string | null>(null);
 
   useEffect(() => {
+    setEmployeeLoadError(null);
     getEmployees()
       .then((employees) => {
         const options = employees.map((emp: Employee) => ({
@@ -45,8 +48,14 @@ export function TeamFormPage() {
           name: getEmployeeDisplayName(emp),
         }));
         setEmployeeOptions(options);
+        if (options.length === 0) {
+          setEmployeeLoadError("No employees are available to assign as manager or members.");
+        }
       })
-      .catch(() => setEmployeeOptions([]));
+      .catch((err: unknown) => {
+        setEmployeeOptions([]);
+        setEmployeeLoadError(extractErrorMessage(err) ?? "Unable to load employees for team assignment.");
+      });
   }, []);
 
   useEffect(() => {
@@ -61,11 +70,11 @@ export function TeamFormPage() {
         setForm({
           name: team.name,
           description: team.description ?? "",
-          managerName: team.managerName,
           managerEmployeeId: team.managerEmployeeId ?? "",
-          memberIds: team.memberIds,
+          memberIds: team.managerEmployeeId ? Array.from(new Set([...team.memberIds, team.managerEmployeeId])) : team.memberIds,
           status: team.status,
         });
+        setManagerNameHint(team.managerName);
       })
       .catch(() => {
         if (active) setFatalError("Unable to load team for editing.");
@@ -78,6 +87,19 @@ export function TeamFormPage() {
       active = false;
     };
   }, [id]);
+
+  useEffect(() => {
+    if (!managerNameHint || form.managerEmployeeId || employeeOptions.length === 0) return;
+    const normalizedHint = managerNameHint.trim().toLowerCase();
+    const matchedManager = employeeOptions.find((employee) => employee.name.trim().toLowerCase() === normalizedHint);
+    if (!matchedManager) return;
+
+    setForm((prev) => ({
+      ...prev,
+      managerEmployeeId: matchedManager.id,
+      memberIds: Array.from(new Set([...prev.memberIds, matchedManager.id])),
+    }));
+  }, [employeeOptions, form.managerEmployeeId, managerNameHint]);
 
   const title = useMemo(() => (isEdit ? "Update Team" : "Create Team"), [isEdit]);
 
@@ -98,8 +120,8 @@ export function TeamFormPage() {
       }
 
       setTimeout(() => navigate("/app/teams", { replace: true }), 500);
-    } catch {
-      setMessage("Unable to save team right now.");
+    } catch (err: unknown) {
+      setMessage(extractErrorMessage(err) ?? "Unable to save team right now.");
     } finally {
       setSubmitting(false);
     }
@@ -131,6 +153,10 @@ export function TeamFormPage() {
 
       {!loading && !fatalError && (
         <SectionCard title={isEdit ? "Edit Team Details" : "New Team"} subtitle="Use member assignments to maintain clear ownership.">
+          {employeeLoadError && (
+            <ErrorBanner message={employeeLoadError} />
+          )}
+
           {message && (
             <div
               className="mb-4 rounded-xl border px-4 py-3 text-sm"
@@ -161,4 +187,12 @@ export function TeamFormPage() {
       )}
     </div>
   );
+}
+
+function extractErrorMessage(err: unknown): string | null {
+  if (typeof err === "object" && err !== null) {
+    const error = err as { response?: { data?: { message?: string } }; message?: string };
+    return error.response?.data?.message ?? error.message ?? null;
+  }
+  return null;
 }

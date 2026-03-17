@@ -5,61 +5,135 @@ import { usePageMeta } from "@/hooks/usePageMeta";
 import { useAuth } from "@/hooks/useAuth";
 import {
   addTaskComment,
+  hasTaskViewerIdentity,
+  isTaskAssignedToViewer,
+  resolveTaskViewerIdentity,
   getTaskById,
   getTaskComments,
+  updateTask,
+  updateTaskAssignee,
   updateTaskDueDate,
   updateTaskPriority,
   updateTaskStatus,
+  type TaskViewerIdentity,
 } from "@/modules/tasks/services/taskService";
 import { TaskPriorityBadge } from "@/modules/tasks/components/TaskPriorityBadge";
 import { TaskStatusBadge } from "@/modules/tasks/components/TaskStatusBadge";
 import { SectionCard } from "@/components/common/SectionCard";
 import { Button } from "@/components/common/Button";
 import { EmptyState, ErrorBanner } from "@/components/common/AppUI";
+import { getEmployees } from "@/modules/employees/services/employeeService";
+import { getProjects } from "@/modules/projects/services/projectService";
 import { TASK_PRIORITY_OPTIONS, TASK_STATUS_OPTIONS, type Task, type TaskComment, type TaskPriority, type TaskStatus } from "@/modules/tasks/types";
+
+interface Option {
+  id: string;
+  label: string;
+}
+
+type EmployeeStatusFlow = Extract<TaskStatus, "TODO" | "IN_PROGRESS" | "IN_REVIEW" | "DONE">;
+const EMPLOYEE_STATUS_OPTIONS: EmployeeStatusFlow[] = ["TODO", "IN_PROGRESS", "IN_REVIEW", "DONE"];
 
 export function TaskDetailPage() {
   const { id } = useParams<{ id: string }>();
   usePageMeta({ title: "Task Details", breadcrumb: ["Workspace", "Tasks", "Details"] });
-  const { user } = useAuth();
+  const { hasRole, user } = useAuth();
 
+  const canManageTasks = hasRole("TENANT_ADMIN", "ADMIN", "MANAGER");
+  const isEmployeeOnly = hasRole("EMPLOYEE") && !canManageTasks;
+
+  const [viewerIdentity, setViewerIdentity] = useState<TaskViewerIdentity | null>(null);
   const [task, setTask] = useState<Task | null>(null);
   const [comments, setComments] = useState<TaskComment[]>([]);
+  const [commentsError, setCommentsError] = useState<string | null>(null);
+  const [assigneeOptions, setAssigneeOptions] = useState<Option[]>([]);
+  const [projectOptions, setProjectOptions] = useState<Option[]>([]);
   const [loading, setLoading] = useState(Boolean(id));
   const [loadingComments, setLoadingComments] = useState(Boolean(id));
   const [commentDraft, setCommentDraft] = useState("");
   const [addingComment, setAddingComment] = useState(false);
   const [updatingTask, setUpdatingTask] = useState(false);
   const [dueDateDraft, setDueDateDraft] = useState("");
+  const [assigneeDraft, setAssigneeDraft] = useState("");
+  const [projectDraft, setProjectDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
   const resolvedError = !id ? "Invalid task id." : error;
 
   useEffect(() => {
     if (!id) return;
+    const taskId = id;
 
     let active = true;
-    Promise.all([getTaskById(id), getTaskComments(id).catch(() => [])])
-      .then(([taskResponse, taskComments]) => {
+
+    async function fetchDetail() {
+      setLoading(true);
+      setLoadingComments(true);
+      setError(null);
+      setCommentsError(null);
+
+      try {
+        const identityPromise = isEmployeeOnly ? resolveTaskViewerIdentity() : Promise.resolve(null);
+        const assigneesPromise = canManageTasks ? getEmployees().catch(() => []) : Promise.resolve([]);
+        const projectsPromise = canManageTasks ? getProjects().catch(() => []) : Promise.resolve([]);
+        const commentsPromise = getTaskComments(taskId).catch((err: unknown) => {
+          if (active) setCommentsError(extractErrorMessage(err) ?? "Unable to load comments.");
+          return [] as TaskComment[];
+        });
+
+        const [taskResponse, taskComments, assignees, projects, identity] = await Promise.all([
+          getTaskById(taskId),
+          commentsPromise,
+          assigneesPromise,
+          projectsPromise,
+          identityPromise,
+        ]);
+
         if (!active) return;
+
         setTask(taskResponse);
         setDueDateDraft(taskResponse.dueDate);
+        setAssigneeDraft(taskResponse.assigneeId ?? "");
+        setProjectDraft(taskResponse.projectId ?? "");
         setComments(taskComments);
-      })
-      .catch(() => {
-        if (active) setError("Unable to load task details.");
-      })
-      .finally(() => {
+        setViewerIdentity(identity);
+        setAssigneeOptions(assignees.map((employee) => ({ id: employee.id, label: `${employee.firstName ?? ""} ${employee.lastName ?? ""}`.trim() || employee.name || employee.email })));
+        setProjectOptions(projects.map((project) => ({ id: project.id, label: project.name })));
+      } catch (err: unknown) {
+        if (active) setError(extractErrorMessage(err) ?? "Unable to load task details.");
+      } finally {
         if (active) {
           setLoading(false);
           setLoadingComments(false);
         }
-      });
+      }
+    }
+
+    void fetchDetail();
 
     return () => {
       active = false;
     };
-  }, [id]);
+  }, [id, isEmployeeOnly, canManageTasks, user?.id]);
+
+  const canViewTask = useMemo(() => {
+    if (!task) return true;
+    if (!isEmployeeOnly) return true;
+    if (!hasTaskViewerIdentity(viewerIdentity)) return false;
+    return isTaskAssignedToViewer(task, viewerIdentity);
+  }, [isEmployeeOnly, task, viewerIdentity]);
+
+  const canUpdateStatus = useMemo(() => {
+    if (!task) return false;
+    if (canManageTasks) return true;
+    return isEmployeeOnly && isTaskAssignedToViewer(task, viewerIdentity);
+  }, [canManageTasks, isEmployeeOnly, task, viewerIdentity]);
+
+  const statusOptions = useMemo(() => {
+    if (!task) return TASK_STATUS_OPTIONS;
+    if (canManageTasks) return TASK_STATUS_OPTIONS;
+    return resolveStatusOptions(task.status);
+  }, [task, canManageTasks]);
 
   const activityItems = useMemo<Array<{ id: string; label: string; at: string; detail?: string }>>(() => {
     if (!task) return [];
@@ -79,55 +153,107 @@ export function TaskDetailPage() {
   }, [comments, task]);
 
   async function handleStatusChange(nextStatus: TaskStatus) {
-    if (!task || nextStatus === task.status) return;
+    if (!task || !canUpdateStatus || nextStatus === task.status) return;
     setUpdatingTask(true);
     setFeedback(null);
     try {
       const updated = await updateTaskStatus(task.id, nextStatus);
       setTask(updated);
       setDueDateDraft(updated.dueDate);
+      setAssigneeDraft(updated.assigneeId ?? "");
+      setProjectDraft(updated.projectId ?? "");
       setFeedback("Task status updated.");
-    } catch {
-      setFeedback("Unable to update task status.");
+    } catch (err: unknown) {
+      setFeedback(extractErrorMessage(err) ?? "Unable to update task status.");
     } finally {
       setUpdatingTask(false);
     }
   }
 
   async function handlePriorityChange(nextPriority: TaskPriority) {
-    if (!task || nextPriority === task.priority) return;
+    if (!task || !canManageTasks || nextPriority === task.priority) return;
     setUpdatingTask(true);
     setFeedback(null);
     try {
       const updated = await updateTaskPriority(task.id, nextPriority);
       setTask(updated);
       setDueDateDraft(updated.dueDate);
+      setAssigneeDraft(updated.assigneeId ?? "");
+      setProjectDraft(updated.projectId ?? "");
       setFeedback("Task priority updated.");
-    } catch {
-      setFeedback("Unable to update task priority.");
+    } catch (err: unknown) {
+      setFeedback(extractErrorMessage(err) ?? "Unable to update task priority.");
     } finally {
       setUpdatingTask(false);
     }
   }
 
   async function handleDueDateUpdate() {
-    if (!task || !dueDateDraft || dueDateDraft === task.dueDate) return;
+    if (!task || !canManageTasks || !dueDateDraft || dueDateDraft === task.dueDate) return;
     setUpdatingTask(true);
     setFeedback(null);
     try {
       const updated = await updateTaskDueDate(task.id, dueDateDraft);
       setTask(updated);
       setDueDateDraft(updated.dueDate);
+      setAssigneeDraft(updated.assigneeId ?? "");
+      setProjectDraft(updated.projectId ?? "");
       setFeedback("Task due date updated.");
-    } catch {
-      setFeedback("Unable to update task due date.");
+    } catch (err: unknown) {
+      setFeedback(extractErrorMessage(err) ?? "Unable to update task due date.");
+    } finally {
+      setUpdatingTask(false);
+    }
+  }
+
+  async function handleAssigneeUpdate() {
+    if (!task || !canManageTasks || assigneeDraft === (task.assigneeId ?? "")) return;
+    setUpdatingTask(true);
+    setFeedback(null);
+    try {
+      const updated = await updateTaskAssignee(task.id, assigneeDraft);
+      setTask(updated);
+      setDueDateDraft(updated.dueDate);
+      setAssigneeDraft(updated.assigneeId ?? "");
+      setProjectDraft(updated.projectId ?? "");
+      setFeedback("Task assignee updated.");
+    } catch (err: unknown) {
+      setFeedback(extractErrorMessage(err) ?? "Unable to update task assignee.");
+    } finally {
+      setUpdatingTask(false);
+    }
+  }
+
+  async function handleProjectUpdate() {
+    if (!task || !canManageTasks || projectDraft === (task.projectId ?? "")) return;
+    setUpdatingTask(true);
+    setFeedback(null);
+    try {
+      const updated = await updateTask(task.id, {
+        title: task.title,
+        description: task.description ?? "",
+        status: task.status,
+        priority: task.priority,
+        dueDate: task.dueDate,
+        assigneeId: task.assigneeId,
+        assigneeName: task.assigneeName,
+        projectId: projectDraft || undefined,
+        projectName: projectOptions.find((project) => project.id === projectDraft)?.label,
+      });
+      setTask(updated);
+      setDueDateDraft(updated.dueDate);
+      setAssigneeDraft(updated.assigneeId ?? "");
+      setProjectDraft(updated.projectId ?? "");
+      setFeedback("Task project updated.");
+    } catch (err: unknown) {
+      setFeedback(extractErrorMessage(err) ?? "Unable to update task project.");
     } finally {
       setUpdatingTask(false);
     }
   }
 
   async function handleCommentSubmit() {
-    if (!task || !commentDraft.trim()) return;
+    if (!task || !canViewTask || !commentDraft.trim()) return;
     setAddingComment(true);
     setFeedback(null);
     try {
@@ -135,8 +261,8 @@ export function TaskDetailPage() {
       setComments((prev) => [...prev, created]);
       setCommentDraft("");
       setFeedback("Comment added.");
-    } catch {
-      setFeedback("Unable to add comment.");
+    } catch (err: unknown) {
+      setFeedback(extractErrorMessage(err) ?? "Unable to add comment.");
     } finally {
       setAddingComment(false);
     }
@@ -149,7 +275,7 @@ export function TaskDetailPage() {
           <ArrowLeft size={16} />
           Back
         </Button>
-        {task && <Button variant="outline" to={`/app/tasks/${task.id}/edit`}>Edit Task</Button>}
+        {task && canManageTasks && <Button variant="outline" to={`/app/tasks/${task.id}/edit`}>Edit Task</Button>}
       </div>
 
       {loading && (
@@ -159,6 +285,9 @@ export function TaskDetailPage() {
       )}
 
       {!loading && resolvedError && <ErrorBanner message={resolvedError} />}
+      {!loading && !resolvedError && isEmployeeOnly && !hasTaskViewerIdentity(viewerIdentity) && (
+        <ErrorBanner message="Unable to resolve your employee identity for task scoping. Please refresh or contact your workspace admin." />
+      )}
 
       {feedback && (
         <div
@@ -181,7 +310,15 @@ export function TaskDetailPage() {
         />
       )}
 
-      {!loading && !resolvedError && task && (
+      {!loading && !resolvedError && task && !canViewTask && (
+        <EmptyState
+          title="Access restricted"
+          description="You can only view tasks assigned to you."
+          action={<Button variant="outline" to="/app/tasks">Go to My Tasks</Button>}
+        />
+      )}
+
+      {!loading && !resolvedError && task && canViewTask && (
         <>
           <SectionCard>
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -206,14 +343,14 @@ export function TaskDetailPage() {
             <InfoCard icon={<CalendarClock size={16} />} label="Due Date" value={formatDate(task.dueDate)} />
           </div>
 
-          <SectionCard title="Workflow Controls" subtitle="Manage lifecycle fields using task patch endpoints.">
+          <SectionCard title="Workflow Controls" subtitle="Manage task lifecycle with role-appropriate actions.">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               <FieldSelect
                 id="task-detail-status"
                 label="Status"
                 value={task.status}
-                options={TASK_STATUS_OPTIONS}
-                disabled={updatingTask}
+                options={statusOptions}
+                disabled={updatingTask || !canUpdateStatus}
                 onChange={(value) => handleStatusChange(value as TaskStatus)}
               />
               <FieldSelect
@@ -221,7 +358,7 @@ export function TaskDetailPage() {
                 label="Priority"
                 value={task.priority}
                 options={TASK_PRIORITY_OPTIONS}
-                disabled={updatingTask}
+                disabled={updatingTask || !canManageTasks}
                 onChange={(value) => handlePriorityChange(value as TaskPriority)}
               />
               <div className="space-y-1.5">
@@ -234,15 +371,70 @@ export function TaskDetailPage() {
                     type="date"
                     value={dueDateDraft}
                     onChange={(event) => setDueDateDraft(event.target.value)}
-                    className="w-full rounded-xl border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary-500/30"
+                    disabled={!canManageTasks}
+                    className="w-full rounded-xl border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary-500/30 disabled:opacity-60"
                     style={{ borderColor: "var(--border-default)", backgroundColor: "var(--bg-surface)", color: "var(--text-primary)" }}
                   />
-                  <Button size="sm" variant="outline" disabled={updatingTask || dueDateDraft === task.dueDate} onClick={handleDueDateUpdate}>
+                  <Button size="sm" variant="outline" disabled={updatingTask || !canManageTasks || dueDateDraft === task.dueDate} onClick={handleDueDateUpdate}>
                     Save
                   </Button>
                 </div>
               </div>
             </div>
+
+            {canManageTasks && (
+              <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div className="space-y-1.5">
+                  <label htmlFor="task-detail-assignee" className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
+                    Assignee
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <select
+                      id="task-detail-assignee"
+                      value={assigneeDraft}
+                      onChange={(event) => setAssigneeDraft(event.target.value)}
+                      className="w-full rounded-xl border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary-500/30"
+                      style={{ borderColor: "var(--border-default)", backgroundColor: "var(--bg-surface)", color: "var(--text-primary)" }}
+                    >
+                      <option value="">Unassigned</option>
+                      {assigneeOptions.map((assignee) => (
+                        <option key={assignee.id} value={assignee.id}>
+                          {assignee.label}
+                        </option>
+                      ))}
+                    </select>
+                    <Button size="sm" variant="outline" disabled={updatingTask || assigneeDraft === (task.assigneeId ?? "")} onClick={handleAssigneeUpdate}>
+                      Save
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label htmlFor="task-detail-project" className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
+                    Project
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <select
+                      id="task-detail-project"
+                      value={projectDraft}
+                      onChange={(event) => setProjectDraft(event.target.value)}
+                      className="w-full rounded-xl border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary-500/30"
+                      style={{ borderColor: "var(--border-default)", backgroundColor: "var(--bg-surface)", color: "var(--text-primary)" }}
+                    >
+                      <option value="">No project</option>
+                      {projectOptions.map((projectOption) => (
+                        <option key={projectOption.id} value={projectOption.id}>
+                          {projectOption.label}
+                        </option>
+                      ))}
+                    </select>
+                    <Button size="sm" variant="outline" disabled={updatingTask || projectDraft === (task.projectId ?? "")} onClick={handleProjectUpdate}>
+                      Save
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
           </SectionCard>
 
           <SectionCard title="Comments" subtitle="Collaborate on task execution updates.">
@@ -265,6 +457,8 @@ export function TaskDetailPage() {
                   </Button>
                 </div>
               </div>
+
+              {commentsError && <ErrorBanner message={commentsError} />}
 
               {loadingComments && (
                 <div className="rounded-xl border border-dashed p-4 text-center text-xs" style={{ borderColor: "var(--border-default)", color: "var(--text-tertiary)" }}>
@@ -291,7 +485,7 @@ export function TaskDetailPage() {
                           {formatDateTime(comment.createdAt)}
                         </span>
                       </div>
-                      <p className="mt-1 text-sm whitespace-pre-wrap" style={{ color: "var(--text-secondary)" }}>
+                      <p className="mt-1 whitespace-pre-wrap text-sm" style={{ color: "var(--text-secondary)" }}>
                         {comment.comment}
                       </p>
                     </div>
@@ -309,7 +503,7 @@ export function TaskDetailPage() {
                     {entry.label}
                   </p>
                   {entry.detail && (
-                    <p className="mt-1 text-sm whitespace-pre-wrap" style={{ color: "var(--text-secondary)" }}>
+                    <p className="mt-1 whitespace-pre-wrap text-sm" style={{ color: "var(--text-secondary)" }}>
                       {entry.detail}
                     </p>
                   )}
@@ -324,6 +518,11 @@ export function TaskDetailPage() {
       )}
     </div>
   );
+}
+
+function resolveStatusOptions(currentStatus: TaskStatus): TaskStatus[] {
+  const options = new Set<TaskStatus>([...EMPLOYEE_STATUS_OPTIONS, currentStatus]);
+  return Array.from(options);
 }
 
 function FieldSelect({
@@ -393,4 +592,12 @@ function formatDateTime(value: string): string {
     hour: "numeric",
     minute: "2-digit",
   });
+}
+
+function extractErrorMessage(err: unknown): string | null {
+  if (typeof err === "object" && err !== null) {
+    const error = err as { response?: { data?: { message?: string } }; message?: string };
+    return error.response?.data?.message ?? error.message ?? null;
+  }
+  return null;
 }

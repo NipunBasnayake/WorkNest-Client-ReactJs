@@ -56,6 +56,9 @@ export interface ApiResponse<T> {
   success: boolean;
   data: T;
   message?: string;
+  timestamp?: string;
+  errorCode?: string;
+  path?: string;
 }
 
 export interface Tenant {
@@ -66,6 +69,27 @@ export interface Tenant {
   status?: "active" | "inactive" | "suspended" | string;
   createdAt?: string;
   [key: string]: unknown;
+}
+
+export interface TenantOnboardingRequest {
+  companyName: string;
+  tenantKey: string;
+  adminFullName: string;
+  adminEmail: string;
+  adminPassword: string;
+}
+
+export type TenantProvisioningStatus = "PROVISIONING" | "ACTIVE" | "FAILED" | string;
+
+export interface TenantProvisioningData {
+  tenantId: number;
+  tenantKey: string;
+  companyName: string;
+  databaseName: string;
+  status: TenantProvisioningStatus;
+  tenantAdminUserId: number;
+  tenantAdminEmail: string;
+  createdAt: string;
 }
 
 export interface Employee {

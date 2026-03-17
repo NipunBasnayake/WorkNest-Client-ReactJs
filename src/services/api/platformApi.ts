@@ -1,6 +1,11 @@
 import { apiClient, publicClient } from "@/services/http/client";
 import { unwrapApiData } from "@/services/http/response";
-import type { ApiResponse, Tenant } from "@/types";
+import type {
+  ApiResponse,
+  Tenant,
+  TenantOnboardingRequest,
+  TenantProvisioningData,
+} from "@/types";
 import { extractList } from "@/services/http/parsers";
 
 type TenantListPayload = Tenant[] | { tenants: Tenant[] };
@@ -14,20 +19,22 @@ export async function platformAccessCheckApi(): Promise<boolean> {
   }
 }
 
-export async function onboardTenantApi(payload: Record<string, unknown>): Promise<Record<string, unknown>> {
+export async function onboardTenantApi(payload: TenantOnboardingRequest): Promise<TenantProvisioningData> {
   const { data } = await apiClient.post<
-    ApiResponse<Record<string, unknown>> | Record<string, unknown>
+    ApiResponse<TenantProvisioningData> | TenantProvisioningData
   >("/api/platform/onboarding/tenants", payload);
 
-  return unwrapApiData<Record<string, unknown>>(data);
+  return unwrapApiData<TenantProvisioningData>(data);
 }
 
-export async function registerTenantPublicApi(payload: Record<string, unknown>): Promise<Record<string, unknown>> {
+export async function registerTenantPublicApi(
+  payload: TenantOnboardingRequest
+): Promise<TenantProvisioningData> {
   const { data } = await publicClient.post<
-    ApiResponse<Record<string, unknown>> | Record<string, unknown>
+    ApiResponse<TenantProvisioningData> | TenantProvisioningData
   >("/api/platform/onboarding/tenants", payload);
 
-  return unwrapApiData<Record<string, unknown>>(data);
+  return unwrapApiData<TenantProvisioningData>(data);
 }
 
 export async function getTenantsApi(): Promise<Tenant[]> {

@@ -8,7 +8,10 @@ import { SectionCard } from "@/components/common/SectionCard";
 import { ErrorBanner } from "@/components/common/AppUI";
 import { getTenantSettings, updateTenantPassword, updateTenantProfile } from "@/modules/settings/services/settingsService";
 import { useAuthStore } from "@/store/authStore";
+import { getEmployeeSkills, getMyEmployeeProfile } from "@/modules/employees/services/employeeService";
+import { toEmployeeViewModel } from "@/modules/employees/utils/employeeMapper";
 import type { ProfileSettings } from "@/modules/settings/types";
+import type { EmployeeSkill, EmployeeViewModel } from "@/modules/employees/types";
 
 export function AppSettingsProfilePage() {
   usePageMeta({ title: "Settings - Profile", breadcrumb: ["Workspace", "Settings", "Profile"] });
@@ -22,6 +25,8 @@ export function AppSettingsProfilePage() {
   });
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [employeeProfile, setEmployeeProfile] = useState<EmployeeViewModel | null>(null);
+  const [skills, setSkills] = useState<EmployeeSkill[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [updatingPassword, setUpdatingPassword] = useState(false);
@@ -29,13 +34,25 @@ export function AppSettingsProfilePage() {
   const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    getTenantSettings()
-      .then((settings) => {
+    Promise.all([
+      getTenantSettings(),
+      getMyEmployeeProfile().catch(() => null),
+    ])
+      .then(async ([settings, employee]) => {
         setValues({
           fullName: settings.profile.fullName || user?.name || "",
           email: settings.profile.email || user?.email || "",
           title: settings.profile.title,
         });
+
+        if (employee) {
+          const mapped = toEmployeeViewModel(employee);
+          setEmployeeProfile(mapped);
+          if (mapped.id) {
+            const employeeSkills = await getEmployeeSkills(mapped.id).catch(() => []);
+            setSkills(employeeSkills);
+          }
+        }
       })
       .catch(() => setError("Unable to load profile settings."))
       .finally(() => setLoading(false));
@@ -110,6 +127,61 @@ export function AppSettingsProfilePage() {
                 {saving ? "Saving..." : "Save Profile"}
               </Button>
             </div>
+          </div>
+        )}
+      </SectionCard>
+
+      <SectionCard title="Employee Record" subtitle="Your workplace employee data is shown here as read-only reference.">
+        {loading ? (
+          <div className="h-28 animate-pulse rounded-xl" style={{ backgroundColor: "var(--bg-muted)" }} />
+        ) : (
+          <div className="space-y-4">
+            {!employeeProfile && (
+              <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+                Employee profile details are not available for this account.
+              </p>
+            )}
+
+            {employeeProfile && (
+              <>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <Input id="employee-code" label="Employee Code" value={employeeProfile.employeeCode || "-"} disabled onChange={() => undefined} />
+                  <Input id="employee-role" label="Role" value={String(employeeProfile.role || "EMPLOYEE")} disabled onChange={() => undefined} />
+                  <Input id="employee-designation" label="Designation" value={employeeProfile.position || employeeProfile.designation || "-"} disabled onChange={() => undefined} />
+                  <Input id="employee-department" label="Department" value={employeeProfile.department || "-"} disabled onChange={() => undefined} />
+                  <Input id="employee-phone" label="Phone" value={employeeProfile.phone || "-"} disabled onChange={() => undefined} />
+                  <Input id="employee-status" label="Status" value={String(employeeProfile.status || "active").toUpperCase()} disabled onChange={() => undefined} />
+                </div>
+
+                <div>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--text-tertiary)" }}>
+                    Skills
+                  </p>
+                  {skills.length === 0 ? (
+                    <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+                      No skills are assigned to your profile yet.
+                    </p>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {skills.map((skill) => (
+                        <span
+                          key={skill.id}
+                          className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium"
+                          style={{
+                            borderColor: "rgba(147,50,234,0.25)",
+                            background: "rgba(147,50,234,0.08)",
+                            color: "var(--color-primary-600)",
+                          }}
+                        >
+                          {skill.name}
+                          <span style={{ color: "var(--text-secondary)" }}>({skill.level.toLowerCase()})</span>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         )}
       </SectionCard>

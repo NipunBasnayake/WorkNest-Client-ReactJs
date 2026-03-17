@@ -33,15 +33,23 @@ export function TaskFormPage() {
   const [errors, setErrors] = useState<TaskFormErrors>({});
   const [assignees, setAssignees] = useState<Option[]>([]);
   const [projects, setProjects] = useState<Option[]>([]);
+  const [dependencyLoadError, setDependencyLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(isEdit);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [fatalError, setFatalError] = useState<string | null>(null);
 
   useEffect(() => {
+    setDependencyLoadError(null);
     Promise.all([getEmployees().catch(() => []), getProjects().catch(() => [])]).then(([employeeRes, projectRes]) => {
       setAssignees(employeeRes.map((employee) => ({ id: employee.id, label: getEmployeeDisplayName(employee) })));
       setProjects(projectRes.map((project) => ({ id: project.id, label: project.name })));
+
+      if (employeeRes.length === 0 || projectRes.length === 0) {
+        setDependencyLoadError("Assignee and project lists are required to create or edit tasks.");
+      }
+    }).catch((err: unknown) => {
+      setDependencyLoadError(extractErrorMessage(err) ?? "Unable to load task dependencies.");
     });
   }, []);
 
@@ -110,8 +118,8 @@ export function TaskFormPage() {
       }
 
       setTimeout(() => navigate("/app/tasks", { replace: true }), 500);
-    } catch {
-      setMessage("Unable to save task right now.");
+    } catch (err: unknown) {
+      setMessage(extractErrorMessage(err) ?? "Unable to save task right now.");
     } finally {
       setSubmitting(false);
     }
@@ -140,6 +148,8 @@ export function TaskFormPage() {
 
       {!loading && !fatalError && (
         <SectionCard title={isEdit ? "Edit Task Details" : "New Task"} subtitle="Use clear ownership and due dates to keep execution predictable.">
+          {dependencyLoadError && <ErrorBanner message={dependencyLoadError} />}
+
           {message && (
             <div
               className="mb-4 rounded-xl border px-4 py-3 text-sm"
@@ -171,4 +181,12 @@ export function TaskFormPage() {
       )}
     </div>
   );
+}
+
+function extractErrorMessage(err: unknown): string | null {
+  if (typeof err === "object" && err !== null) {
+    const error = err as { response?: { data?: { message?: string } }; message?: string };
+    return error.response?.data?.message ?? error.message ?? null;
+  }
+  return null;
 }

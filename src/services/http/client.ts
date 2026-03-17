@@ -1,5 +1,5 @@
 import axios, { type AxiosError, type AxiosInstance, type AxiosRequestConfig, type InternalAxiosRequestConfig } from "axios";
-import type { ApiResponse } from "@/types";
+import type { ApiResponse, SessionType } from "@/types";
 import { unwrapApiData } from "@/services/http/response";
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080";
@@ -50,16 +50,29 @@ export const apiClient: AxiosInstance = axios.create({
 });
 
 let isRefreshing = false;
-let failedQueue: Array<{ resolve: (token: string) => void; reject: (err: unknown) => void }> = [];
+let refreshSubscribers: Array<{ resolve: (token: string) => void; reject: (err: unknown) => void }> = [];
 
 type RefreshResponse = { accessToken: string; refreshToken?: string };
+type RetryableRequestConfig = AxiosRequestConfig & { _retry?: boolean };
+type AuthStoreState = {
+  tenantKey: string | null;
+  applyTokenRefresh: (accessToken: string, refreshToken: string, tenantKey: string | null) => void;
+  hardLogout: (redirectTo?: string) => void;
+};
 
-function processQueue(error: unknown, token: string | null) {
-  failedQueue.forEach(({ resolve, reject }) => {
-    if (token) resolve(token);
-    else reject(error);
+function subscribeTokenRefresh(resolve: (token: string) => void, reject: (err: unknown) => void) {
+  refreshSubscribers.push({ resolve, reject });
+}
+
+function flushRefreshSubscribers(error: unknown, token: string | null) {
+  refreshSubscribers.forEach(({ resolve, reject }) => {
+    if (token) {
+      resolve(token);
+      return;
+    }
+    reject(error ?? new Error("Token refresh failed."));
   });
-  failedQueue = [];
+  refreshSubscribers = [];
 }
 
 function isTenantApiRequest(url?: string): boolean {
@@ -75,11 +88,48 @@ function isTenantApiRequest(url?: string): boolean {
   return path.startsWith("/api/tenant/");
 }
 
-function redirectToSessionExpired() {
-  tokenStorage.clear();
-  if (window.location.pathname !== SESSION_EXPIRED_ROUTE) {
-    window.location.replace(SESSION_EXPIRED_ROUTE);
+function redirectTo(path: string) {
+  if (typeof window === "undefined") return;
+  if (window.location.pathname !== path) {
+    window.location.replace(path);
   }
+}
+
+async function getAuthStoreState(): Promise<AuthStoreState | null> {
+  try {
+    const { useAuthStore } = await import("@/store/authStore");
+    return useAuthStore.getState() as AuthStoreState;
+  } catch {
+    return null;
+  }
+}
+
+async function resolveTenantKeyForRefresh(): Promise<string | null> {
+  const authStore = await getAuthStoreState();
+  return authStore?.tenantKey ?? tokenStorage.getTenantKey();
+}
+
+async function applyTokenRefresh(accessToken: string, refreshToken: string, tenantKey: string | null) {
+  const authStore = await getAuthStoreState();
+  if (authStore) {
+    authStore.applyTokenRefresh(accessToken, refreshToken, tenantKey);
+    return;
+  }
+
+  const sessionType: SessionType = tokenStorage.getSession() ?? (tenantKey ? "tenant" : "platform");
+  tokenStorage.setTokens(accessToken, refreshToken);
+  tokenStorage.setContext(tenantKey, sessionType);
+}
+
+async function hardLogout(redirectPath = SESSION_EXPIRED_ROUTE) {
+  const authStore = await getAuthStoreState();
+  if (authStore) {
+    authStore.hardLogout(redirectPath);
+    return;
+  }
+
+  tokenStorage.clear();
+  redirectTo(redirectPath);
 }
 
 apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
@@ -101,75 +151,79 @@ apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
 apiClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
-    const originalRequest = error.config as (AxiosRequestConfig & { _retry?: boolean }) | undefined;
+    const originalRequest = error.config as RetryableRequestConfig | undefined;
     if (!originalRequest) return Promise.reject(error);
+    if (error.response?.status !== 401) return Promise.reject(error);
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      if (originalRequest.url?.includes("/api/auth/refresh")) {
-        redirectToSessionExpired();
-        return Promise.reject(error);
-      }
-
-      if (isRefreshing) {
-        return new Promise((resolve, reject) => {
-          failedQueue.push({
-            resolve: (token) => {
-              originalRequest.headers = {
-                ...originalRequest.headers,
-                Authorization: `Bearer ${token}`,
-              };
-              resolve(apiClient(originalRequest));
-            },
-            reject,
-          });
-        });
-      }
-
-      originalRequest._retry = true;
-      isRefreshing = true;
-
-      const refreshToken = tokenStorage.getRefresh();
-      const tenantKey = tokenStorage.getTenantKey();
-      if (!refreshToken) {
-        processQueue(error, null);
-        isRefreshing = false;
-        redirectToSessionExpired();
-        return Promise.reject(error);
-      }
-
-      try {
-        const { data } = await publicClient.post<ApiResponse<RefreshResponse> | RefreshResponse>(
-          "/api/auth/refresh",
-          {
-            refreshToken,
-            ...(tenantKey ? { tenantKey } : {}),
-          }
-        );
-
-        const parsed = unwrapApiData<RefreshResponse>(data);
-        if (!parsed.accessToken) {
-          throw new Error("Refresh response did not include accessToken.");
-        }
-
-        const nextRefresh = parsed.refreshToken ?? refreshToken;
-        tokenStorage.setTokens(parsed.accessToken, nextRefresh);
-        processQueue(null, parsed.accessToken);
-
-        originalRequest.headers = {
-          ...originalRequest.headers,
-          Authorization: `Bearer ${parsed.accessToken}`,
-        };
-
-        return apiClient(originalRequest);
-      } catch (refreshError) {
-        processQueue(refreshError, null);
-        redirectToSessionExpired();
-        return Promise.reject(refreshError);
-      } finally {
-        isRefreshing = false;
-      }
+    if (originalRequest.url?.includes("/api/auth/refresh")) {
+      flushRefreshSubscribers(error, null);
+      isRefreshing = false;
+      await hardLogout(SESSION_EXPIRED_ROUTE);
+      return Promise.reject(error);
     }
 
-    return Promise.reject(error);
+    if (originalRequest._retry) {
+      return Promise.reject(error);
+    }
+
+    if (isRefreshing) {
+      return new Promise((resolve, reject) => {
+        subscribeTokenRefresh(
+          (token: string) => {
+            originalRequest._retry = true;
+            originalRequest.headers = {
+              ...originalRequest.headers,
+              Authorization: `Bearer ${token}`,
+            };
+            resolve(apiClient(originalRequest));
+          },
+          reject
+        );
+      });
+    }
+
+    originalRequest._retry = true;
+    isRefreshing = true;
+
+    const refreshToken = tokenStorage.getRefresh();
+    const tenantKey = await resolveTenantKeyForRefresh();
+    if (!refreshToken) {
+      flushRefreshSubscribers(error, null);
+      isRefreshing = false;
+      await hardLogout(SESSION_EXPIRED_ROUTE);
+      return Promise.reject(error);
+    }
+
+    try {
+      const { data } = await publicClient.post<ApiResponse<RefreshResponse> | RefreshResponse>(
+        "/api/auth/refresh",
+        {
+          refreshToken,
+          tenantKey,
+        }
+      );
+
+      const parsed = unwrapApiData<RefreshResponse>(data);
+      if (!parsed.accessToken) {
+        throw new Error("Refresh response did not include accessToken.");
+      }
+
+      const nextRefresh = parsed.refreshToken ?? refreshToken;
+      await applyTokenRefresh(parsed.accessToken, nextRefresh, tenantKey);
+      flushRefreshSubscribers(null, parsed.accessToken);
+
+      originalRequest.headers = {
+        ...originalRequest.headers,
+        Authorization: `Bearer ${parsed.accessToken}`,
+      };
+
+      return apiClient(originalRequest);
+    } catch (refreshError) {
+      flushRefreshSubscribers(refreshError, null);
+      await hardLogout(SESSION_EXPIRED_ROUTE);
+      return Promise.reject(refreshError);
+    } finally {
+      isRefreshing = false;
+    }
   }
 );

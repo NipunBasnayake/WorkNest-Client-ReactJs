@@ -3,6 +3,8 @@ import { tokenStorage } from "@/services/http/client";
 import { loginApi, getMeApi, logoutApi } from "@/services/api/authApi";
 import type { AuthUser, LoginPayload, SessionType } from "@/types";
 
+const SESSION_EXPIRED_ROUTE = "/session-expired";
+
 interface AuthState {
   /* State */
   user: AuthUser | null;
@@ -19,6 +21,8 @@ interface AuthState {
   bootstrap: () => Promise<void>;
   clearError: () => void;
   setUser: (user: AuthUser) => void;
+  applyTokenRefresh: (accessToken: string, refreshToken: string, tenantKey: string | null) => void;
+  hardLogout: (redirectTo?: string) => void;
 }
 
 function deriveSessionType(user: AuthUser): SessionType {
@@ -27,7 +31,18 @@ function deriveSessionType(user: AuthUser): SessionType {
   return platformRoles.includes(user.role) ? "platform" : "tenant";
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+function redirectTo(path: string) {
+  if (typeof window === "undefined") return;
+  if (window.location.pathname !== path) {
+    window.location.replace(path);
+  }
+}
+
+function resolveSessionType(current: SessionType | null, tenantKey: string | null): SessionType {
+  return current ?? tokenStorage.getSession() ?? (tenantKey ? "tenant" : "platform");
+}
+
+export const useAuthStore = create<AuthState>((set, get) => ({
   user:             null,
   isAuthenticated:  false,
   sessionType:      null,
@@ -88,6 +103,8 @@ export const useAuthStore = create<AuthState>((set) => ({
         isAuthenticated: false,
         sessionType:     null,
         tenantKey:       null,
+        isLoading:       false,
+        isBootstrapping: false,
         error:           null,
       });
     }
@@ -136,6 +153,33 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   clearError: () => set({ error: null }),
   setUser:    (user) => set({ user }),
+  applyTokenRefresh: (accessToken, refreshToken, tenantKey) => {
+    const state = get();
+    const resolvedTenantKey = tenantKey ?? state.tenantKey ?? tokenStorage.getTenantKey();
+    const resolvedSessionType = resolveSessionType(state.sessionType, resolvedTenantKey);
+
+    tokenStorage.setTokens(accessToken, refreshToken);
+    tokenStorage.setContext(resolvedTenantKey, resolvedSessionType);
+
+    set({
+      tenantKey: resolvedTenantKey,
+      sessionType: state.sessionType ?? resolvedSessionType,
+      error: null,
+    });
+  },
+  hardLogout: (redirectToPath = SESSION_EXPIRED_ROUTE) => {
+    tokenStorage.clear();
+    set({
+      user:            null,
+      isAuthenticated: false,
+      sessionType:     null,
+      tenantKey:       null,
+      isLoading:       false,
+      isBootstrapping: false,
+      error:           null,
+    });
+    redirectTo(redirectToPath);
+  },
 }));
 
 /* ── Selectors ── */
