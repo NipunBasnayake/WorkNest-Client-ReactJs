@@ -31,9 +31,12 @@ function sortMessages(messages: ChatMessage[]): ChatMessage[] {
   return [...messages].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 }
 
-function clearUnread(conversations: ChatConversation[], conversationId: string): ChatConversation[] {
+function clearUnread(
+  conversations: ChatConversation[],
+  target: Pick<ChatConversation, "id" | "type">
+): ChatConversation[] {
   return conversations.map((conversation) => {
-    if (conversation.id !== conversationId) return conversation;
+    if (conversation.id !== target.id || conversation.type !== target.type) return conversation;
     return {
       ...conversation,
       unreadCount: 0,
@@ -97,6 +100,27 @@ function updateConversationPreview(
   };
 }
 
+function areMessagesEquivalent(left: ChatMessage[], right: ChatMessage[]): boolean {
+  if (left.length !== right.length) return false;
+
+  for (let index = 0; index < left.length; index += 1) {
+    const a = left[index];
+    const b = right[index];
+
+    if (
+      a.id !== b.id ||
+      a.message !== b.message ||
+      a.editedAt !== b.editedAt ||
+      a.createdAt !== b.createdAt ||
+      a.senderEmployeeId !== b.senderEmployeeId
+    ) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 export function useChat(currentUserId: string | undefined) {
   const [activeTab, setActiveTab] = useState<ChatType>("TEAM");
   const [teamConversations, setTeamConversations] = useState<ChatConversation[]>([]);
@@ -115,6 +139,7 @@ export function useChat(currentUserId: string | undefined) {
   const viewerEmployeeIdRef = useRef<string | undefined>(viewerEmployeeId);
   const selectedConversationRef = useRef<ChatConversation | null>(null);
   const selectedConversationKeyRef = useRef<string | null>(selectedConversationKey);
+  const messagesRef = useRef<ChatMessage[]>(messages);
 
   const markedTeamMessageIdsRef = useRef<Set<string>>(new Set());
   const seenRealtimeMessageIdsRef = useRef<Map<string, number>>(new Map());
@@ -169,6 +194,10 @@ export function useChat(currentUserId: string | undefined) {
   }, [selectedConversationKey]);
 
   useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+
+  useEffect(() => {
     viewerEmployeeIdRef.current = viewerEmployeeId;
   }, [viewerEmployeeId]);
 
@@ -177,6 +206,12 @@ export function useChat(currentUserId: string | undefined) {
 
     if (!currentUserId) {
       setViewerEmployeeId(undefined);
+      setTeamConversations([]);
+      setHrConversations([]);
+      setSelectedConversationKey(null);
+      setMessages([]);
+      setIsLoadingConversations(false);
+      setIsLoadingMessages(false);
       return () => {
         active = false;
       };
@@ -321,9 +356,9 @@ export function useChat(currentUserId: string | undefined) {
         markedIds.forEach((id) => markedTeamMessageIdsRef.current.add(id));
 
         if (conversation.type === "TEAM") {
-          setTeamConversations((previous) => clearUnread(previous, conversation.id));
+          setTeamConversations((previous) => clearUnread(previous, conversation));
         } else {
-          setHrConversations((previous) => clearUnread(previous, conversation.id));
+          setHrConversations((previous) => clearUnread(previous, conversation));
         }
       } catch {
         // Ignore read-marking failures to avoid blocking core chat behavior.
@@ -341,17 +376,21 @@ export function useChat(currentUserId: string | undefined) {
       }
 
       const loadVersion = ++messageLoadVersionRef.current;
+      const requestedKey = buildConversationKey(conversation);
+      setMessages([]);
       setIsLoadingMessages(true);
       setError(null);
 
       try {
-        const threadMessages = await listConversationMessages(conversation.type, conversation.id);
+        const threadMessages = sortMessages(await listConversationMessages(conversation.type, conversation.id));
         if (!mountedRef.current || loadVersion !== messageLoadVersionRef.current) return;
+        if (selectedConversationKeyRef.current !== requestedKey) return;
 
         setMessages(threadMessages);
         await markSelectedConversationAsRead(conversation, threadMessages);
       } catch {
         if (!mountedRef.current || loadVersion !== messageLoadVersionRef.current) return;
+        if (selectedConversationKeyRef.current !== requestedKey) return;
         setMessages([]);
         setError("Unable to load messages for this conversation.");
       } finally {
@@ -377,7 +416,10 @@ export function useChat(currentUserId: string | undefined) {
         selected.type === incoming.chatType;
 
       if (isSelected) {
-        setMessages((previous) => upsertMessage(previous, incoming));
+        setMessages((previous) => {
+          const next = upsertMessage(previous, incoming);
+          return areMessagesEquivalent(previous, next) ? previous : next;
+        });
 
         if (!mine && selected) {
           void markSelectedConversationAsRead(selected, [incoming]);
@@ -441,10 +483,15 @@ export function useChat(currentUserId: string | undefined) {
           senderId: created.senderId || created.senderEmployeeId || resolvedViewerId,
           content: created.content || created.message || trimmed,
         };
+        seenRealtimeMessageIdsRef.current.set(createRealtimeMessageKey(fallbackMessage), Date.now());
+        trimSeenRealtimeMap(seenRealtimeMessageIdsRef.current);
 
         const selectedKey = buildConversationKey(selected);
         if (selectedConversationKeyRef.current === selectedKey) {
-          setMessages((previous) => upsertMessage(previous, fallbackMessage));
+          setMessages((previous) => {
+            const next = upsertMessage(previous, fallbackMessage);
+            return areMessagesEquivalent(previous, next) ? previous : next;
+          });
         }
 
         if (selected.type === "TEAM") {
@@ -454,7 +501,7 @@ export function useChat(currentUserId: string | undefined) {
         }
 
         if (!created.id || !created.message?.trim()) {
-          const refreshedThread = await listConversationMessages(selected.type, selected.id);
+          const refreshedThread = sortMessages(await listConversationMessages(selected.type, selected.id));
           if (mountedRef.current && selectedConversationKeyRef.current === selectedKey) {
             setMessages(refreshedThread);
           }
@@ -489,6 +536,7 @@ export function useChat(currentUserId: string | undefined) {
         throw new Error("Unable to resolve the team conversation.");
       }
 
+      messageLoadVersionRef.current += 1;
       setActiveTab("TEAM");
       setTeamConversations((previous) => placeConversationOnTop(previous, created));
       setSelectedConversationKey(buildConversationKey(created));
@@ -525,6 +573,7 @@ export function useChat(currentUserId: string | undefined) {
         throw new Error("Unable to resolve the HR conversation.");
       }
 
+      messageLoadVersionRef.current += 1;
       setActiveTab("HR");
       setHrConversations((previous) => placeConversationOnTop(previous, created));
       setSelectedConversationKey(buildConversationKey(created));
@@ -538,7 +587,9 @@ export function useChat(currentUserId: string | undefined) {
     (conversationId: string) => {
       const target = activeConversations.find((conversation) => conversation.id === conversationId);
       if (!target) return;
-      setSelectedConversationKey(buildConversationKey(target));
+      const nextKey = buildConversationKey(target);
+      if (nextKey === selectedConversationKeyRef.current) return;
+      setSelectedConversationKey(nextKey);
     },
     [activeConversations]
   );
@@ -548,8 +599,9 @@ export function useChat(currentUserId: string | undefined) {
   }, []);
 
   useEffect(() => {
+    if (!currentUserId) return;
     void refreshConversations();
-  }, [refreshConversations]);
+  }, [currentUserId, refreshConversations]);
 
   useEffect(() => {
     const selected = selectedConversationRef.current;
@@ -599,7 +651,9 @@ export function useChat(currentUserId: string | undefined) {
 
   // Polling fallback for realtime updates
   useEffect(() => {
-    if (!selectedConversation?.id) {
+    const selected = selectedConversationRef.current;
+
+    if (!selected?.id) {
       if (pollingIntervalRef.current !== null) {
         window.clearInterval(pollingIntervalRef.current);
         pollingIntervalRef.current = null;
@@ -607,48 +661,59 @@ export function useChat(currentUserId: string | undefined) {
       return;
     }
 
-    // Poll for new messages every 3 seconds
+    if (pollingIntervalRef.current !== null) {
+      window.clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+    }
+
     pollingIntervalRef.current = window.setInterval(() => {
       if (!mountedRef.current) return;
-      const selected = selectedConversationRef.current;
-      if (!selected?.id) return;
+
+      const selectedConversationSnapshot = selectedConversationRef.current;
+      if (!selectedConversationSnapshot?.id) return;
+      const selectedKey = buildConversationKey(selectedConversationSnapshot);
+      if (selectedConversationKeyRef.current !== selectedKey) return;
 
       void (async () => {
         try {
-          const latestMessages = await listConversationMessages(selected.type, selected.id);
+          const latestMessages = sortMessages(
+            await listConversationMessages(selectedConversationSnapshot.type, selectedConversationSnapshot.id)
+          );
+
           if (!mountedRef.current) return;
-          if (selectedConversationKeyRef.current !== buildConversationKey(selected)) return;
+          if (selectedConversationKeyRef.current !== selectedKey) return;
 
-          // Update messages if we got new ones
-          setMessages((currentMessages) => {
-            const currentIds = new Set(currentMessages.map((m) => m.id));
-            const newMessages = latestMessages.filter((m) => !currentIds.has(m.id));
+          const previousMessages = messagesRef.current;
+          const previousIds = new Set(previousMessages.map((message) => message.id));
+          const resolvedViewerId = viewerEmployeeIdRef.current;
 
-            if (newMessages.length > 0) {
-              // Mark new messages as read
-              void markSelectedConversationAsRead(selected, newMessages);
-              return sortMessages([...currentMessages, ...newMessages]);
-            }
-
-            return currentMessages;
+          const newlyReceivedMessages = latestMessages.filter((message) => {
+            if (previousIds.has(message.id)) return false;
+            if (!resolvedViewerId) return true;
+            return message.senderEmployeeId !== resolvedViewerId;
           });
 
-          // Update conversation preview
-          if (latestMessages.length > 0) {
-            const lastMessage = latestMessages[latestMessages.length - 1];
-            if (lastMessage) {
-              if (selected.type === "TEAM") {
-                setTeamConversations((prev) => updateConversationPreview(prev, lastMessage, false).next);
-              } else {
-                setHrConversations((prev) => updateConversationPreview(prev, lastMessage, false).next);
-              }
+          if (!areMessagesEquivalent(previousMessages, latestMessages)) {
+            setMessages(latestMessages);
+          }
+
+          if (newlyReceivedMessages.length > 0) {
+            void markSelectedConversationAsRead(selectedConversationSnapshot, newlyReceivedMessages);
+          }
+
+          const lastMessage = latestMessages[latestMessages.length - 1];
+          if (lastMessage) {
+            if (selectedConversationSnapshot.type === "TEAM") {
+              setTeamConversations((previous) => updateConversationPreview(previous, lastMessage, false).next);
+            } else {
+              setHrConversations((previous) => updateConversationPreview(previous, lastMessage, false).next);
             }
           }
         } catch {
-          // Silent failure - realtime will catch up on next poll
+          // Silent polling failures should not block thread interaction.
         }
       })();
-    }, 3000);
+    }, 6000);
 
     return () => {
       if (pollingIntervalRef.current !== null) {
@@ -656,14 +721,14 @@ export function useChat(currentUserId: string | undefined) {
         pollingIntervalRef.current = null;
       }
     };
-  }, [selectedConversation, markSelectedConversationAsRead]);
+  }, [markSelectedConversationAsRead, selectedConversation?.id, selectedConversation?.type]);
 
-  // Poll for conversation updates every 10 seconds
+  // Poll for conversation list updates as realtime fallback
   useEffect(() => {
     const conversationPollInterval = window.setInterval(() => {
       if (!mountedRef.current) return;
       void refreshConversations({ silent: true });
-    }, 10000);
+    }, 15000);
 
     return () => {
       window.clearInterval(conversationPollInterval);
@@ -679,6 +744,7 @@ export function useChat(currentUserId: string | undefined) {
     hrConversations,
     selectedConversation,
     selectedConversationId: selectedConversation?.id ?? null,
+    selectedConversationKey,
     messages,
     isLoadingConversations,
     isLoadingMessages,
@@ -692,4 +758,3 @@ export function useChat(currentUserId: string | undefined) {
     clearError,
   };
 }
-

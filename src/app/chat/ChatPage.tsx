@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ArrowLeft } from "lucide-react";
+import { MessageSquarePlus, RefreshCcw } from "lucide-react";
 import { ErrorBanner } from "@/components/common/AppUI";
 import { PageHeader } from "@/components/common/PageHeader";
 import { useAuth } from "@/hooks/useAuth";
@@ -7,7 +7,9 @@ import { usePageMeta } from "@/hooks/usePageMeta";
 import { ConversationList } from "@/app/chat/ConversationList";
 import { MessageInput } from "@/app/chat/MessageInput";
 import { MessageThread } from "@/app/chat/MessageThread";
+import { NewConversationModal } from "@/app/chat/NewConversationModal";
 import { useChat } from "@/app/chat/useChat";
+import { buildConversationKey } from "@/app/chat/chatUtils";
 
 export function ChatPage() {
   usePageMeta({ title: "Chat", breadcrumb: ["Workspace", "Chat"] });
@@ -19,7 +21,7 @@ export function ChatPage() {
     currentEmployeeId,
     conversations,
     selectedConversation,
-    selectedConversationId,
+    selectedConversationKey,
     messages,
     isLoadingConversations,
     isLoadingMessages,
@@ -35,6 +37,7 @@ export function ChatPage() {
 
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [mobileThreadOpen, setMobileThreadOpen] = useState<boolean>(false);
+  const [newConversationOpen, setNewConversationOpen] = useState<boolean>(false);
 
   const filteredConversations = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -48,11 +51,47 @@ export function ChatPage() {
     });
   }, [conversations, searchQuery]);
 
+  const effectiveSelectedKey = selectedConversation ? buildConversationKey(selectedConversation) : selectedConversationKey;
+  const showMobileThread = mobileThreadOpen && Boolean(selectedConversation);
+
   return (
-    <div className="space-y-4">
+    <div className="flex min-h-0 flex-col gap-4">
       <PageHeader
         title="Workspace Chat"
         description="Team channels and HR support with live updates."
+        actions={(
+          <>
+            <button
+              type="button"
+              onClick={() => {
+                clearError();
+                void refreshConversations();
+              }}
+              className="inline-flex h-10 items-center gap-2 rounded-xl border px-3 text-sm font-medium"
+              style={{
+                borderColor: "var(--border-default)",
+                color: "var(--text-secondary)",
+                backgroundColor: "var(--bg-surface)",
+              }}
+              disabled={isLoadingConversations}
+            >
+              <RefreshCcw size={14} className={isLoadingConversations ? "animate-spin" : ""} />
+              Refresh
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setNewConversationOpen(true)}
+              className="inline-flex h-10 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-white"
+              style={{
+                background: "linear-gradient(135deg, #9332EA 0%, #7C1FD1 100%)",
+              }}
+            >
+              <MessageSquarePlus size={14} />
+              New Chat
+            </button>
+          </>
+        )}
       />
 
       {error && (
@@ -65,66 +104,68 @@ export function ChatPage() {
         />
       )}
 
-      <div className="grid min-h-0 grid-cols-1 gap-4 lg:grid-cols-[320px_1fr]">
-        <div className={`${mobileThreadOpen ? "hidden lg:block" : "block"} h-[calc(100dvh-230px)] min-h-0 overflow-hidden`}>
-          <ConversationList
-            activeTab={activeTab}
-            searchQuery={searchQuery}
-            conversations={filteredConversations}
-            selectedConversationId={selectedConversationId}
-            isLoading={isLoadingConversations}
-            currentEmployeeId={currentEmployeeId}
-            currentUserRole={typeof user?.role === "string" ? user.role : undefined}
-            onTabChange={(tab) => {
-              setActiveTab(tab);
-              setSearchQuery("");
-              setMobileThreadOpen(false);
-            }}
-            onSearchChange={setSearchQuery}
-            onSelect={(conversationId) => {
-              selectConversation(conversationId);
-              setMobileThreadOpen(true);
-            }}
-            onCreateTeamConversation={async (teamId) => {
-              await startTeamConversation(teamId);
-              setMobileThreadOpen(true);
-            }}
-            onCreateHrConversation={async (employeeId, hrId) => {
-              await startHrConversation(employeeId, hrId);
-              setMobileThreadOpen(true);
-            }}
-          />
-        </div>
-
-        <div className={`${mobileThreadOpen ? "block" : "hidden lg:block"} h-[calc(100dvh-230px)] min-h-0 flex flex-col overflow-hidden`}>
-          <div className="mb-2 flex-shrink-0 lg:hidden">
-            <button
-              type="button"
-              onClick={() => setMobileThreadOpen(false)}
-              className="inline-flex items-center gap-1 text-xs font-semibold cursor-pointer"
-              style={{ color: "var(--color-primary-600)" }}
-            >
-              <ArrowLeft size={14} />
-              Back to conversations
-            </button>
-          </div>
-
-          <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_auto] gap-3 overflow-hidden">
-            <MessageThread
-              conversation={selectedConversation}
-              messages={messages}
-              currentUserId={currentEmployeeId ?? ""}
-              isLoading={isLoadingMessages}
-            />
-
-            <MessageInput
-              disabled={!selectedConversation || !currentEmployeeId}
-              isSending={isSending}
-              onSend={sendMessage}
+      <section className="h-[calc(100dvh-13rem)] min-h-[30rem]">
+        <div className="grid h-full min-h-0 grid-cols-1 gap-3 lg:grid-cols-[340px_minmax(0,1fr)]">
+          <div className={`${showMobileThread ? "hidden" : "block"} min-h-0 lg:block`}>
+            <ConversationList
+              activeTab={activeTab}
+              searchQuery={searchQuery}
+              conversations={filteredConversations}
+              selectedConversationKey={effectiveSelectedKey}
+              isLoading={isLoadingConversations}
+              onTabChange={(tab) => {
+                setActiveTab(tab);
+                setSearchQuery("");
+                setMobileThreadOpen(false);
+              }}
+              onSearchChange={setSearchQuery}
+              onSelect={(conversation) => {
+                selectConversation(conversation.id);
+                setMobileThreadOpen(true);
+              }}
+              onRequestNewConversation={() => setNewConversationOpen(true)}
             />
           </div>
+
+          <div className={`${showMobileThread ? "block" : "hidden"} min-h-0 lg:block`}>
+            <div className="grid h-full min-h-0 grid-rows-[minmax(0,1fr)_auto] gap-3">
+              <MessageThread
+                conversation={selectedConversation}
+                messages={messages}
+                currentUserId={currentEmployeeId ?? ""}
+                isLoading={isLoadingMessages}
+                showMobileBackButton={showMobileThread}
+                onMobileBack={() => setMobileThreadOpen(false)}
+              />
+
+              <MessageInput
+                key={effectiveSelectedKey ?? "no-conversation"}
+                disabled={!selectedConversation || !currentEmployeeId}
+                isSending={isSending}
+                onSend={sendMessage}
+              />
+            </div>
+          </div>
         </div>
-      </div>
+      </section>
+
+      <NewConversationModal
+        open={newConversationOpen}
+        defaultType={activeTab}
+        currentEmployeeId={currentEmployeeId}
+        currentUserRole={typeof user?.role === "string" ? user.role : undefined}
+        onClose={() => setNewConversationOpen(false)}
+        onCreateTeamConversation={async (teamId) => {
+          await startTeamConversation(teamId);
+          setNewConversationOpen(false);
+          setMobileThreadOpen(true);
+        }}
+        onCreateHrConversation={async (employeeId, hrId) => {
+          await startHrConversation(employeeId, hrId);
+          setNewConversationOpen(false);
+          setMobileThreadOpen(true);
+        }}
+      />
     </div>
   );
 }

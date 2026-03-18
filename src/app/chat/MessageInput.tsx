@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { SendHorizontal } from "lucide-react";
 
 interface MessageInputProps {
@@ -7,37 +7,38 @@ interface MessageInputProps {
   onSend: (text: string) => Promise<void>;
 }
 
+const MAX_TEXTAREA_HEIGHT = 164;
+
 export function MessageInput({ disabled, isSending, onSend }: MessageInputProps) {
-  const [value, setValue] = useState<string>("");
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const [value, setValue] = useState<string>("");
+
+  const trimmedValue = useMemo(() => value.trim(), [value]);
+  const canSend = !disabled && !isSending && trimmedValue.length > 0;
 
   const resizeTextarea = useCallback(() => {
     const textarea = textareaRef.current;
     if (!textarea) return;
 
-    textarea.style.height = "auto";
-
-    const maxHeight = 140; // change this limit as you like
-    textarea.style.height = `${Math.min(textarea.scrollHeight, maxHeight)}px`;
-    textarea.style.overflowY = textarea.scrollHeight > maxHeight ? "auto" : "hidden";
+    textarea.style.height = "0px";
+    const nextHeight = Math.min(textarea.scrollHeight, MAX_TEXTAREA_HEIGHT);
+    textarea.style.height = `${Math.max(44, nextHeight)}px`;
   }, []);
 
+  useEffect(() => {
+    resizeTextarea();
+  }, [resizeTextarea, value]);
+
   const handleSend = useCallback(async () => {
-    const trimmed = value.trim();
-    if (!trimmed || disabled || isSending) return;
+    if (!canSend) return;
 
     try {
-      await onSend(trimmed);
+      await onSend(trimmedValue);
       setValue("");
-
-      if (textareaRef.current) {
-        textareaRef.current.style.height = "auto";
-        textareaRef.current.style.overflowY = "hidden";
-      }
     } catch {
       // Keep the unsent draft in the input when send fails.
     }
-  }, [disabled, isSending, onSend, value]);
+  }, [canSend, onSend, trimmedValue]);
 
   return (
     <div
@@ -50,26 +51,24 @@ export function MessageInput({ disabled, isSending, onSend }: MessageInputProps)
       <div className="flex items-end gap-2">
         <textarea
           ref={textareaRef}
-          rows={2}
+          rows={1}
           value={value}
-          onChange={(event) => {
-            setValue(event.target.value);
-            resizeTextarea();
-          }}
+          onChange={(event) => setValue(event.target.value)}
           onKeyDown={(event) => {
             if (event.key === "Enter" && !event.shiftKey) {
               event.preventDefault();
               void handleSend();
             }
           }}
-          placeholder={disabled ? "Select a conversation" : "Type your message"}
+          placeholder={disabled ? "Select a conversation to start typing" : "Type your message..."}
           disabled={disabled || isSending}
-          className="min-h-11 max-h-[140px] flex-1 resize-none overflow-y-hidden rounded-xl border px-3 pt-3 pb-2 text-sm leading-tight outline-none transition-all focus:ring-2 focus:ring-primary-500/35 disabled:opacity-60 placeholder:text-sm"
+          className="max-h-40 min-h-11 flex-1 resize-none rounded-xl border px-3 py-2.5 text-sm leading-5 outline-none transition-all focus:ring-2 focus:ring-primary-500/35 disabled:opacity-60"
           style={{
             borderColor: "var(--border-default)",
             backgroundColor: "var(--bg-surface)",
             color: "var(--text-primary)",
           }}
+          aria-label="Message composer"
         />
 
         <button
@@ -77,8 +76,8 @@ export function MessageInput({ disabled, isSending, onSend }: MessageInputProps)
           onClick={() => {
             void handleSend();
           }}
-          disabled={disabled || isSending || !value.trim()}
-          className="h-10 w-10 rounded-xl flex items-center justify-center text-white cursor-pointer transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={!canSend}
+          className="inline-flex h-11 min-w-11 items-center justify-center rounded-xl px-3 text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
           style={{
             background: "linear-gradient(135deg, #9332EA 0%, #7C1FD1 100%)",
           }}
@@ -87,6 +86,10 @@ export function MessageInput({ disabled, isSending, onSend }: MessageInputProps)
           <SendHorizontal size={16} />
         </button>
       </div>
+
+      <p className="mt-2 text-[11px]" style={{ color: "var(--text-tertiary)" }}>
+        Press Enter to send, Shift+Enter for a new line.
+      </p>
     </div>
   );
 }

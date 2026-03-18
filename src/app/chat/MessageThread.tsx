@@ -1,32 +1,119 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ArrowDown, ArrowLeft } from "lucide-react";
 import type { ChatConversation, ChatMessage } from "@/modules/chat/types";
+import { buildConversationKey, formatMessageDay, formatMessageTime } from "@/app/chat/chatUtils";
 
 interface MessageThreadProps {
   conversation: ChatConversation | null;
   messages: ChatMessage[];
   currentUserId: string;
   isLoading: boolean;
+  showMobileBackButton: boolean;
+  onMobileBack: () => void;
 }
 
-function formatMessageTime(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  return date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
-}
+type ThreadItem =
+  | { kind: "divider"; id: string; label: string }
+  | { kind: "message"; id: string; mine: boolean; showSender: boolean; data: ChatMessage };
 
-export function MessageThread({ conversation, messages, currentUserId, isLoading }: MessageThreadProps) {
-  const bottomRef = useRef<HTMLDivElement | null>(null);
+export function MessageThread({
+  conversation,
+  messages,
+  currentUserId,
+  isLoading,
+  showMobileBackButton,
+  onMobileBack,
+}: MessageThreadProps) {
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const previousMessageCountRef = useRef<number>(0);
+  const [isAtBottom, setIsAtBottom] = useState(true);
 
-  const renderedMessages = useMemo(() => messages, [messages]);
+  const conversationKey = conversation ? buildConversationKey(conversation) : null;
+
+  const threadItems = useMemo<ThreadItem[]>(() => {
+    const items: ThreadItem[] = [];
+
+    messages.forEach((message, index) => {
+      const previous = messages[index - 1];
+      const dayLabel = formatMessageDay(message.createdAt);
+      const previousDayLabel = previous ? formatMessageDay(previous.createdAt) : "";
+      const mine = message.senderEmployeeId === currentUserId;
+      const showSender = !mine && (!previous || previous.senderEmployeeId !== message.senderEmployeeId || dayLabel !== previousDayLabel);
+
+      if (dayLabel && dayLabel !== previousDayLabel) {
+        items.push({
+          kind: "divider",
+          id: `divider:${dayLabel}:${message.id}`,
+          label: dayLabel,
+        });
+      }
+
+      items.push({
+        kind: "message",
+        id: message.id,
+        mine,
+        showSender,
+        data: message,
+      });
+    });
+
+    return items;
+  }, [currentUserId, messages]);
+
+  const scrollToBottom = useCallback((behavior: ScrollBehavior) => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    container.scrollTo({ top: container.scrollHeight, behavior });
+  }, []);
+
+  const updateBottomState = useCallback(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const remaining = container.scrollHeight - container.scrollTop - container.clientHeight;
+    setIsAtBottom(remaining < 48);
+  }, []);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [conversation?.id, renderedMessages]);
+    previousMessageCountRef.current = 0;
+
+    if (!conversationKey) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      scrollToBottom("auto");
+      updateBottomState();
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+    };
+  }, [conversationKey, scrollToBottom, updateBottomState]);
+
+  useEffect(() => {
+    const previousCount = previousMessageCountRef.current;
+    const nextCount = messages.length;
+
+    if (nextCount === 0) {
+      previousMessageCountRef.current = 0;
+      return;
+    }
+
+    const latestMessage = messages[nextCount - 1];
+    const latestIsMine = Boolean(latestMessage && latestMessage.senderEmployeeId === currentUserId);
+    const hasNewMessage = nextCount > previousCount;
+
+    if (hasNewMessage && (isAtBottom || latestIsMine)) {
+      const behavior: ScrollBehavior = previousCount > 0 && latestIsMine ? "smooth" : "auto";
+      scrollToBottom(behavior);
+    }
+
+    previousMessageCountRef.current = nextCount;
+  }, [currentUserId, isAtBottom, messages, scrollToBottom]);
 
   if (!conversation) {
     return (
       <section
-        className="h-full min-h-0 rounded-2xl border flex items-center justify-center p-6 text-center"
+        className="flex h-full min-h-0 items-center justify-center rounded-2xl border p-6 text-center"
         style={{
           borderColor: "var(--border-default)",
           backgroundColor: "var(--bg-surface)",
@@ -46,24 +133,48 @@ export function MessageThread({ conversation, messages, currentUserId, isLoading
 
   return (
     <section
-      className="h-full min-h-0 overflow-hidden rounded-2xl border flex flex-col"
+      className="relative flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border"
       style={{
         borderColor: "var(--border-default)",
         backgroundColor: "var(--bg-surface)",
       }}
     >
-      <header className="border-b px-4 py-3 flex-shrink-0" style={{ borderColor: "var(--border-default)" }}>
-        <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-          {conversation.title}
-        </p>
-        <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
-          {conversation.subtitle}
-        </p>
+      <header
+        className="flex shrink-0 items-center gap-2 border-b px-4 py-3"
+        style={{ borderColor: "var(--border-default)" }}
+      >
+        {showMobileBackButton && (
+          <button
+            type="button"
+            onClick={onMobileBack}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border"
+            style={{
+              borderColor: "var(--border-default)",
+              color: "var(--text-secondary)",
+            }}
+            aria-label="Back to conversations"
+          >
+            <ArrowLeft size={14} />
+          </button>
+        )}
+
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+            {conversation.title}
+          </p>
+          <p className="truncate text-xs" style={{ color: "var(--text-secondary)" }}>
+            {conversation.subtitle}
+          </p>
+        </div>
       </header>
 
-      <div className="min-h-0 flex-1 overflow-y-auto scroll-smooth p-4" style={{ scrollbarGutter: "stable" }}>
+      <div
+        ref={scrollContainerRef}
+        onScroll={updateBottomState}
+        className="min-h-0 flex-1 overflow-y-auto px-4 py-4"
+      >
         {isLoading && (
-          <div className="space-y-3 pr-2">
+          <div className="space-y-3">
             {Array.from({ length: 5 }).map((_, index) => (
               <div
                 key={`message-skeleton-${index}`}
@@ -74,9 +185,9 @@ export function MessageThread({ conversation, messages, currentUserId, isLoading
           </div>
         )}
 
-        {!isLoading && renderedMessages.length === 0 && (
+        {!isLoading && messages.length === 0 && (
           <div
-            className="rounded-xl border border-dashed p-4 text-center text-sm"
+            className="rounded-xl border border-dashed p-6 text-center text-sm"
             style={{
               borderColor: "var(--border-default)",
               color: "var(--text-secondary)",
@@ -86,46 +197,80 @@ export function MessageThread({ conversation, messages, currentUserId, isLoading
           </div>
         )}
 
-        {!isLoading && renderedMessages.length > 0 && (
-          <div className="space-y-3 pr-2">
-            {renderedMessages.map((message) => {
-              const mine = message.senderEmployeeId === currentUserId;
+        {!isLoading && messages.length > 0 && (
+          <ol className="space-y-2" role="log" aria-live="polite" aria-relevant="additions text">
+            {threadItems.map((item) => {
+              if (item.kind === "divider") {
+                return (
+                  <li key={item.id} className="flex justify-center py-1">
+                    <span
+                      className="rounded-full border px-2 py-0.5 text-[11px]"
+                      style={{
+                        borderColor: "var(--border-default)",
+                        backgroundColor: "var(--bg-muted)",
+                        color: "var(--text-tertiary)",
+                      }}
+                    >
+                      {item.label}
+                    </span>
+                  </li>
+                );
+              }
+
+              const { data, mine, showSender } = item;
+              const messageText = data.message || data.content || "";
 
               return (
-                <div key={message.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
-                  <div
-                    className="max-w-[85%] rounded-2xl px-3 py-2"
-                    style={{
-                      background: mine
-                        ? "linear-gradient(135deg, #9332EA 0%, #7C1FD1 100%)"
-                        : "var(--bg-muted)",
-                      color: mine ? "white" : "var(--text-primary)",
-                    }}
-                  >
-                    {!mine && (
-                      <p
-                        className="mb-1 text-[11px] font-semibold"
-                        style={{ color: "var(--color-primary-600)" }}
-                      >
-                        {message.senderName}
+                <li key={item.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
+                  <div className="max-w-[min(84%,44rem)]">
+                    {showSender && (
+                      <p className="mb-1 px-1 text-[11px] font-semibold" style={{ color: "var(--text-tertiary)" }}>
+                        {data.senderName || "Unknown"}
                       </p>
                     )}
-                    <p className="whitespace-pre-wrap text-sm">{message.message}</p>
-                    <p
-                      className={`mt-1 text-[11px] ${mine ? "text-white/80" : ""}`}
-                      style={!mine ? { color: "var(--text-tertiary)" } : undefined}
+
+                    <div
+                      className="rounded-2xl px-3 py-2"
+                      style={{
+                        background: mine ? "linear-gradient(135deg, #9332EA 0%, #7C1FD1 100%)" : "var(--bg-muted)",
+                        color: mine ? "white" : "var(--text-primary)",
+                      }}
                     >
-                      {formatMessageTime(message.createdAt)}
+                      <p className="whitespace-pre-wrap break-words text-sm leading-6">{messageText || "-"}</p>
+                    </div>
+
+                    <p
+                      className={`mt-1 px-1 text-[11px] ${mine ? "text-right" : "text-left"}`}
+                      style={{ color: mine ? "var(--text-tertiary)" : "var(--text-tertiary)" }}
+                    >
+                      {formatMessageTime(data.createdAt)}
+                      {data.editedAt ? " - edited" : ""}
                     </p>
                   </div>
-                </div>
+                </li>
               );
             })}
-          </div>
+          </ol>
         )}
-
-        <div ref={bottomRef} />
       </div>
+
+      {!isAtBottom && messages.length > 0 && (
+        <div className="pointer-events-none absolute bottom-4 right-4">
+          <button
+            type="button"
+            onClick={() => scrollToBottom("smooth")}
+            className="pointer-events-auto inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-semibold shadow-sm"
+            style={{
+              borderColor: "var(--border-default)",
+              backgroundColor: "var(--bg-surface)",
+              color: "var(--text-secondary)",
+            }}
+          >
+            <ArrowDown size={12} />
+            Latest
+          </button>
+        </div>
+      )}
     </section>
   );
 }
