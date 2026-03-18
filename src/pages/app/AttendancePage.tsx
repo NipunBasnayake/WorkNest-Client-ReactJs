@@ -1,0 +1,248 @@
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { CalendarDays, Clock3, LogIn, LogOut, UserCheck, Users2 } from "lucide-react";
+import { usePageMeta } from "@/hooks/usePageMeta";
+import { useAuth } from "@/hooks/useAuth";
+import { checkIn, checkOut, getAttendanceRecords, getAttendanceSummary } from "@/modules/attendance/services/attendanceService";
+import { AttendanceStatusBadge } from "@/modules/attendance/components/AttendanceStatusBadge";
+import { PageHeader } from "@/components/common/PageHeader";
+import { SectionCard } from "@/components/common/SectionCard";
+import { Button } from "@/components/common/Button";
+import { EmptyState, ErrorBanner, SkeletonRow, StatCard } from "@/components/common/AppUI";
+import type { AttendanceRecord } from "@/modules/attendance/types";
+
+function today() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function formatMinutes(value?: number): string {
+  if (!value) return "-";
+  const hours = Math.floor(value / 60);
+  const minutes = value % 60;
+  return `${hours}h ${minutes}m`;
+}
+
+export function AttendancePage() {
+  usePageMeta({ title: "Attendance", breadcrumb: ["Workspace", "Attendance"] });
+  const { user, hasRole } = useAuth();
+
+  const [selectedDate, setSelectedDate] = useState(today());
+  const [records, setRecords] = useState<AttendanceRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [summary, setSummary] = useState({ total: 0, present: 0, late: 0, absent: 0, halfDay: 0 });
+
+  const canViewAll = hasRole("ADMIN", "MANAGER", "HR");
+
+  const fetchAttendance = useCallback(async (date: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [recordRes, summaryRes] = await Promise.all([
+        getAttendanceRecords(date),
+        getAttendanceSummary(date),
+      ]);
+      setRecords(recordRes);
+      setSummary(summaryRes);
+    } catch {
+      setError("Unable to load attendance records.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchAttendance(selectedDate);
+  }, [fetchAttendance, selectedDate]);
+
+  const visibleRecords = useMemo(() => {
+    if (canViewAll) return records;
+    if (!user) return [];
+
+    return records.filter((record) => record.employeeId === user.id || record.employeeName === user.name);
+  }, [canViewAll, records, user]);
+
+  const selfRecord = useMemo(() => {
+    if (!user) return null;
+    return records.find((record) => record.employeeId === user.id || record.employeeName === user.name) ?? null;
+  }, [records, user]);
+
+  async function handleCheckIn() {
+    if (!user) return;
+    setActionLoading(true);
+    setFeedback(null);
+    try {
+      await checkIn({ employeeId: user.id, employeeName: user.name });
+      setFeedback("Checked in successfully.");
+      await fetchAttendance(selectedDate);
+    } catch (actionError: unknown) {
+      setFeedback(extractMessage(actionError) ?? "Unable to check in right now.");
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  async function handleCheckOut() {
+    if (!user) return;
+    setActionLoading(true);
+    setFeedback(null);
+    try {
+      await checkOut({ employeeId: user.id, employeeName: user.name });
+      setFeedback("Checked out successfully.");
+      await fetchAttendance(selectedDate);
+    } catch (actionError: unknown) {
+      setFeedback(extractMessage(actionError) ?? "Unable to check out right now.");
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        title="Attendance"
+        description="Track daily attendance and working hours."
+        actions={(
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(event) => setSelectedDate(event.target.value)}
+              className="rounded-xl border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary-500/30"
+              style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)", color: "var(--text-primary)" }}
+            />
+            <Button variant="outline" onClick={handleCheckIn} disabled={actionLoading}>
+              <LogIn size={16} />
+              Check In
+            </Button>
+            <Button variant="primary" onClick={handleCheckOut} disabled={actionLoading}>
+              <LogOut size={16} />
+              Check Out
+            </Button>
+          </div>
+        )}
+      />
+
+      {feedback && (
+        <div
+          className="rounded-xl border px-4 py-3 text-sm"
+          style={{
+            borderColor: feedback.toLowerCase().includes("unable") || feedback.toLowerCase().includes("required") ? "rgba(239,68,68,0.25)" : "rgba(16,185,129,0.25)",
+            backgroundColor: feedback.toLowerCase().includes("unable") || feedback.toLowerCase().includes("required") ? "rgba(239,68,68,0.06)" : "rgba(16,185,129,0.08)",
+            color: feedback.toLowerCase().includes("unable") || feedback.toLowerCase().includes("required") ? "#ef4444" : "#10b981",
+          }}
+        >
+          {feedback}
+        </div>
+      )}
+
+      {selfRecord && (
+        <SectionCard title="My Attendance Snapshot" subtitle={`For ${new Date(selectedDate).toLocaleDateString()}`}>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <InfoTile icon={<Clock3 size={16} />} label="Check In" value={selfRecord.checkIn || "-"} />
+            <InfoTile icon={<Clock3 size={16} />} label="Check Out" value={selfRecord.checkOut || "-"} />
+            <InfoTile icon={<CalendarDays size={16} />} label="Worked Time" value={formatMinutes(selfRecord.workedMinutes)} />
+          </div>
+        </SectionCard>
+      )}
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard label="Total Records" value={summary.total} icon={<Users2 size={18} />} accentColor="#9332EA" />
+        <StatCard label="Present" value={summary.present} icon={<UserCheck size={18} />} accentColor="#10b981" />
+        <StatCard label="Late" value={summary.late} icon={<Clock3 size={18} />} accentColor="#d97706" />
+        <StatCard label="Absent" value={summary.absent} icon={<CalendarDays size={18} />} accentColor="#ef4444" />
+      </div>
+
+      {error && <ErrorBanner message={error} onRetry={() => fetchAttendance(selectedDate)} />}
+
+      <SectionCard className="overflow-hidden" contentClassName="p-0" title="Attendance Records" subtitle={canViewAll ? "Workforce-wide view" : "Your attendance records"}>
+        <div
+          className="hidden md:grid grid-cols-[1.4fr_1fr_1fr_1fr_1fr_0.9fr] gap-3 border-b px-5 py-3 text-xs font-semibold uppercase tracking-wider"
+          style={{ color: "var(--text-tertiary)", borderColor: "var(--border-default)", backgroundColor: "var(--bg-muted)" }}
+        >
+          <span>Employee</span>
+          <span>Date</span>
+          <span>Check In</span>
+          <span>Check Out</span>
+          <span>Worked</span>
+          <span>Status</span>
+        </div>
+
+        {loading && Array.from({ length: 5 }).map((_, index) => <SkeletonRow key={index} cols={6} />)}
+
+        {!loading && !error && visibleRecords.length === 0 && (
+          <EmptyState
+            title="No attendance records"
+            description="No records were found for the selected date."
+          />
+        )}
+
+        {!loading && visibleRecords.length > 0 && (
+          <>
+            <div className="hidden md:block">
+              {visibleRecords.map((record) => (
+                <div
+                  key={record.id}
+                  className="grid grid-cols-[1.4fr_1fr_1fr_1fr_1fr_0.9fr] items-center gap-3 border-b px-5 py-4"
+                  style={{ borderColor: "var(--border-default)" }}
+                >
+                  <span className="truncate text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+                    {record.employeeName}
+                  </span>
+                  <span className="text-sm" style={{ color: "var(--text-secondary)" }}>{record.date}</span>
+                  <span className="text-sm" style={{ color: "var(--text-secondary)" }}>{record.checkIn || "-"}</span>
+                  <span className="text-sm" style={{ color: "var(--text-secondary)" }}>{record.checkOut || "-"}</span>
+                  <span className="text-sm" style={{ color: "var(--text-secondary)" }}>{formatMinutes(record.workedMinutes)}</span>
+                  <AttendanceStatusBadge status={record.status} />
+                </div>
+              ))}
+            </div>
+
+            <div className="space-y-3 p-4 md:hidden">
+              {visibleRecords.map((record) => (
+                <article
+                  key={record.id}
+                  className="rounded-xl border p-4"
+                  style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)" }}
+                >
+                  <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+                    {record.employeeName}
+                  </p>
+                  <div className="mt-2 grid grid-cols-2 gap-2 text-xs" style={{ color: "var(--text-secondary)" }}>
+                    <span>Date: {record.date}</span>
+                    <span>Worked: {formatMinutes(record.workedMinutes)}</span>
+                    <span>In: {record.checkIn || "-"}</span>
+                    <span>Out: {record.checkOut || "-"}</span>
+                  </div>
+                  <div className="mt-3">
+                    <AttendanceStatusBadge status={record.status} />
+                  </div>
+                </article>
+              ))}
+            </div>
+          </>
+        )}
+      </SectionCard>
+    </div>
+  );
+}
+
+function InfoTile({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+  return (
+    <div className="rounded-xl border p-4" style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)" }}>
+      <div className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--text-tertiary)" }}>
+        <span style={{ color: "var(--color-primary-500)" }}>{icon}</span>
+        {label}
+      </div>
+      <p className="mt-2 text-lg font-semibold" style={{ color: "var(--text-primary)" }}>
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function extractMessage(err: unknown): string | null {
+  if (err instanceof Error) return err.message;
+  return null;
+}
