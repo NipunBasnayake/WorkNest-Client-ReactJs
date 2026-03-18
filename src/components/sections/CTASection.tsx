@@ -67,7 +67,7 @@ export function CTASection() {
                 <Button
                   variant="secondary"
                   size="lg"
-                  to="/register"
+                  to="/register-company"
                   className="bg-white! text-primary-700! hover:bg-primary-50! shadow-xl! hover:scale-[1.02] active:scale-[0.98]"
                 >
                   Register Your Company
