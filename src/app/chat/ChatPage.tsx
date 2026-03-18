@@ -65,8 +65,8 @@ export function ChatPage() {
         />
       )}
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[320px_1fr]">
-        <div className={`${mobileThreadOpen ? "hidden lg:block" : "block"} h-[calc(100vh-230px)] min-h-[480px]`}>
+      <div className="grid min-h-0 grid-cols-1 gap-4 lg:grid-cols-[320px_1fr]">
+        <div className={`${mobileThreadOpen ? "hidden lg:block" : "block"} h-[calc(100dvh-230px)] min-h-0 overflow-hidden`}>
           <ConversationList
             activeTab={activeTab}
             searchQuery={searchQuery}
@@ -96,8 +96,8 @@ export function ChatPage() {
           />
         </div>
 
-        <div className={`${mobileThreadOpen ? "block" : "hidden lg:block"} h-[calc(100vh-230px)] min-h-[480px]`}>
-          <div className="mb-2 lg:hidden">
+        <div className={`${mobileThreadOpen ? "block" : "hidden lg:block"} h-[calc(100dvh-230px)] min-h-0 flex flex-col overflow-hidden`}>
+          <div className="mb-2 flex-shrink-0 lg:hidden">
             <button
               type="button"
               onClick={() => setMobileThreadOpen(false)}
@@ -109,7 +109,7 @@ export function ChatPage() {
             </button>
           </div>
 
-          <div className="grid h-full grid-rows-[1fr_auto] gap-3">
+          <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_auto] gap-3 overflow-hidden">
             <MessageThread
               conversation={selectedConversation}
               messages={messages}

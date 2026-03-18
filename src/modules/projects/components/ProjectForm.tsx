@@ -77,10 +77,24 @@ export function ProjectForm({
           rows={4}
           value={values.description}
           onChange={(e) => onChange({ ...values, description: e.target.value })}
-          className="w-full rounded-xl border px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/60"
-          style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)", color: "var(--text-primary)" }}
+          className={`w-full rounded-xl border px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/60 ${
+            errors.description ? "border-red-400 focus:ring-red-400/60 focus:border-red-400" : ""
+          }`}
+          style={{
+            backgroundColor: "var(--bg-surface)",
+            borderColor: errors.description ? undefined : "var(--border-default)",
+            color: "var(--text-primary)"
+          }}
           placeholder="Describe project objective, scope, and delivery expectations."
         />
+        {errors.description && (
+          <span className="text-xs text-red-500 mt-0.5 flex items-center gap-1">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
+              <path d="M6 1a5 5 0 100 10A5 5 0 006 1zm-.5 2.5a.5.5 0 011 0v3a.5.5 0 01-1 0v-3zm.5 5a.625.625 0 110-1.25A.625.625 0 016 8.5z"/>
+            </svg>
+            {errors.description}
+          </span>
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">

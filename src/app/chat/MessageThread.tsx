@@ -26,7 +26,7 @@ export function MessageThread({ conversation, messages, currentUserId, isLoading
   if (!conversation) {
     return (
       <section
-        className="h-full rounded-2xl border flex items-center justify-center p-6 text-center"
+        className="h-full min-h-0 rounded-2xl border flex items-center justify-center p-6 text-center"
         style={{
           borderColor: "var(--border-default)",
           backgroundColor: "var(--bg-surface)",
@@ -46,13 +46,13 @@ export function MessageThread({ conversation, messages, currentUserId, isLoading
 
   return (
     <section
-      className="h-full rounded-2xl border flex flex-col"
+      className="h-full min-h-0 overflow-hidden rounded-2xl border flex flex-col"
       style={{
         borderColor: "var(--border-default)",
         backgroundColor: "var(--bg-surface)",
       }}
     >
-      <header className="border-b px-4 py-3" style={{ borderColor: "var(--border-default)" }}>
+      <header className="border-b px-4 py-3 flex-shrink-0" style={{ borderColor: "var(--border-default)" }}>
         <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
           {conversation.title}
         </p>
@@ -61,9 +61,9 @@ export function MessageThread({ conversation, messages, currentUserId, isLoading
         </p>
       </header>
 
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="min-h-0 flex-1 overflow-y-auto scroll-smooth p-4" style={{ scrollbarGutter: "stable" }}>
         {isLoading && (
-          <div className="space-y-3">
+          <div className="space-y-3 pr-2">
             {Array.from({ length: 5 }).map((_, index) => (
               <div
                 key={`message-skeleton-${index}`}
@@ -87,7 +87,7 @@ export function MessageThread({ conversation, messages, currentUserId, isLoading
         )}
 
         {!isLoading && renderedMessages.length > 0 && (
-          <div className="space-y-3">
+          <div className="space-y-3 pr-2">
             {renderedMessages.map((message) => {
               const mine = message.senderEmployeeId === currentUserId;
 
@@ -103,7 +103,12 @@ export function MessageThread({ conversation, messages, currentUserId, isLoading
                     }}
                   >
                     {!mine && (
-                      <p className="mb-1 text-[11px] font-semibold opacity-80">{message.senderName}</p>
+                      <p
+                        className="mb-1 text-[11px] font-semibold"
+                        style={{ color: "var(--color-primary-600)" }}
+                      >
+                        {message.senderName}
+                      </p>
                     )}
                     <p className="whitespace-pre-wrap text-sm">{message.message}</p>
                     <p
@@ -124,4 +129,3 @@ export function MessageThread({ conversation, messages, currentUserId, isLoading
     </section>
   );
 }
-

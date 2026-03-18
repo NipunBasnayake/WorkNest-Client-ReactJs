@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { SendHorizontal } from "lucide-react";
 
 interface MessageInputProps {
@@ -9,6 +9,18 @@ interface MessageInputProps {
 
 export function MessageInput({ disabled, isSending, onSend }: MessageInputProps) {
   const [value, setValue] = useState<string>("");
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  const resizeTextarea = useCallback(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    textarea.style.height = "auto";
+
+    const maxHeight = 140; // change this limit as you like
+    textarea.style.height = `${Math.min(textarea.scrollHeight, maxHeight)}px`;
+    textarea.style.overflowY = textarea.scrollHeight > maxHeight ? "auto" : "hidden";
+  }, []);
 
   const handleSend = useCallback(async () => {
     const trimmed = value.trim();
@@ -17,6 +29,11 @@ export function MessageInput({ disabled, isSending, onSend }: MessageInputProps)
     try {
       await onSend(trimmed);
       setValue("");
+
+      if (textareaRef.current) {
+        textareaRef.current.style.height = "auto";
+        textareaRef.current.style.overflowY = "hidden";
+      }
     } catch {
       // Keep the unsent draft in the input when send fails.
     }
@@ -32,9 +49,13 @@ export function MessageInput({ disabled, isSending, onSend }: MessageInputProps)
     >
       <div className="flex items-end gap-2">
         <textarea
+          ref={textareaRef}
           rows={2}
           value={value}
-          onChange={(event) => setValue(event.target.value)}
+          onChange={(event) => {
+            setValue(event.target.value);
+            resizeTextarea();
+          }}
           onKeyDown={(event) => {
             if (event.key === "Enter" && !event.shiftKey) {
               event.preventDefault();
@@ -43,7 +64,7 @@ export function MessageInput({ disabled, isSending, onSend }: MessageInputProps)
           }}
           placeholder={disabled ? "Select a conversation" : "Type your message"}
           disabled={disabled || isSending}
-          className="min-h-11 flex-1 resize-none rounded-xl border px-3 py-2 text-sm outline-none transition-all focus:ring-2 focus:ring-primary-500/35 disabled:opacity-60"
+          className="min-h-11 max-h-[140px] flex-1 resize-none overflow-y-hidden rounded-xl border px-3 pt-3 pb-2 text-sm leading-tight outline-none transition-all focus:ring-2 focus:ring-primary-500/35 disabled:opacity-60 placeholder:text-sm"
           style={{
             borderColor: "var(--border-default)",
             backgroundColor: "var(--bg-surface)",
@@ -69,4 +90,3 @@ export function MessageInput({ disabled, isSending, onSend }: MessageInputProps)
     </div>
   );
 }
-

@@ -125,6 +125,7 @@ export function useChat(currentUserId: string | undefined) {
 
   const lastSilentRefreshAtRef = useRef<number>(0);
   const silentRefreshTimerRef = useRef<number | null>(null);
+  const pollingIntervalRef = useRef<number | null>(null);
 
   const activeConversations = useMemo(
     () => (activeTab === "TEAM" ? teamConversations : hrConversations),
@@ -144,6 +145,10 @@ export function useChat(currentUserId: string | undefined) {
       if (silentRefreshTimerRef.current !== null) {
         window.clearTimeout(silentRefreshTimerRef.current);
         silentRefreshTimerRef.current = null;
+      }
+      if (pollingIntervalRef.current !== null) {
+        window.clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
       }
     };
   }, []);
@@ -591,6 +596,79 @@ export function useChat(currentUserId: string | undefined) {
       }
     };
   }, [handleIncomingMessage, scheduleSilentConversationRefresh]);
+
+  // Polling fallback for realtime updates
+  useEffect(() => {
+    if (!selectedConversation?.id) {
+      if (pollingIntervalRef.current !== null) {
+        window.clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+      return;
+    }
+
+    // Poll for new messages every 3 seconds
+    pollingIntervalRef.current = window.setInterval(() => {
+      if (!mountedRef.current) return;
+      const selected = selectedConversationRef.current;
+      if (!selected?.id) return;
+
+      void (async () => {
+        try {
+          const latestMessages = await listConversationMessages(selected.type, selected.id);
+          if (!mountedRef.current) return;
+          if (selectedConversationKeyRef.current !== buildConversationKey(selected)) return;
+
+          // Update messages if we got new ones
+          setMessages((currentMessages) => {
+            const currentIds = new Set(currentMessages.map((m) => m.id));
+            const newMessages = latestMessages.filter((m) => !currentIds.has(m.id));
+
+            if (newMessages.length > 0) {
+              // Mark new messages as read
+              void markSelectedConversationAsRead(selected, newMessages);
+              return sortMessages([...currentMessages, ...newMessages]);
+            }
+
+            return currentMessages;
+          });
+
+          // Update conversation preview
+          if (latestMessages.length > 0) {
+            const lastMessage = latestMessages[latestMessages.length - 1];
+            if (lastMessage) {
+              if (selected.type === "TEAM") {
+                setTeamConversations((prev) => updateConversationPreview(prev, lastMessage, false).next);
+              } else {
+                setHrConversations((prev) => updateConversationPreview(prev, lastMessage, false).next);
+              }
+            }
+          }
+        } catch {
+          // Silent failure - realtime will catch up on next poll
+        }
+      })();
+    }, 3000);
+
+    return () => {
+      if (pollingIntervalRef.current !== null) {
+        window.clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+    };
+  }, [selectedConversation, markSelectedConversationAsRead]);
+
+  // Poll for conversation updates every 10 seconds
+  useEffect(() => {
+    const conversationPollInterval = window.setInterval(() => {
+      if (!mountedRef.current) return;
+      void refreshConversations({ silent: true });
+    }, 10000);
+
+    return () => {
+      window.clearInterval(conversationPollInterval);
+    };
+  }, [refreshConversations]);
 
   return {
     activeTab,
