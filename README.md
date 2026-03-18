@@ -1,73 +1,111 @@
-# React + TypeScript + Vite
+# 🚀 WorkNest Client
+**The ultimate enterprise-grade workspace collaboration platform.** Streamline team organization, supercharge project management, and boost employee engagement—all in one place.
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+---
 
-Currently, two official plugins are available:
+## 📌 Project Overview
+WorkNest is a modern, full-featured employee and project management platform. Built with **React 19**, **TypeScript**, and **Vite**, it delivers a lightning-fast, scalable, and highly interactive user experience.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Whether you are managing daily tasks, tracking attendance, or communicating with your team in real-time, WorkNest provides the modular architecture to handle it all seamlessly.
 
-## React Compiler
+---
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## ✨ What's Inside? (Core Modules)
+WorkNest is divided into intuitive, feature-rich modules to keep your workspace organized:
 
-## Expanding the ESLint configuration
+- 🗣️ **Chat**: Real-time messaging powered by WebSocket (STOMP)
+- 👥 **Employees**: Comprehensive employee directory and profile management
+- 📅 **Attendance & Leave**: Tracking records, leave requests, and approval workflows
+- 📊 **Projects & Tasks**: Full project lifecycle tracking with a Kanban-style task board
+- 👨‍💼 **Teams**: Easy team creation and cross-functional organization
+- 📣 **Announcements**: Company-wide internal communications
+- 🔔 **Notifications**: Instant, real-time alert system
+- 📈 **Analytics**: Actionable insights and a reporting dashboard
+- ⚙️ **Settings**: Highly customizable user preferences and platform configurations
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+---
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## 🛠️ Technology Stack
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+| Layer              | Technology |
+|--------------------|-----------|
+| **Frontend Core** | React 19.2, TypeScript 5.9 |
+| **Build Tool** | Vite 8 (Tree-shaking & Code Splitting) |
+| **Styling** | Tailwind CSS 4.2 |
+| **Routing** | React Router v7 |
+| **State Management**| Zustand 5 |
+| **Network & Comms**| Axios 1.13, STOMP.js 7.3 (WebSocket) |
+| **UI Assets** | Lucide React 0.577 |
+| **Testing** | Vitest, React Testing Library |
+| **Linting** | ESLint 9 (Strict TS Support) |
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+---
+
+## 🏗️ Architecture & Structure
+The codebase is organized following a **Feature-Sliced Design** approach to maximize scalability.
+
+```text
+📦 src
+ ┣ 📂 app        # Core setup (providers, router, layouts, guards, chat utils)
+ ┣ 📂 modules    # Feature-based silos (types, components, services, schemas)
+ ┣ 📂 pages      # Page-level components (public, app, and platform pages)
+ ┣ 📂 components # Reusable UI blocks (buttons, navigation, sections)
+ ┣ 📂 services   # API handlers, HTTP setup, and real-time services
+ ┣ 📂 store      # Global state management using Zustand
+ ┗ 📂 hooks      # Custom React hooks (useAuth, useTheme, usePageMeta)
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+---
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## ⚡ Under the Hood: Advanced Features
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+- 🔐 **Route Guards**: Strictly protected routes with role-based access control (RBAC)  
+- 🎨 **Dynamic Theming**: Built-in Dark/Light mode support via Theme Provider  
+- 📍 **SEO & Metadata**: Dynamic page metadata management using Page Meta Context  
+- 📦 **Optimized Bundling**: Aggressive code splitting across React, Router, Network, State, and Icons  
+
+---
+
+## 🧪 Quality & Configuration
+We take code quality seriously. WorkNest is configured for strict reliability:
+
+- ✅ **Testing**: Robust unit testing setup using Vitest and JSDOM  
+- 📝 **Typing**: Strict-mode TypeScript configuration prevents runtime errors  
+- 🔍 **Linting**: Aggressive ESLint rules for clean, maintainable code  
+- 🧭 **Clean Imports**: Configured path aliases (`@/`) to avoid messy relative imports  
+
+---
+
+## 🚀 Getting Started
+
+### 1. Clone the repository
+```bash
+git clone https://github.com/your-username/worknest-client.git
 ```
+
+### 2. Navigate to the project directory
+```bash
+cd worknest-client
+```
+
+###3. Install dependencies
+```bash
+npm install
+```
+
+### 4. Start the development server
+```bash
+npm run dev
+```
+
+### 5. Build for production
+```bash
+npm run build
+```
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License.
+See the LICENSE file for more details.
