@@ -1,6 +1,9 @@
 import axios, { type AxiosError, type AxiosInstance, type AxiosRequestConfig, type InternalAxiosRequestConfig } from "axios";
 import type { ApiResponse, SessionType } from "@/types";
+import { asRecord, firstDefined, getString } from "@/services/http/parsers";
+import { attachApiErrorInfo, isNetworkFailure } from "@/services/http/errorMapper";
 import { unwrapApiData } from "@/services/http/response";
+import { useNetworkStore } from "@/store/networkStore";
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080";
 const SESSION_EXPIRED_ROUTE = "/session-expired";
@@ -132,6 +135,54 @@ async function hardLogout(redirectPath = SESSION_EXPIRED_ROUTE) {
   redirectTo(redirectPath);
 }
 
+function readResponseMessage(payload: unknown): string | null {
+  const value = asRecord(payload);
+  return firstDefined(
+    getString(value.message),
+    getString(asRecord(value.error).message),
+    getString(asRecord(value.data).message)
+  ) ?? null;
+}
+
+function applyMappedError(error: unknown): unknown {
+  const info = attachApiErrorInfo(error);
+  const store = useNetworkStore.getState();
+
+  if (isNetworkFailure(info.kind)) {
+    store.reportApiIssue(info);
+  }
+
+  if (!axios.isAxiosError(error)) return error;
+
+  const hasBackendMessage = readResponseMessage(error.response?.data);
+  const shouldUseFriendlyMessage =
+    !error.response ||
+    error.response.status >= 500 ||
+    !hasBackendMessage;
+
+  if (shouldUseFriendlyMessage) {
+    error.message = info.userMessage;
+
+    if (error.response?.data && typeof error.response.data === "object") {
+      (error.response.data as Record<string, unknown>).message = info.userMessage;
+    }
+  }
+
+  return error;
+}
+
+function onRequestSucceeded() {
+  useNetworkStore.getState().markApiHealthy();
+}
+
+publicClient.interceptors.response.use(
+  (response) => {
+    onRequestSucceeded();
+    return response;
+  },
+  (error: AxiosError) => Promise.reject(applyMappedError(error))
+);
+
 apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   const token = tokenStorage.getAccess();
   if (token) {
@@ -149,21 +200,24 @@ apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
 });
 
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    onRequestSucceeded();
+    return response;
+  },
   async (error: AxiosError) => {
     const originalRequest = error.config as RetryableRequestConfig | undefined;
-    if (!originalRequest) return Promise.reject(error);
-    if (error.response?.status !== 401) return Promise.reject(error);
+    if (!originalRequest) return Promise.reject(applyMappedError(error));
+    if (error.response?.status !== 401) return Promise.reject(applyMappedError(error));
 
     if (originalRequest.url?.includes("/api/auth/refresh")) {
       flushRefreshSubscribers(error, null);
       isRefreshing = false;
       await hardLogout(SESSION_EXPIRED_ROUTE);
-      return Promise.reject(error);
+      return Promise.reject(applyMappedError(error));
     }
 
     if (originalRequest._retry) {
-      return Promise.reject(error);
+      return Promise.reject(applyMappedError(error));
     }
 
     if (isRefreshing) {
@@ -191,7 +245,7 @@ apiClient.interceptors.response.use(
       flushRefreshSubscribers(error, null);
       isRefreshing = false;
       await hardLogout(SESSION_EXPIRED_ROUTE);
-      return Promise.reject(error);
+      return Promise.reject(applyMappedError(error));
     }
 
     try {
@@ -221,7 +275,7 @@ apiClient.interceptors.response.use(
     } catch (refreshError) {
       flushRefreshSubscribers(refreshError, null);
       await hardLogout(SESSION_EXPIRED_ROUTE);
-      return Promise.reject(refreshError);
+      return Promise.reject(applyMappedError(refreshError));
     } finally {
       isRefreshing = false;
     }
