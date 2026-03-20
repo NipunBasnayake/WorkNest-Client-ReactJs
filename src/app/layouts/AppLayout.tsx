@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Outlet } from "react-router-dom";
 import { AppSidebar } from "@/components/navigation/AppSidebar";
 import { AppTopbar } from "@/components/navigation/AppTopbar";
+import { NetworkStatusBanner } from "@/components/common/NetworkStatusBanner";
 import { PageContext } from "@/app/layouts/PageMetaContext";
 
 /* ── Layout ── */
@@ -37,6 +38,7 @@ export function AppLayout({ area }: AppLayoutProps) {
 
         {/* Main content */}
         <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+          <NetworkStatusBanner />
           <AppTopbar
             area={area}
             pageTitle={pageTitle}
