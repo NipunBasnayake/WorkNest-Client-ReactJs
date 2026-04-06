@@ -11,6 +11,7 @@ import { EmployeeForm } from "@/modules/employees/components/EmployeeForm";
 import { DEFAULT_EMPLOYEE_FORM, validateEmployeeForm } from "@/modules/employees/schemas/employeeForm";
 import { generateEmployeeCode, toEmployeeFormValues, toEmployeePayload } from "@/modules/employees/utils/employeeMapper";
 import type { EmployeeFormErrors, EmployeeFormValues } from "@/modules/employees/types";
+import { getErrorMessage } from "@/utils/errorHandler";
 
 export function EmployeeFormPage() {
   const navigate = useNavigate();
@@ -76,7 +77,7 @@ export function EmployeeFormPage() {
         navigate("/app/employees", { replace: true });
       }, 500);
     } catch (err: unknown) {
-      setMessage(extractErrorMessage(err) ?? "Failed to save employee. Please verify details and try again.");
+      setMessage(getErrorMessage(err, "Failed to save employee. Please verify details and try again."));
     } finally {
       setSubmitting(false);
     }
@@ -163,12 +164,4 @@ export function EmployeeFormPage() {
       )}
     </div>
   );
-}
-
-function extractErrorMessage(err: unknown): string | null {
-  if (typeof err === "object" && err !== null) {
-    const error = err as { response?: { data?: { message?: string } }; message?: string };
-    return error.response?.data?.message ?? error.message ?? null;
-  }
-  return null;
 }

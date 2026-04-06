@@ -35,13 +35,12 @@ export interface TaskPayload {
 }
 
 export interface TaskCreateRequest {
-  projectId?: number;
+  projectId?: string;
   title: string;
   description: string;
   status: TaskStatus;
   priority: TaskPriority;
-  assigneeId?: number;
-  createdByEmployeeId?: number;
+  assigneeId?: string;
   dueDate?: string;
 }
 
@@ -50,7 +49,7 @@ export interface TaskUpdateRequest {
   description: string;
   status: TaskStatus;
   priority: TaskPriority;
-  assigneeId?: number;
+  assigneeId?: string;
   dueDate?: string;
 }
 

@@ -3,6 +3,7 @@ import { unwrapApiData } from "@/services/http/response";
 import { asRecord, extractList, firstDefined, getId, getString, toIsoDate, toIsoDateTime } from "@/services/http/parsers";
 import { useAuthStore } from "@/store/authStore";
 import { getMyEmployeeProfile } from "@/modules/employees/services/employeeService";
+import { TASK_PRIORITY_VALUES, TASK_STATUS_VALUES } from "@/constants/apiEnums";
 import type {
   Task,
   TaskComment,
@@ -22,6 +23,9 @@ export interface TaskViewerIdentity {
 
 function toUiStatus(value: unknown): TaskStatus {
   const status = getString(value)?.toUpperCase();
+  if (status && TASK_STATUS_VALUES.includes(status as typeof TASK_STATUS_VALUES[number])) {
+    return status as TaskStatus;
+  }
   if (status === "IN_PROGRESS") return "IN_PROGRESS";
   if (status === "IN_REVIEW" || status === "REVIEW") return "IN_REVIEW";
   if (status === "BLOCKED") return "BLOCKED";
@@ -31,8 +35,8 @@ function toUiStatus(value: unknown): TaskStatus {
 
 function toUiPriority(value: unknown): TaskPriority {
   const priority = getString(value)?.toUpperCase();
-  if (priority === "LOW" || priority === "MEDIUM" || priority === "HIGH" || priority === "CRITICAL") {
-    return priority;
+  if (priority && TASK_PRIORITY_VALUES.includes(priority as typeof TASK_PRIORITY_VALUES[number])) {
+    return priority as TaskPriority;
   }
   if (priority === "URGENT") return "CRITICAL";
   return "MEDIUM";
@@ -236,22 +240,6 @@ function normalizeTaskComment(input: unknown): TaskComment {
   };
 }
 
-function toNumericId(value: string | undefined): number | undefined {
-  if (!value) return undefined;
-  const id = Number(value);
-  return Number.isNaN(id) ? undefined : id;
-}
-
-async function resolveCreatorEmployeeId(): Promise<number | undefined> {
-  try {
-    const identity = await resolveTaskViewerIdentity();
-    const creatorEmployeeId = identity.employeeId || identity.userId;
-    return toNumericId(creatorEmployeeId);
-  } catch {
-    return toNumericId(useAuthStore.getState().user?.id);
-  }
-}
-
 function buildTaskBasePayload(
   payload: TaskPayload
 ): Pick<TaskCreateRequest, "title" | "description" | "status" | "priority" | "assigneeId" | "dueDate"> {
@@ -260,7 +248,7 @@ function buildTaskBasePayload(
     description: payload.description.trim(),
     status: payload.status,
     priority: payload.priority,
-    assigneeId: toNumericId(payload.assigneeId),
+    assigneeId: payload.assigneeId || undefined,
     dueDate: payload.dueDate || undefined,
   };
 }
@@ -268,8 +256,7 @@ function buildTaskBasePayload(
 async function toCreateApiPayload(payload: TaskPayload): Promise<TaskCreateRequest> {
   return {
     ...buildTaskBasePayload(payload),
-    projectId: toNumericId(payload.projectId),
-    createdByEmployeeId: await resolveCreatorEmployeeId(),
+    projectId: payload.projectId || undefined,
   };
 }
 
@@ -337,10 +324,9 @@ export async function updateTaskDueDate(id: string, dueDate: string): Promise<Ta
 }
 
 export async function updateTaskAssignee(id: string, assigneeId: string): Promise<Task> {
-  const assigneeIdNum = assigneeId ? Number(assigneeId) : null;
   const { data } = await apiClient.patch<ApiResponse<unknown> | unknown>(
     `/api/tenant/tasks/${id}/assignee`,
-    { assigneeId: assigneeIdNum }
+    { assigneeId: assigneeId || null }
   );
   return normalizeTask(unwrapApiData<unknown>(data));
 }
@@ -353,30 +339,7 @@ export async function getTaskComments(taskId: string): Promise<TaskComment[]> {
 }
 
 export async function addTaskComment(taskId: string, comment: string): Promise<TaskComment> {
-  let commentedByEmployeeId: number | undefined;
-
-  try {
-    const identity = await resolveTaskViewerIdentity();
-    const employeeId = identity.employeeId || identity.userId;
-    if (employeeId) {
-      const employeeIdNum = Number(employeeId);
-      if (!isNaN(employeeIdNum)) {
-        commentedByEmployeeId = employeeIdNum;
-      }
-    }
-  } catch {
-    // Fallback to user ID
-    const authorId = useAuthStore.getState().user?.id;
-    if (authorId) {
-      const authorIdNum = Number(authorId);
-      if (!isNaN(authorIdNum)) {
-        commentedByEmployeeId = authorIdNum;
-      }
-    }
-  }
-
   const { data } = await apiClient.post<ApiResponse<unknown> | unknown>(`/api/tenant/tasks/${taskId}/comments`, {
-    commentedByEmployeeId,
     comment: comment.trim(),
   });
   return normalizeTaskComment(unwrapApiData<unknown>(data));

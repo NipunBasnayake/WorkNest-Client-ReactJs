@@ -9,6 +9,7 @@ import { SectionCard } from "@/components/common/SectionCard";
 import { Button } from "@/components/common/Button";
 import { EmptyState, ErrorBanner, SkeletonRow, StatCard } from "@/components/common/AppUI";
 import type { AttendanceRecord } from "@/modules/attendance/types";
+import { getErrorMessage } from "@/utils/errorHandler";
 
 function today() {
   return new Date().toISOString().slice(0, 10);
@@ -68,6 +69,9 @@ export function AttendancePage() {
     return records.find((record) => record.employeeId === user.id || record.employeeName === user.name) ?? null;
   }, [records, user]);
 
+  const canCheckIn = Boolean(user) && !actionLoading && !selfRecord?.checkIn;
+  const canCheckOut = Boolean(user) && !actionLoading && Boolean(selfRecord?.checkIn) && !selfRecord?.checkOut;
+
   async function handleCheckIn() {
     if (!user) return;
     setActionLoading(true);
@@ -77,7 +81,7 @@ export function AttendancePage() {
       setFeedback("Checked in successfully.");
       await fetchAttendance(selectedDate);
     } catch (actionError: unknown) {
-      setFeedback(extractMessage(actionError) ?? "Unable to check in right now.");
+      setFeedback(getErrorMessage(actionError, "Unable to check in right now."));
     } finally {
       setActionLoading(false);
     }
@@ -92,7 +96,7 @@ export function AttendancePage() {
       setFeedback("Checked out successfully.");
       await fetchAttendance(selectedDate);
     } catch (actionError: unknown) {
-      setFeedback(extractMessage(actionError) ?? "Unable to check out right now.");
+      setFeedback(getErrorMessage(actionError, "Unable to check out right now."));
     } finally {
       setActionLoading(false);
     }
@@ -112,11 +116,11 @@ export function AttendancePage() {
               className="rounded-xl border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary-500/30"
               style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)", color: "var(--text-primary)" }}
             />
-            <Button variant="outline" onClick={handleCheckIn} disabled={actionLoading}>
+            <Button variant="outline" onClick={handleCheckIn} disabled={!canCheckIn}>
               <LogIn size={16} />
               Check In
             </Button>
-            <Button variant="primary" onClick={handleCheckOut} disabled={actionLoading}>
+            <Button variant="primary" onClick={handleCheckOut} disabled={!canCheckOut}>
               <LogOut size={16} />
               Check Out
             </Button>
@@ -242,7 +246,3 @@ function InfoTile({ icon, label, value }: { icon: React.ReactNode; label: string
   );
 }
 
-function extractMessage(err: unknown): string | null {
-  if (err instanceof Error) return err.message;
-  return null;
-}

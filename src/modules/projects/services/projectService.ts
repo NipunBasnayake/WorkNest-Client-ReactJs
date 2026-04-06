@@ -1,7 +1,6 @@
 import { apiClient } from "@/services/http/client";
 import { unwrapApiData } from "@/services/http/response";
 import { asRecord, extractList, firstDefined, getId, getNumber, getString, toIsoDate, toIsoDateTime } from "@/services/http/parsers";
-import { useAuthStore } from "@/store/authStore";
 import type { Project, ProjectFormValues, ProjectStatus } from "@/modules/projects/types";
 import type { ApiResponse } from "@/types";
 
@@ -98,9 +97,7 @@ async function syncProjectTeams(projectId: string, expectedTeamIds: string[]) {
   ]);
 }
 
-function toProjectPayload(values: ProjectFormValues, includeCreator: boolean) {
-  const currentUserId = useAuthStore.getState().user?.id;
-  const currentUserIdNum = currentUserId ? Number(currentUserId) : undefined;
+function toProjectPayload(values: ProjectFormValues) {
   const payload: Record<string, unknown> = {
     name: values.name.trim(),
     description: values.description.trim() || undefined,
@@ -108,10 +105,6 @@ function toProjectPayload(values: ProjectFormValues, includeCreator: boolean) {
     endDate: values.endDate || undefined,
     status: toApiStatus(values.status),
   };
-
-  if (includeCreator && currentUserId) {
-    payload.createdByEmployeeId = Number.isNaN(currentUserIdNum) ? currentUserId : currentUserIdNum;
-  }
 
   return payload;
 }
@@ -160,7 +153,7 @@ export async function getProjectById(id: string): Promise<Project> {
 export async function createProject(values: ProjectFormValues): Promise<Project> {
   const { data } = await apiClient.post<ApiResponse<unknown> | unknown>(
     "/api/tenant/projects",
-    toProjectPayload(values, true)
+    toProjectPayload(values)
   );
   const created = unwrapApiData<unknown>(data);
   const projectId = getId(firstDefined(asRecord(created).id, asRecord(created).projectId));
@@ -171,7 +164,7 @@ export async function createProject(values: ProjectFormValues): Promise<Project>
 }
 
 export async function updateProject(id: string, values: ProjectFormValues): Promise<Project> {
-  await apiClient.put(`/api/tenant/projects/${id}`, toProjectPayload(values, false));
+  await apiClient.put(`/api/tenant/projects/${id}`, toProjectPayload(values));
   await syncProjectTeams(id, values.teamIds);
   return getProjectById(id);
 }
