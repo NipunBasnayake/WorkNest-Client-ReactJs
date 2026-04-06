@@ -11,6 +11,7 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/common/Button";
 import { ErrorBanner } from "@/components/common/AppUI";
 import type { LeaveFormErrors, LeaveFormValues } from "@/modules/leave/types";
+import { getErrorMessage } from "@/utils/errorHandler";
 
 export function LeaveFormPage() {
   const navigate = useNavigate();
@@ -75,6 +76,10 @@ export function LeaveFormPage() {
     setSubmitting(true);
     try {
       if (id) {
+        const latest = await getLeaveRequestById(id);
+        if (latest.status !== "PENDING") {
+          throw new Error("This leave request is no longer pending and cannot be edited.");
+        }
         await updateLeaveRequest(id, form);
         setMessage("Leave request updated successfully.");
       } else {
@@ -87,7 +92,7 @@ export function LeaveFormPage() {
       }
       setTimeout(() => navigate("/app/leave", { replace: true }), 500);
     } catch (error: unknown) {
-      setMessage(extractMessage(error) ?? "Unable to save leave request.");
+      setMessage(getErrorMessage(error, "Unable to save leave request."));
     } finally {
       setSubmitting(false);
     }
@@ -145,9 +150,4 @@ export function LeaveFormPage() {
       )}
     </div>
   );
-}
-
-function extractMessage(err: unknown): string | null {
-  if (err instanceof Error) return err.message;
-  return null;
 }

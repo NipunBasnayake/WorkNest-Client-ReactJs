@@ -23,6 +23,7 @@ import { SectionCard } from "@/components/common/SectionCard";
 import { Button } from "@/components/common/Button";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { EmptyState, ErrorBanner, SkeletonRow } from "@/components/common/AppUI";
+import { getErrorMessage } from "@/utils/errorHandler";
 
 interface Option {
   id: string;
@@ -81,7 +82,7 @@ export function TasksPage() {
       setProjects(projectRes.map((project) => ({ id: project.id, label: project.name })));
       setViewerIdentity(identity);
     } catch (err: unknown) {
-      setError(extractErrorMessage(err) ?? "Failed to load tasks.");
+      setError(getErrorMessage(err, "Failed to load tasks."));
     } finally {
       setLoading(false);
     }
@@ -137,7 +138,7 @@ export function TasksPage() {
       setDeleteTarget(null);
       setFeedback("Task deleted successfully.");
     } catch (err: unknown) {
-      setFeedback(extractErrorMessage(err) ?? "Could not delete task right now.");
+      setFeedback(getErrorMessage(err, "Could not delete task right now."));
     } finally {
       setDeleting(false);
     }
@@ -155,7 +156,7 @@ export function TasksPage() {
       setTasks((prev) => prev.map((task) => (task.id === taskId ? updated : task)));
       setFeedback(`Task moved to ${toLabel(status)}.`);
     } catch (err: unknown) {
-      setFeedback(extractErrorMessage(err) ?? "Unable to update task status.");
+      setFeedback(getErrorMessage(err, "Unable to update task status."));
     }
   }
 
@@ -433,12 +434,4 @@ function formatDate(value: string): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value || "Not set";
   return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
-}
-
-function extractErrorMessage(err: unknown): string | null {
-  if (typeof err === "object" && err !== null) {
-    const error = err as { response?: { data?: { message?: string } }; message?: string };
-    return error.response?.data?.message ?? error.message ?? null;
-  }
-  return null;
 }

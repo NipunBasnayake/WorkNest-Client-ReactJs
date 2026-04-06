@@ -12,6 +12,7 @@ import { StatusBadge } from "@/components/common/StatusBadge";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { toEmployeeViewModel } from "@/modules/employees/utils/employeeMapper";
 import type { EmployeeViewModel } from "@/modules/employees/types";
+import { getErrorMessage } from "@/utils/errorHandler";
 
 type EmployeeStatusFilter = "all" | "active" | "inactive";
 type EmployeeRoleFilter = "all" | "TENANT_ADMIN" | "ADMIN" | "MANAGER" | "HR" | "EMPLOYEE";
@@ -46,7 +47,7 @@ export function EmployeesPage() {
       const data = await getEmployees();
       setEmployees(data.map(toEmployeeViewModel));
     } catch (err: unknown) {
-      setError(extractErrorMessage(err) ?? "Failed to load employees. Please check your connection and try again.");
+      setError(getErrorMessage(err, "Failed to load employees. Please check your connection and try again."));
     } finally {
       setLoading(false);
     }
@@ -108,7 +109,7 @@ export function EmployeesPage() {
       );
       setStatusTarget(null);
     } catch (err: unknown) {
-      setFeedback(extractErrorMessage(err) ?? "Unable to update employee status. Please try again.");
+      setFeedback(getErrorMessage(err, "Unable to update employee status. Please try again."));
     } finally {
       setUpdatingStatus(false);
     }
@@ -385,12 +386,4 @@ function toReadableLabel(value: string): string {
     .split("_")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
-}
-
-function extractErrorMessage(err: unknown): string | null {
-  if (typeof err === "object" && err !== null) {
-    const error = err as { response?: { data?: { message?: string } }; message?: string };
-    return error.response?.data?.message ?? error.message ?? null;
-  }
-  return null;
 }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BellRing } from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { NotificationItem } from "@/modules/notifications/components/NotificationItem";
@@ -13,6 +13,7 @@ import { SectionCard } from "@/components/common/SectionCard";
 import { Button } from "@/components/common/Button";
 import { EmptyState, ErrorBanner } from "@/components/common/AppUI";
 import type { AppNotification } from "@/modules/notifications/types";
+import { getErrorMessage } from "@/utils/errorHandler";
 
 type NotificationFilter = "all" | "unread";
 
@@ -22,28 +23,48 @@ export function NotificationsPage() {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [filter, setFilter] = useState<NotificationFilter>("all");
+  const fetchInFlightRef = useRef(false);
+  const refetchQueuedRef = useRef(false);
 
-  async function fetchNotifications() {
-    setLoading(true);
+  const fetchNotifications = useCallback(async (silent = false) => {
+    if (fetchInFlightRef.current) {
+      refetchQueuedRef.current = true;
+      return;
+    }
+
+    fetchInFlightRef.current = true;
+    if (!silent) {
+      setLoading(true);
+    }
     setError(null);
+
     try {
       const data = await getNotifications();
       setNotifications(data);
-    } catch {
-      setError("Unable to load notifications.");
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, "Unable to load notifications."));
     } finally {
-      setLoading(false);
+      fetchInFlightRef.current = false;
+      if (!silent) {
+        setLoading(false);
+      }
+
+      if (refetchQueuedRef.current) {
+        refetchQueuedRef.current = false;
+        void fetchNotifications(true);
+      }
     }
-  }
+  }, []);
 
   useEffect(() => {
-    fetchNotifications();
+    void fetchNotifications();
     const unsubscribe = subscribeNotifications(() => {
-      getNotifications().then(setNotifications).catch(() => undefined);
+      void fetchNotifications(true);
     });
     return unsubscribe;
-  }, []);
+  }, [fetchNotifications]);
 
   const filtered = useMemo(() => {
     if (filter === "unread") {
@@ -53,15 +74,31 @@ export function NotificationsPage() {
   }, [filter, notifications]);
 
   async function handleMarkRead(id: string) {
-    await markNotificationAsRead(id);
-    const latest = await getNotifications();
-    setNotifications(latest);
+    setActionError(null);
+    const previous = notifications;
+    setNotifications((prev) => prev.map((item) => (item.id === id ? { ...item, read: true } : item)));
+
+    try {
+      await markNotificationAsRead(id);
+      void fetchNotifications(true);
+    } catch (err: unknown) {
+      setNotifications(previous);
+      setActionError(getErrorMessage(err, "Unable to mark notification as read."));
+    }
   }
 
   async function handleMarkAll() {
-    await markAllNotificationsAsRead();
-    const latest = await getNotifications();
-    setNotifications(latest);
+    setActionError(null);
+    const previous = notifications;
+    setNotifications((prev) => prev.map((item) => ({ ...item, read: true })));
+
+    try {
+      await markAllNotificationsAsRead();
+      void fetchNotifications(true);
+    } catch (err: unknown) {
+      setNotifications(previous);
+      setActionError(getErrorMessage(err, "Unable to mark all notifications as read."));
+    }
   }
 
   const unreadCount = notifications.filter((item) => !item.read).length;
@@ -106,6 +143,7 @@ export function NotificationsPage() {
       </SectionCard>
 
       {error && <ErrorBanner message={error} onRetry={fetchNotifications} />}
+      {actionError && <ErrorBanner message={actionError} />}
 
       {loading && (
         <SectionCard>

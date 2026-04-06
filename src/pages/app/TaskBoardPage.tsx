@@ -17,6 +17,7 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { SectionCard } from "@/components/common/SectionCard";
 import { Button } from "@/components/common/Button";
 import { EmptyState, ErrorBanner } from "@/components/common/AppUI";
+import { getErrorMessage } from "@/utils/errorHandler";
 
 const BOARD_LABELS: Record<typeof TASK_STATUS_OPTIONS[number], string> = {
   TODO: "Backlog",
@@ -54,7 +55,7 @@ export function TaskBoardPage() {
       setTasks(data);
       setViewerIdentity(identity);
     } catch (err: unknown) {
-      setError(extractErrorMessage(err) ?? "Unable to load board tasks.");
+      setError(getErrorMessage(err, "Unable to load board tasks."));
     } finally {
       setLoading(false);
     }
@@ -117,7 +118,7 @@ export function TaskBoardPage() {
       setTasks((prev) => prev.map((task) => (task.id === taskId ? updated : task)));
       setFeedback(`Task moved to ${BOARD_LABELS[nextStatus]}.`);
     } catch (err: unknown) {
-      setFeedback(extractErrorMessage(err) ?? "Unable to move task right now.");
+      setFeedback(getErrorMessage(err, "Unable to move task right now."));
     } finally {
       setMovingTaskId(null);
     }
@@ -204,12 +205,4 @@ export function TaskBoardPage() {
       )}
     </div>
   );
-}
-
-function extractErrorMessage(err: unknown): string | null {
-  if (typeof err === "object" && err !== null) {
-    const error = err as { response?: { data?: { message?: string } }; message?: string };
-    return error.response?.data?.message ?? error.message ?? null;
-  }
-  return null;
 }

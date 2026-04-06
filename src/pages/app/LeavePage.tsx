@@ -11,6 +11,7 @@ import { SectionCard } from "@/components/common/SectionCard";
 import { Button } from "@/components/common/Button";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { EmptyState, ErrorBanner, SkeletonRow } from "@/components/common/AppUI";
+import { getErrorMessage } from "@/utils/errorHandler";
 
 const STATUS_OPTIONS: Array<LeaveStatus | "ALL"> = ["ALL", "PENDING", "APPROVED", "REJECTED", "CANCELLED"];
 const TYPE_OPTIONS: Array<LeaveType | "ALL"> = ["ALL", ...LEAVE_TYPE_OPTIONS];
@@ -81,26 +82,23 @@ export function LeavePage() {
       setFeedback("Leave request cancelled.");
       setCancelTarget(null);
     } catch (actionError: unknown) {
-      setFeedback(extractMessage(actionError) ?? "Could not cancel leave request.");
+      setFeedback(getErrorMessage(actionError, "Could not cancel leave request."));
     } finally {
       setActionLoading(false);
     }
   }
 
   async function handleReview() {
-    if (!reviewTarget || !user) return;
+    if (!reviewTarget) return;
     setActionLoading(true);
     setFeedback(null);
     try {
-      const updated = await reviewLeaveRequest(reviewTarget.item.id, reviewTarget.status, {
-        reviewerId: user.id,
-        reviewerName: user.name,
-      });
+      const updated = await reviewLeaveRequest(reviewTarget.item.id, reviewTarget.status);
       setLeaveRequests((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
       setFeedback(`Leave request ${reviewTarget.status === "APPROVED" ? "approved" : "rejected"}.`);
       setReviewTarget(null);
     } catch (actionError: unknown) {
-      setFeedback(extractMessage(actionError) ?? "Could not update leave request.");
+      setFeedback(getErrorMessage(actionError, "Could not update leave request."));
     } finally {
       setActionLoading(false);
     }
@@ -306,9 +304,4 @@ export function LeavePage() {
       />
     </div>
   );
-}
-
-function extractMessage(err: unknown): string | null {
-  if (err instanceof Error) return err.message;
-  return null;
 }

@@ -12,6 +12,7 @@ import { StatusBadge } from "@/components/common/StatusBadge";
 import { Button } from "@/components/common/Button";
 import type { Team } from "@/modules/teams/types";
 import type { Project } from "@/modules/projects/types";
+import { getErrorMessage } from "@/utils/errorHandler";
 
 interface ViewerContext {
   employeeId?: string;
@@ -53,7 +54,7 @@ export function TeamsPage() {
         email: myProfile?.email ?? user?.email,
       });
     } catch (err: unknown) {
-      setError(extractErrorMessage(err) ?? "Failed to load teams.");
+      setError(getErrorMessage(err, "Failed to load teams."));
     } finally {
       setLoading(false);
     }
@@ -223,12 +224,4 @@ function isTeamVisibleToEmployee(team: Team, viewer: ViewerContext): boolean {
     (viewer.employeeId && team.managerEmployeeId === viewer.employeeId) ||
     (email && team.members.some((member) => member.email?.toLowerCase() === email))
   );
-}
-
-function extractErrorMessage(err: unknown): string | null {
-  if (typeof err === "object" && err !== null) {
-    const error = err as { response?: { data?: { message?: string } }; message?: string };
-    return error.response?.data?.message ?? error.message ?? null;
-  }
-  return null;
 }

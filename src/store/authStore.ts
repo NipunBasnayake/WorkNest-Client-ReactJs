@@ -1,7 +1,8 @@
 import { create } from "zustand";
 import { tokenStorage } from "@/services/http/client";
-import { loginApi, getMeApi, logoutApi } from "@/services/api/authApi";
+import { loginApi, getMeApi, logoutApi, isPasswordChangeRequiredApiError } from "@/services/api/authApi";
 import type { AuthUser, LoginPayload, SessionType } from "@/types";
+import type { PasswordChangeRequirement } from "@/services/api/authApi";
 
 const SESSION_EXPIRED_ROUTE = "/session-expired";
 
@@ -14,6 +15,8 @@ interface AuthState {
   isLoading: boolean;
   isBootstrapping: boolean;
   error: string | null;
+  passwordChangeRequired: boolean;
+  passwordChangeChallenge: PasswordChangeRequirement | null;
 
   /* Actions */
   login: (payload: LoginPayload) => Promise<void>;
@@ -21,6 +24,7 @@ interface AuthState {
   bootstrap: () => Promise<void>;
   clearError: () => void;
   setUser: (user: AuthUser) => void;
+  setPasswordChangeChallenge: (challenge: PasswordChangeRequirement | null) => void;
   applyTokenRefresh: (accessToken: string, refreshToken: string, tenantKey: string | null) => void;
   hardLogout: (redirectTo?: string) => void;
 }
@@ -50,12 +54,30 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isLoading:        false,
   isBootstrapping:  true,
   error:            null,
+  passwordChangeRequired: false,
+  passwordChangeChallenge: null,
 
   /* ── Login ── */
   login: async (payload: LoginPayload) => {
     set({ isLoading: true, error: null });
     try {
-      const { tokens, user: loginUser } = await loginApi(payload);
+      const loginResult = await loginApi(payload);
+
+      if (loginResult.kind === "password_change_required") {
+        set({
+          isLoading: false,
+          isAuthenticated: false,
+          user: null,
+          sessionType: null,
+          tenantKey: loginResult.challenge.tenantKey,
+          passwordChangeRequired: true,
+          passwordChangeChallenge: loginResult.challenge,
+          error: loginResult.challenge.reason ?? "Password change is required before continuing.",
+        });
+        return;
+      }
+
+      const { tokens, user: loginUser } = loginResult;
 
       const sessionType: SessionType = payload.tenantKey ? "tenant" : "platform";
       const tenantKey = payload.tenantKey ?? null;
@@ -77,11 +99,35 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         tenantKey:       resolvedTenantKey,
         isLoading:       false,
         error:           null,
+        passwordChangeRequired: false,
+        passwordChangeChallenge: null,
       });
     } catch (err: unknown) {
+      if (isPasswordChangeRequiredApiError(err)) {
+        const challenge = err.challenge;
+        set({
+          isLoading: false,
+          isAuthenticated: false,
+          user: null,
+          sessionType: null,
+          tenantKey: challenge.tenantKey,
+          passwordChangeRequired: true,
+          passwordChangeChallenge: challenge,
+          error: challenge.reason ?? "Password change is required before continuing.",
+        });
+        return;
+      }
+
       tokenStorage.clear();
       const message = extractErrorMessage(err) ?? "Login failed. Please check your credentials.";
-      set({ isLoading: false, error: message, isAuthenticated: false, user: null });
+      set({
+        isLoading: false,
+        error: message,
+        isAuthenticated: false,
+        user: null,
+        passwordChangeRequired: false,
+        passwordChangeChallenge: null,
+      });
       throw err; // re-throw so the form can react
     }
   },
@@ -106,6 +152,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         isLoading:       false,
         isBootstrapping: false,
         error:           null,
+        passwordChangeRequired: false,
+        passwordChangeChallenge: null,
       });
     }
   },
@@ -136,6 +184,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         tenantKey:       resolvedTenant,
         isBootstrapping: false,
         error:           null,
+        passwordChangeRequired: false,
+        passwordChangeChallenge: null,
       });
     } catch {
       // /me failed and refresh recovery did not produce a valid session.
@@ -147,12 +197,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         sessionType:     null,
         tenantKey:       null,
         isBootstrapping: false,
+        passwordChangeRequired: false,
+        passwordChangeChallenge: null,
       });
     }
   },
 
   clearError: () => set({ error: null }),
   setUser:    (user) => set({ user }),
+  setPasswordChangeChallenge: (challenge) => set({
+    passwordChangeChallenge: challenge,
+    passwordChangeRequired: Boolean(challenge),
+    error: challenge?.reason ?? null,
+  }),
   applyTokenRefresh: (accessToken, refreshToken, tenantKey) => {
     const state = get();
     const resolvedTenantKey = tenantKey ?? state.tenantKey ?? tokenStorage.getTenantKey();
@@ -165,6 +222,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       tenantKey: resolvedTenantKey,
       sessionType: state.sessionType ?? resolvedSessionType,
       error: null,
+      passwordChangeRequired: false,
+      passwordChangeChallenge: null,
     });
   },
   hardLogout: (redirectToPath = SESSION_EXPIRED_ROUTE) => {
@@ -177,6 +236,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       isLoading:       false,
       isBootstrapping: false,
       error:           null,
+      passwordChangeRequired: false,
+      passwordChangeChallenge: null,
     });
     redirectTo(redirectToPath);
   },
@@ -190,6 +251,8 @@ export const selectTenantKey        = (s: AuthState) => s.tenantKey;
 export const selectIsBootstrapping  = (s: AuthState) => s.isBootstrapping;
 export const selectAuthError        = (s: AuthState) => s.error;
 export const selectAuthLoading      = (s: AuthState) => s.isLoading;
+export const selectPasswordChangeRequired = (s: AuthState) => s.passwordChangeRequired;
+export const selectPasswordChangeChallenge = (s: AuthState) => s.passwordChangeChallenge;
 
 /* ── Helpers ── */
 function extractErrorMessage(err: unknown): string | null {

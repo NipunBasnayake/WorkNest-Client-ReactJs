@@ -31,10 +31,13 @@ function BootstrapLoader() {
    Redirects to /login if not authenticated.
    ───────────────────────────────────────────────────────────── */
 export function AuthGuard() {
-  const { isAuthenticated, isBootstrapping } = useAuthStore();
+  const { isAuthenticated, isBootstrapping, passwordChangeRequired } = useAuthStore();
   const location = useLocation();
 
   if (isBootstrapping) return <BootstrapLoader />;
+  if (passwordChangeRequired) {
+    return <Navigate to="/force-password-change" replace />;
+  }
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
@@ -47,10 +50,13 @@ export function AuthGuard() {
    Only Platform sessions may access.
    ───────────────────────────────────────────────────────────── */
 export function PlatformGuard() {
-  const { isAuthenticated, isBootstrapping, sessionType } = useAuthStore();
+  const { isAuthenticated, isBootstrapping, sessionType, passwordChangeRequired } = useAuthStore();
   const location = useLocation();
 
   if (isBootstrapping) return <BootstrapLoader />;
+  if (passwordChangeRequired) {
+    return <Navigate to="/force-password-change" replace />;
+  }
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
@@ -66,10 +72,13 @@ export function PlatformGuard() {
    Only Tenant sessions may access.
    ───────────────────────────────────────────────────────────── */
 export function TenantGuard() {
-  const { isAuthenticated, isBootstrapping, sessionType } = useAuthStore();
+  const { isAuthenticated, isBootstrapping, sessionType, passwordChangeRequired } = useAuthStore();
   const location = useLocation();
 
   if (isBootstrapping) return <BootstrapLoader />;
+  if (passwordChangeRequired) {
+    return <Navigate to="/force-password-change" replace />;
+  }
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
@@ -85,10 +94,13 @@ interface TenantRoleGuardProps {
 }
 
 export function TenantRoleGuard({ allowedRoles }: TenantRoleGuardProps) {
-  const { isAuthenticated, isBootstrapping, sessionType, user } = useAuthStore();
+  const { isAuthenticated, isBootstrapping, sessionType, user, passwordChangeRequired } = useAuthStore();
   const location = useLocation();
 
   if (isBootstrapping) return <BootstrapLoader />;
+  if (passwordChangeRequired) {
+    return <Navigate to="/force-password-change" replace />;
+  }
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
@@ -106,9 +118,13 @@ export function TenantRoleGuard({ allowedRoles }: TenantRoleGuardProps) {
    GuestGuard — redirects already-logged-in users away from /login
    ───────────────────────────────────────────────────────────── */
 export function GuestGuard() {
-  const { isAuthenticated, isBootstrapping, sessionType } = useAuthStore();
+  const { isAuthenticated, isBootstrapping, sessionType, passwordChangeRequired } = useAuthStore();
 
   if (isBootstrapping) return <BootstrapLoader />;
+
+  if (passwordChangeRequired) {
+    return <Outlet />;
+  }
 
   if (isAuthenticated) {
     const to = sessionType === "platform" ? "/platform/dashboard" : "/app/dashboard";

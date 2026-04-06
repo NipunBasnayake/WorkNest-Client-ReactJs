@@ -11,10 +11,13 @@ export function useAuth() {
     isLoading,
     isBootstrapping,
     error,
+    passwordChangeRequired,
+    passwordChangeChallenge,
     login,
     logout,
     bootstrap,
     clearError,
+    setPasswordChangeChallenge,
   } = useAuthStore();
 
   const isPlatform = sessionType === "platform";
@@ -39,6 +42,8 @@ export function useAuth() {
     isLoading,
     isBootstrapping,
     error,
+    passwordChangeRequired,
+    passwordChangeChallenge,
     isPlatform,
     isTenant,
     hasRole,
@@ -51,6 +56,7 @@ export function useAuth() {
     logout,
     bootstrap,
     clearError,
+    setPasswordChangeChallenge,
   };
 }
 

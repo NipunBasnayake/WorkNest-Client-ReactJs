@@ -10,7 +10,7 @@ type TokenPayload = {
   user?: unknown;
 };
 
-interface PasswordChangeRequirement {
+export interface PasswordChangeRequirement {
   email: string;
   tenantKey: string | null;
   challengeToken: string | null;

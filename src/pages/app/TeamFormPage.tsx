@@ -13,6 +13,7 @@ import { Button } from "@/components/common/Button";
 import { ErrorBanner } from "@/components/common/AppUI";
 import type { TeamFormErrors, TeamFormValues } from "@/modules/teams/types";
 import type { Employee } from "@/types";
+import { getErrorMessage } from "@/utils/errorHandler";
 
 interface EmployeeOption {
   id: string;
@@ -54,7 +55,7 @@ export function TeamFormPage() {
       })
       .catch((err: unknown) => {
         setEmployeeOptions([]);
-        setEmployeeLoadError(extractErrorMessage(err) ?? "Unable to load employees for team assignment.");
+        setEmployeeLoadError(getErrorMessage(err, "Unable to load employees for team assignment."));
       });
   }, []);
 
@@ -121,7 +122,7 @@ export function TeamFormPage() {
 
       setTimeout(() => navigate("/app/teams", { replace: true }), 500);
     } catch (err: unknown) {
-      setMessage(extractErrorMessage(err) ?? "Unable to save team right now.");
+      setMessage(getErrorMessage(err, "Unable to save team right now."));
     } finally {
       setSubmitting(false);
     }
@@ -187,12 +188,4 @@ export function TeamFormPage() {
       )}
     </div>
   );
-}
-
-function extractErrorMessage(err: unknown): string | null {
-  if (typeof err === "object" && err !== null) {
-    const error = err as { response?: { data?: { message?: string } }; message?: string };
-    return error.response?.data?.message ?? error.message ?? null;
-  }
-  return null;
 }

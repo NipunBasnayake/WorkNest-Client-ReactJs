@@ -23,6 +23,7 @@ import { EmptyState, ErrorBanner } from "@/components/common/AppUI";
 import type { Employee } from "@/types";
 import type { Project } from "@/modules/projects/types";
 import type { Task } from "@/modules/tasks/types";
+import { getErrorMessage } from "@/utils/errorHandler";
 
 type RoleDraftValue = TeamMemberFunctionalRole | "";
 
@@ -72,7 +73,7 @@ export function TeamDetailPage() {
         setTasks(taskRes);
       })
       .catch((err: unknown) => {
-        if (active) setError(extractErrorMessage(err) ?? "Unable to load team details.");
+        if (active) setError(getErrorMessage(err, "Unable to load team details."));
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -159,7 +160,7 @@ export function TeamDetailPage() {
       setMessage("Team member added.");
       setMemberToAdd("");
     } catch (err: unknown) {
-      setMessage(extractErrorMessage(err) ?? "Unable to add member.");
+      setMessage(getErrorMessage(err, "Unable to add member."));
     } finally {
       setAddLoading(false);
     }
@@ -181,7 +182,7 @@ export function TeamDetailPage() {
       setMessage("Team member removed.");
       setRemoveTarget(null);
     } catch (err: unknown) {
-      setMessage(extractErrorMessage(err) ?? "Unable to remove member.");
+      setMessage(getErrorMessage(err, "Unable to remove member."));
     } finally {
       setRemoveLoading(false);
     }
@@ -200,7 +201,7 @@ export function TeamDetailPage() {
       await refreshTeam();
       setMessage("Member functional role updated.");
     } catch (err: unknown) {
-      setMessage(extractErrorMessage(err) ?? "Unable to update functional role.");
+      setMessage(getErrorMessage(err, "Unable to update functional role."));
     } finally {
       setRoleUpdateLoadingId(null);
     }
@@ -494,12 +495,4 @@ function toReadableLabel(value: string): string {
     .split("_")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
-}
-
-function extractErrorMessage(err: unknown): string | null {
-  if (typeof err === "object" && err !== null) {
-    const error = err as { response?: { data?: { message?: string } }; message?: string };
-    return error.response?.data?.message ?? error.message ?? null;
-  }
-  return null;
 }

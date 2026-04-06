@@ -19,6 +19,7 @@ import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { EmptyState, ErrorBanner } from "@/components/common/AppUI";
 import { toEmployeeViewModel } from "@/modules/employees/utils/employeeMapper";
 import type { EmployeeSkill, EmployeeViewModel, SkillLevel } from "@/modules/employees/types";
+import { getErrorMessage } from "@/utils/errorHandler";
 
 const SKILL_LEVELS: SkillLevel[] = ["BEGINNER", "INTERMEDIATE", "ADVANCED", "EXPERT"];
 
@@ -68,7 +69,7 @@ export function EmployeeDetailPage() {
         if (active) setEmployee(toEmployeeViewModel(res));
       })
       .catch((err: unknown) => {
-        if (active) setError(extractErrorMessage(err) ?? "Unable to load employee details.");
+        if (active) setError(getErrorMessage(err, "Unable to load employee details."));
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -91,7 +92,7 @@ export function EmployeeDetailPage() {
         if (active) setSkills(items);
       })
       .catch((err: unknown) => {
-        if (active) setSkillsError(extractErrorMessage(err) ?? "Unable to load employee skills.");
+        if (active) setSkillsError(getErrorMessage(err, "Unable to load employee skills."));
       })
       .finally(() => {
         if (active) setSkillsLoading(false);
@@ -117,7 +118,7 @@ export function EmployeeDetailPage() {
       setMessage(statusTarget === "inactive" ? "Employee deactivated successfully." : "Employee activated successfully.");
       setStatusTarget(null);
     } catch (err: unknown) {
-      setMessage(extractErrorMessage(err) ?? "Unable to update employee status.");
+      setMessage(getErrorMessage(err, "Unable to update employee status."));
     } finally {
       setStatusLoading(false);
     }
@@ -134,7 +135,7 @@ export function EmployeeDetailPage() {
       setNewSkillLevel("INTERMEDIATE");
       setMessage("Skill added.");
     } catch (err: unknown) {
-      setMessage(extractErrorMessage(err) ?? "Skill add failed. Backend skill mutation may not be enabled.");
+      setMessage(getErrorMessage(err, "Skill add failed. Backend skill mutation may not be enabled."));
     } finally {
       setSkillSubmitting(false);
     }
@@ -153,7 +154,7 @@ export function EmployeeDetailPage() {
       setEditingSkill(null);
       setMessage("Skill updated.");
     } catch (err: unknown) {
-      setMessage(extractErrorMessage(err) ?? "Skill update failed. Backend skill mutation may not be enabled.");
+      setMessage(getErrorMessage(err, "Skill update failed. Backend skill mutation may not be enabled."));
     } finally {
       setSkillSubmitting(false);
     }
@@ -169,7 +170,7 @@ export function EmployeeDetailPage() {
       setDeleteSkillTarget(null);
       setMessage("Skill removed.");
     } catch (err: unknown) {
-      setMessage(extractErrorMessage(err) ?? "Skill deletion failed. Backend skill mutation may not be enabled.");
+      setMessage(getErrorMessage(err, "Skill deletion failed. Backend skill mutation may not be enabled."));
     } finally {
       setSkillSubmitting(false);
     }
@@ -468,12 +469,4 @@ function toReadableLabel(value: string): string {
     .split("_")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
-}
-
-function extractErrorMessage(err: unknown): string | null {
-  if (typeof err === "object" && err !== null) {
-    const error = err as { response?: { data?: { message?: string } }; message?: string };
-    return error.response?.data?.message ?? error.message ?? null;
-  }
-  return null;
 }
