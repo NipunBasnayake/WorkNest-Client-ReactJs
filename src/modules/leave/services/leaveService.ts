@@ -1,13 +1,11 @@
 import { apiClient } from "@/services/http/client";
 import { unwrapApiData } from "@/services/http/response";
-import { asRecord, extractList, firstDefined, getId, getNumber, getString, toIsoDate, toIsoDateTime } from "@/services/http/parsers";
+import { asRecord, extractList, firstDefined, getId, getString, toIsoDate, toIsoDateTime } from "@/services/http/parsers";
 import { useAuthStore } from "@/store/authStore";
 import type { LeavePayload, LeaveRequest, LeaveStatus } from "@/modules/leave/types";
 import type { ApiResponse } from "@/types";
 
 interface ReviewPayload {
-  reviewerId: string;
-  reviewerName: string;
   comment?: string;
 }
 
@@ -107,18 +105,16 @@ export async function cancelLeaveRequest(id: string): Promise<LeaveRequest> {
 export async function reviewLeaveRequest(
   id: string,
   status: Extract<LeaveStatus, "APPROVED" | "REJECTED">,
-  review: ReviewPayload
+  review?: ReviewPayload
 ): Promise<LeaveRequest> {
   const endpoint = status === "APPROVED"
     ? `/api/tenant/leaves/${id}/approve`
     : `/api/tenant/leaves/${id}/reject`;
-  const approverEmployeeId = getNumber(review.reviewerId) ?? review.reviewerId;
 
   const { data } = await apiClient.post<ApiResponse<unknown> | unknown>(
     endpoint,
     {
-      approverEmployeeId,
-      reason: review.comment?.trim() || `${status} by ${review.reviewerName}`,
+      reason: review?.comment?.trim() || (status === "APPROVED" ? "Approved" : "Rejected"),
     }
   );
   return normalizeLeave(unwrapApiData<unknown>(data));

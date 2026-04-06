@@ -2,7 +2,6 @@ import { apiClient } from "@/services/http/client";
 import { unwrapApiData } from "@/services/http/response";
 import { asRecord, extractList, firstDefined, getBoolean, getId, getNumber, getString, toIsoDateTime } from "@/services/http/parsers";
 import { readRealtimeDestinations, subscribeRealtime } from "@/services/realtime/stompService";
-import { useAuthStore } from "@/store/authStore";
 import type { AppNotification, CreateNotificationPayload } from "@/modules/notifications/types";
 import type { ApiResponse } from "@/types";
 
@@ -93,9 +92,7 @@ export async function getUnreadNotificationCount(): Promise<number> {
 }
 
 export async function createNotification(payload: CreateNotificationPayload): Promise<AppNotification> {
-  const recipientEmployeeId = useAuthStore.getState().user?.id;
   const { data } = await apiClient.post<ApiResponse<unknown> | unknown>("/api/tenant/notifications", {
-    recipientEmployeeId,
     type: payload.type,
     message: payload.message,
     referenceType: "SYSTEM",

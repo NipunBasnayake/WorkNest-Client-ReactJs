@@ -1,7 +1,6 @@
 import { apiClient } from "@/services/http/client";
 import { unwrapApiData } from "@/services/http/response";
 import { asRecord, extractList, firstDefined, getBoolean, getId, getString, toIsoDateTime } from "@/services/http/parsers";
-import { useAuthStore } from "@/store/authStore";
 import type { Announcement, AnnouncementPayload } from "@/modules/announcements/types";
 import type { ApiResponse } from "@/types";
 
@@ -42,11 +41,9 @@ export async function getAnnouncementById(id: string): Promise<Announcement> {
 }
 
 export async function createAnnouncement(payload: AnnouncementPayload): Promise<Announcement> {
-  const authorId = payload.authorId || useAuthStore.getState().user?.id;
   const { data } = await apiClient.post<ApiResponse<unknown> | unknown>("/api/tenant/announcements", {
     title: payload.title.trim(),
     message: payload.content.trim(),
-    createdByEmployeeId: authorId,
   });
   return normalizeAnnouncement(unwrapApiData<unknown>(data));
 }
