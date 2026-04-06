@@ -16,6 +16,7 @@ import {
 import { LandingPage } from "@/pages/public/LandingPage";
 import { LoginPage } from "@/pages/public/LoginPage";
 import { RegisterCompanyPage } from "@/pages/public/RegisterCompanyPage";
+import { ForcePasswordChangePage } from "@/pages/public/ForcePasswordChangePage";
 import { NotFoundPage } from "@/pages/public/NotFoundPage";
 import { UnauthorizedPage } from "@/pages/public/UnauthorizedPage";
 import { SessionExpiredPage } from "@/pages/public/SessionExpiredPage";
@@ -67,6 +68,7 @@ const router = createBrowserRouter([
           { path: "login", element: <LoginPage /> },
           { path: "register", element: <RegisterCompanyPage /> },
           { path: "register-company", element: <RegisterCompanyPage /> },
+          { path: "force-password-change", element: <ForcePasswordChangePage /> },
           { path: "session-expired", element: <SessionExpiredPage /> },
         ],
       },
