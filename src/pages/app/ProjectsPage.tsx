@@ -14,6 +14,7 @@ import { Button } from "@/components/common/Button";
 import type { Project, ProjectStatus } from "@/modules/projects/types";
 import type { Team } from "@/modules/teams/types";
 import type { Task } from "@/modules/tasks/types";
+import { getErrorMessage } from "@/utils/errorHandler";
 
 type ProjectStatusFilter = "all" | ProjectStatus;
 
@@ -69,7 +70,7 @@ export function ProjectsPage() {
         email: profile?.email ?? user?.email,
       });
     } catch (err: unknown) {
-      setError(extractErrorMessage(err) ?? "Failed to load projects.");
+      setError(getErrorMessage(err, "Failed to load projects."));
     } finally {
       setLoading(false);
     }
@@ -307,12 +308,4 @@ function formatDate(value?: string): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleDateString();
-}
-
-function extractErrorMessage(err: unknown): string | null {
-  if (typeof err === "object" && err !== null) {
-    const error = err as { response?: { data?: { message?: string } }; message?: string };
-    return error.response?.data?.message ?? error.message ?? null;
-  }
-  return null;
 }

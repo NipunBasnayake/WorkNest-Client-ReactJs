@@ -12,6 +12,7 @@ import { Button } from "@/components/common/Button";
 import { ErrorBanner } from "@/components/common/AppUI";
 import type { ProjectFormErrors, ProjectFormValues } from "@/modules/projects/types";
 import type { Team } from "@/modules/teams/types";
+import { getErrorMessage } from "@/utils/errorHandler";
 
 export function ProjectFormPage() {
   const navigate = useNavigate();
@@ -38,7 +39,7 @@ export function ProjectFormPage() {
       .then(setTeams)
       .catch((err: unknown) => {
         setTeams([]);
-        setTeamLoadError(extractErrorMessage(err) ?? "Unable to load teams for assignment.");
+        setTeamLoadError(getErrorMessage(err, "Unable to load teams for assignment."));
       });
   }, []);
 
@@ -92,7 +93,7 @@ export function ProjectFormPage() {
 
       setTimeout(() => navigate("/app/projects", { replace: true }), 500);
     } catch (err: unknown) {
-      setMessage(extractErrorMessage(err) ?? "Unable to save project right now.");
+      setMessage(getErrorMessage(err, "Unable to save project right now."));
     } finally {
       setSubmitting(false);
     }
@@ -156,12 +157,4 @@ export function ProjectFormPage() {
       )}
     </div>
   );
-}
-
-function extractErrorMessage(err: unknown): string | null {
-  if (typeof err === "object" && err !== null) {
-    const error = err as { response?: { data?: { message?: string } }; message?: string };
-    return error.response?.data?.message ?? error.message ?? null;
-  }
-  return null;
 }
