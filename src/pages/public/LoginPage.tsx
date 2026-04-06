@@ -2,7 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import {
   LogIn, Eye, EyeOff, CheckCircle2, Users,
-  FolderKanban, Clock, Building2, Globe, Star, Zap,
+  FolderKanban, Clock, Building2, Globe, Star, Zap, Shield, Sparkles,
 } from "lucide-react";
 import { Logo } from "@/components/common/Logo";
 import { Button } from "@/components/common/Button";
@@ -23,6 +23,12 @@ const BRAND_FEATURES = [
   { icon: Users, text: "Team collaboration tools" },
   { icon: FolderKanban, text: "Project tracking dashboards" },
   { icon: Clock, text: "Attendance & leave management" },
+];
+
+const LOGIN_BENEFITS = [
+  { icon: Zap, label: "Instant Access", description: "Sign in and start working" },
+  { icon: Shield, label: "Secure Login", description: "Enterprise-grade security" },
+  { icon: CheckCircle2, label: "Always Available", description: "Access 24/7 from anywhere" },
 ];
 
 const TESTIMONIALS = [
@@ -104,87 +110,92 @@ export function LoginPage() {
   return (
     <div className="h-screen w-full flex justify-center bg-[var(--bg-surface)]">
       <div className="flex w-full max-w-7xl overflow-hidden">
-        {/* ── Left panel — branding (desktop only) ── */}
-        <div
-          className="hidden lg:flex flex-col justify-between w-1/2 p-12 xl:p-20 relative overflow-hidden"
-          style={{
-            background: "linear-gradient(145deg, #6818ac 0%, #9332EA 45%, #7c1fd1 75%, #54168c 100%)",
-          }}
-        >
-          {/* Pattern overlay */}
-          <div
-            className="absolute inset-0 opacity-[0.06]"
-            style={{
-              backgroundImage: `url("data:image/svg+xml,%3Csvg width='32' height='32' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='2' cy='2' r='1.5' fill='white'/%3E%3C/svg%3E")`,
-            }}
-          />
-          <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-white/10 rounded-full blur-3xl animate-pulse-glow" />
-          <div className="absolute top-1/3 right-0 w-40 h-40 bg-white/10 rounded-full blur-2xl" />
-
-          <div className="relative z-10">
-            <h2 className="text-3xl font-bold text-white mb-3 leading-tight animate-fade-up">
-              Manage your entire
-              <br />
-              <span className="text-purple-200">workforce in one place.</span>
-            </h2>
-            <p className="text-purple-100/80 text-sm mb-10 leading-relaxed max-w-sm animate-fade-up" style={{ animationDelay: "0.1s" }}>
-              Everything your team needs — tasks, projects, attendance, and
-              collaboration — all in one beautiful workspace.
-            </p>
-            <ul className="space-y-3.5">
-              {BRAND_FEATURES.map(({ icon: Icon, text }, idx) => (
-                <li
-                  key={text}
-                  className="flex items-center gap-3 animate-fade-up"
-                  style={{ animationDelay: `${0.2 + idx * 0.1}s` }}
-                >
-                  <div className="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center shrink-0 transition-transform duration-300 hover:scale-110">
-                    <Icon size={16} className="text-purple-200" />
-                  </div>
-                  <span className="text-sm text-purple-100">{text}</span>
-                </li>
-              ))}
-            </ul>
+        {/* ── Left panel — benefits (desktop only) ── */}
+        <div className="hidden lg:flex flex-col justify-between w-1/2 p-12 xl:p-20 relative overflow-hidden">
+          {/* Background decoration */}
+          <div className="absolute inset-0 -z-10">
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[700px] bg-gradient-to-br from-primary-500/20 via-primary-400/10 to-transparent rounded-full blur-3xl" />
+            <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-gradient-to-tl from-accent-400/15 to-transparent rounded-full blur-3xl" />
           </div>
 
-          {/* Testimonials section */}
-          <div className="relative z-10 space-y-4">
-            <div className="flex items-center gap-1.5 mb-3">
-              <Star size={16} className="text-yellow-300 fill-yellow-300" />
-              <span className="text-xs font-semibold text-purple-100">Loved by 500+ teams worldwide</span>
+          <div className="relative z-10">
+            <div className="mb-12 animate-fade-up">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold mb-4 border" style={{ background: "rgba(147,50,234,0.08)", borderColor: "rgba(147,50,234,0.2)", color: "var(--color-primary-600)" }}>
+                <Sparkles size={12} />
+                Welcome Back
+              </div>
+              <h2 className="text-3xl lg:text-4xl font-bold mb-3 leading-tight">
+                Access your
+                <br />
+                <span style={{ background: "linear-gradient(135deg, #9332EA 0%, #a855f7 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>workspace</span>
+              </h2>
+              <p className="text-base leading-relaxed" style={{ color: "var(--text-secondary)" }}>
+                Get back to managing your team, projects, and tasks in one powerful platform.
+              </p>
             </div>
-            <div className="space-y-3 max-h-[120px] overflow-hidden">
-              {TESTIMONIALS.map((testimonial, idx) => (
+
+            {/* Benefits grid */}
+            <div className="space-y-4 mb-12">
+              {LOGIN_BENEFITS.map(({ icon: Icon, label, description }, idx) => (
                 <div
-                  key={idx}
-                  className="p-3 rounded-lg bg-white/10 backdrop-blur-sm border border-white/10 animate-fade-up"
-                  style={{ animationDelay: `${0.5 + idx * 0.1}s` }}
+                  key={label}
+                  className="flex gap-4 p-4 rounded-xl border transition-all duration-300 hover:shadow-lg hover:border-primary-300 animate-fade-up"
+                  style={{
+                    backgroundColor: "var(--bg-surface)",
+                    borderColor: "var(--border-default)",
+                    animationDelay: `${0.1 * idx}s`,
+                  }}
                 >
-                  <p className="text-xs text-purple-100 italic mb-2">"{testimonial.quote}"</p>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs font-semibold text-white">{testimonial.name}</p>
-                      <p className="text-[11px] text-purple-200">{testimonial.role} • {testimonial.company}</p>
-                    </div>
-                    <div className="flex gap-0.5">
-                      {Array(testimonial.rating).fill(0).map((_, i) => (
-                        <Star key={i} size={12} className="text-yellow-300 fill-yellow-300" />
-                      ))}
-                    </div>
+                  <div className="w-12 h-12 rounded-lg flex items-center justify-center shrink-0" style={{ background: "linear-gradient(135deg, rgba(147,50,234,0.14) 0%, rgba(168,85,247,0.08) 100%)" }}>
+                    <Icon size={20} style={{ color: "var(--color-primary-500)" }} />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-sm" style={{ color: "var(--text-primary)" }}>{label}</p>
+                    <p className="text-xs" style={{ color: "var(--text-secondary)" }}>{description}</p>
                   </div>
                 </div>
               ))}
             </div>
+
+            {/* Testimonials */}
+            <div className="space-y-3 animate-fade-up" style={{ animationDelay: "0.3s" }}>
+              <p className="text-xs font-semibold mb-3" style={{ color: "var(--text-tertiary)" }}>
+                <span className="inline-flex items-center gap-1.5">
+                  <Star size={12} className="fill-yellow-400 text-yellow-400" />
+                  500+ teams trust WorkNest
+                </span>
+              </p>
+              <div className="space-y-2 max-h-[100px] overflow-hidden">
+                {TESTIMONIALS.map((testimonial, idx) => (
+                  <div
+                    key={idx}
+                    className="p-2.5 rounded-lg text-xs"
+                    style={{ backgroundColor: "var(--bg-muted)" }}
+                  >
+                    <p style={{ color: "var(--text-secondary)" }} className="italic">"{testimonial.quote}"</p>
+                    <p style={{ color: "var(--text-tertiary)" }} className="text-[10px] mt-1">
+                      {testimonial.name} • {testimonial.role}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
 
-          <div className="relative z-10 pt-4 border-t border-white/10">
-            <p className="text-xs text-purple-300/70">
-              Trusted by industry leaders &mdash; WorkNest &copy; {new Date().getFullYear()}
-            </p>
+          {/* Trust indicators */}
+          <div className="space-y-2 p-4 rounded-xl border animate-fade-up" style={{ backgroundColor: "var(--bg-muted)", borderColor: "var(--border-default)", animationDelay: "0.4s" }}>
+            <div className="flex items-center gap-2 text-xs">
+              <CheckCircle2 size={14} style={{ color: "var(--color-primary-500)" }} />
+              <span style={{ color: "var(--text-secondary)" }}>Enterprise-grade security</span>
+            </div>
+            <div className="flex items-center gap-2 text-xs">
+              <CheckCircle2 size={14} style={{ color: "var(--color-primary-500)" }} />
+              <span style={{ color: "var(--text-secondary)" }}>24/7 customer support</span>
+            </div>
           </div>
         </div>
 
-        {/* ── Right panel — form ── */}
+        {/* ── Right panel — login form ── */}
         <div className="flex-1 flex items-center justify-center px-4 sm:px-8 py-12 relative">
           <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
             <div className="absolute top-1/4 right-1/4 w-80 h-80 bg-primary-400/8 rounded-full blur-3xl animate-pulse-glow" />
@@ -217,9 +228,9 @@ export function LoginPage() {
               }}
             >
               <div className="mb-7">
-                <h1 className="text-2xl font-bold mb-1.5">Welcome back</h1>
+                <h1 className="text-2xl font-bold mb-1.5">Sign In to WorkNest</h1>
                 <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-                  Sign in to your workspace and start managing work
+                  Access your workspace and manage your team
                 </p>
               </div>
 
@@ -372,7 +383,7 @@ export function LoginPage() {
               </p>
             </div>
 
-            {/* Demo quick access — mobile optimized */}
+            {/* Demo quick access */}
             <div className="mt-6 flex items-center justify-center gap-2 text-xs animate-fade-up" style={{ animationDelay: mode === "tenant" ? "0.6s" : "0.5s" }}>
               <div className="w-px h-4" style={{ backgroundColor: "var(--border-default)" }} />
               <button
