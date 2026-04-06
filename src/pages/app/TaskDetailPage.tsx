@@ -25,6 +25,7 @@ import { EmptyState, ErrorBanner } from "@/components/common/AppUI";
 import { getEmployees } from "@/modules/employees/services/employeeService";
 import { getProjects } from "@/modules/projects/services/projectService";
 import { TASK_PRIORITY_OPTIONS, TASK_STATUS_OPTIONS, type Task, type TaskComment, type TaskPriority, type TaskStatus } from "@/modules/tasks/types";
+import { getErrorMessage } from "@/utils/errorHandler";
 
 interface Option {
   id: string;
@@ -100,7 +101,7 @@ export function TaskDetailPage() {
         setAssigneeOptions(assignees.map((employee) => ({ id: employee.id, label: `${employee.firstName ?? ""} ${employee.lastName ?? ""}`.trim() || employee.name || employee.email })));
         setProjectOptions(projects.map((project) => ({ id: project.id, label: project.name })));
       } catch (err: unknown) {
-        if (active) setError(extractErrorMessage(err) ?? "Unable to load task details.");
+        if (active) setError(getErrorMessage(err, "Unable to load task details."));
       } finally {
         if (active) {
           setLoading(false);
@@ -164,7 +165,7 @@ export function TaskDetailPage() {
       setProjectDraft(updated.projectId ?? "");
       setFeedback("Task status updated.");
     } catch (err: unknown) {
-      setFeedback(extractErrorMessage(err) ?? "Unable to update task status.");
+      setFeedback(getErrorMessage(err, "Unable to update task status."));
     } finally {
       setUpdatingTask(false);
     }
@@ -182,7 +183,7 @@ export function TaskDetailPage() {
       setProjectDraft(updated.projectId ?? "");
       setFeedback("Task priority updated.");
     } catch (err: unknown) {
-      setFeedback(extractErrorMessage(err) ?? "Unable to update task priority.");
+      setFeedback(getErrorMessage(err, "Unable to update task priority."));
     } finally {
       setUpdatingTask(false);
     }
@@ -200,7 +201,7 @@ export function TaskDetailPage() {
       setProjectDraft(updated.projectId ?? "");
       setFeedback("Task due date updated.");
     } catch (err: unknown) {
-      setFeedback(extractErrorMessage(err) ?? "Unable to update task due date.");
+      setFeedback(getErrorMessage(err, "Unable to update task due date."));
     } finally {
       setUpdatingTask(false);
     }
@@ -218,7 +219,7 @@ export function TaskDetailPage() {
       setProjectDraft(updated.projectId ?? "");
       setFeedback("Task assignee updated.");
     } catch (err: unknown) {
-      setFeedback(extractErrorMessage(err) ?? "Unable to update task assignee.");
+      setFeedback(getErrorMessage(err, "Unable to update task assignee."));
     } finally {
       setUpdatingTask(false);
     }
@@ -246,7 +247,7 @@ export function TaskDetailPage() {
       setProjectDraft(updated.projectId ?? "");
       setFeedback("Task project updated.");
     } catch (err: unknown) {
-      setFeedback(extractErrorMessage(err) ?? "Unable to update task project.");
+      setFeedback(getErrorMessage(err, "Unable to update task project."));
     } finally {
       setUpdatingTask(false);
     }
@@ -262,7 +263,7 @@ export function TaskDetailPage() {
       setCommentDraft("");
       setFeedback("Comment added.");
     } catch (err: unknown) {
-      setFeedback(extractErrorMessage(err) ?? "Unable to add comment.");
+      setFeedback(getErrorMessage(err, "Unable to add comment."));
     } finally {
       setAddingComment(false);
     }
@@ -444,6 +445,7 @@ export function TaskDetailPage() {
                   rows={3}
                   value={commentDraft}
                   onChange={(event) => setCommentDraft(event.target.value)}
+                  disabled={addingComment}
                   placeholder="Add implementation notes, blockers, or progress updates..."
                   className="w-full resize-none rounded-xl border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary-500/30"
                   style={{ borderColor: "var(--border-default)", backgroundColor: "var(--bg-surface)", color: "var(--text-primary)" }}
@@ -592,12 +594,4 @@ function formatDateTime(value: string): string {
     hour: "numeric",
     minute: "2-digit",
   });
-}
-
-function extractErrorMessage(err: unknown): string | null {
-  if (typeof err === "object" && err !== null) {
-    const error = err as { response?: { data?: { message?: string } }; message?: string };
-    return error.response?.data?.message ?? error.message ?? null;
-  }
-  return null;
 }

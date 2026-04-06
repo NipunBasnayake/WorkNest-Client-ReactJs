@@ -13,6 +13,7 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/common/Button";
 import { ErrorBanner } from "@/components/common/AppUI";
 import type { TaskFormErrors, TaskFormValues } from "@/modules/tasks/types";
+import { getErrorMessage } from "@/utils/errorHandler";
 
 interface Option {
   id: string;
@@ -49,7 +50,7 @@ export function TaskFormPage() {
         setDependencyLoadError("Assignee and project lists are required to create or edit tasks.");
       }
     }).catch((err: unknown) => {
-      setDependencyLoadError(extractErrorMessage(err) ?? "Unable to load task dependencies.");
+      setDependencyLoadError(getErrorMessage(err, "Unable to load task dependencies."));
     });
   }, []);
 
@@ -119,7 +120,7 @@ export function TaskFormPage() {
 
       setTimeout(() => navigate("/app/tasks", { replace: true }), 500);
     } catch (err: unknown) {
-      setMessage(extractErrorMessage(err) ?? "Unable to save task right now.");
+      setMessage(getErrorMessage(err, "Unable to save task right now."));
     } finally {
       setSubmitting(false);
     }
@@ -181,12 +182,4 @@ export function TaskFormPage() {
       )}
     </div>
   );
-}
-
-function extractErrorMessage(err: unknown): string | null {
-  if (typeof err === "object" && err !== null) {
-    const error = err as { response?: { data?: { message?: string } }; message?: string };
-    return error.response?.data?.message ?? error.message ?? null;
-  }
-  return null;
 }
