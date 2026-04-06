@@ -69,6 +69,11 @@ export function LoginPage() {
         tenantKey: mode === "tenant" ? tenantKey.trim() : null,
       });
 
+      if (useAuthStore.getState().passwordChangeRequired) {
+        navigate("/force-password-change", { replace: true });
+        return;
+      }
+
       // Redirect to where they came from OR to appropriate dashboard
       if (from && from !== "/login") {
         navigate(from, { replace: true });
