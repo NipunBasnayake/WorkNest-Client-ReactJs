@@ -19,6 +19,7 @@ import { EmptyState, ErrorBanner } from "@/components/common/AppUI";
 import type { Project } from "@/modules/projects/types";
 import type { Team } from "@/modules/teams/types";
 import type { Task } from "@/modules/tasks/types";
+import { getErrorMessage } from "@/utils/errorHandler";
 
 interface ViewerContext {
   employeeId?: string;
@@ -78,7 +79,7 @@ export function ProjectDetailPage() {
 
     loadProjectContext(id)
       .catch((err: unknown) => {
-        if (active) setError(extractErrorMessage(err) ?? "Unable to load project details.");
+        if (active) setError(getErrorMessage(err, "Unable to load project details."));
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -173,7 +174,7 @@ export function ProjectDetailPage() {
       setTeamToAssign("");
       setMessage("Team assigned to project.");
     } catch (err: unknown) {
-      setMessage(extractErrorMessage(err) ?? "Unable to assign team.");
+      setMessage(getErrorMessage(err, "Unable to assign team."));
     } finally {
       setAssigningTeam(false);
     }
@@ -189,7 +190,7 @@ export function ProjectDetailPage() {
       setMessage("Team removed from project.");
       setRemoveTeamTarget(null);
     } catch (err: unknown) {
-      setMessage(extractErrorMessage(err) ?? "Unable to remove team.");
+      setMessage(getErrorMessage(err, "Unable to remove team."));
     } finally {
       setRemovingTeam(false);
     }
@@ -474,12 +475,4 @@ function formatDate(value?: string): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleDateString();
-}
-
-function extractErrorMessage(err: unknown): string | null {
-  if (typeof err === "object" && err !== null) {
-    const error = err as { response?: { data?: { message?: string } }; message?: string };
-    return error.response?.data?.message ?? error.message ?? null;
-  }
-  return null;
 }
