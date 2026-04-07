@@ -1,4 +1,5 @@
 import { createBrowserRouter, Navigate, RouterProvider } from "react-router-dom";
+import { AuthLayout } from "@/app/layouts/AuthLayout";
 import { PublicLayout } from "@/app/layouts/PublicLayout";
 import { PlatformLayout, TenantLayout } from "@/app/layouts/AppLayout";
 import { GuestGuard, PlatformGuard, TenantGuard, TenantRoleGuard } from "@/app/guards/RouteGuards";
@@ -15,7 +16,7 @@ import {
 
 import { LandingPage } from "@/pages/public/LandingPage";
 import { LoginPage } from "@/pages/public/LoginPage";
-import { RegisterCompanyPage } from "@/pages/public/RegisterCompanyPage";
+import { RegisterPage } from "@/pages/public/RegisterPage";
 import { ForcePasswordChangePage } from "@/pages/public/ForcePasswordChangePage";
 import { NotFoundPage } from "@/pages/public/NotFoundPage";
 import { UnauthorizedPage } from "@/pages/public/UnauthorizedPage";
@@ -62,18 +63,24 @@ const router = createBrowserRouter([
     element: <PublicLayout />,
     children: [
       { index: true, element: <LandingPage /> },
+      { path: "unauthorized", element: <UnauthorizedPage /> },
+      { path: "*", element: <NotFoundPage /> },
+    ],
+  },
+
+  {
+    element: <AuthLayout />,
+    children: [
       {
         element: <GuestGuard />,
         children: [
           { path: "login", element: <LoginPage /> },
-          { path: "register", element: <RegisterCompanyPage /> },
-          { path: "register-company", element: <RegisterCompanyPage /> },
+          { path: "register", element: <RegisterPage /> },
+          { path: "register-company", element: <RegisterPage /> },
           { path: "force-password-change", element: <ForcePasswordChangePage /> },
           { path: "session-expired", element: <SessionExpiredPage /> },
         ],
       },
-      { path: "unauthorized", element: <UnauthorizedPage /> },
-      { path: "*", element: <NotFoundPage /> },
     ],
   },
 

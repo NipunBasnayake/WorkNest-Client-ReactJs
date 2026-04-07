@@ -78,7 +78,7 @@ export function TaskDetailPage() {
         const assigneesPromise = canManageTasks ? getEmployees().catch(() => []) : Promise.resolve([]);
         const projectsPromise = canManageTasks ? getProjects().catch(() => []) : Promise.resolve([]);
         const commentsPromise = getTaskComments(taskId).catch((err: unknown) => {
-          if (active) setCommentsError(extractErrorMessage(err) ?? "Unable to load comments.");
+          if (active) setCommentsError(getErrorMessage(err, "Unable to load comments."));
           return [] as TaskComment[];
         });
 
