@@ -1,14 +1,21 @@
-import { forwardRef, type InputHTMLAttributes } from "react";
+import { forwardRef, type InputHTMLAttributes, type ReactNode } from "react";
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label: string;
   hint?: string;
   error?: string;
   id: string;
+  endAdornment?: ReactNode;
 }
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ label, error, hint, id, className = "", ...rest }, ref) => {
+  ({ label, error, hint, id, endAdornment, className = "", ...rest }, ref) => {
+    const baseInputClasses = `w-full rounded-xl px-4 py-2.5 text-sm border transition-all duration-200
+      focus:outline-none focus:ring-2 focus:ring-primary-500/60 focus:border-primary-400
+      placeholder:text-[var(--text-tertiary)]
+      disabled:opacity-50 disabled:cursor-not-allowed
+      ${className}`;
+
     return (
       <div className="flex flex-col gap-1.5">
         <label
@@ -18,22 +25,45 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         >
           {label}
         </label>
-        <input
-          ref={ref}
-          id={id}
-          className={`w-full rounded-xl px-4 py-2.5 text-sm border transition-all duration-200
-            focus:outline-none focus:ring-2 focus:ring-primary-500/60 focus:border-primary-400
-            placeholder:text-[var(--text-tertiary)]
-            disabled:opacity-50 disabled:cursor-not-allowed
-            ${error ? "border-red-400 focus:ring-red-400/60 focus:border-red-400" : ""}
-            ${className}`}
-          style={{
-            backgroundColor: "var(--bg-surface)",
-            borderColor: error ? undefined : "var(--border-default)",
-            color: "var(--text-primary)",
-          }}
-          {...rest}
-        />
+        {endAdornment ? (
+          <div
+            className={`flex items-stretch overflow-hidden rounded-xl border transition-all duration-200 focus-within:ring-2 focus-within:ring-primary-500/60 focus-within:border-primary-400 ${
+              error ? "border-red-400 focus-within:ring-red-400/60 focus-within:border-red-400" : ""
+            }`}
+            style={{
+              backgroundColor: "var(--bg-surface)",
+              borderColor: error ? undefined : "var(--border-default)",
+            }}
+          >
+            <input
+              ref={ref}
+              id={id}
+              className={`${baseInputClasses} border-0 rounded-none bg-transparent`}
+              style={{
+                color: "var(--text-primary)",
+              }}
+              {...rest}
+            />
+            <div
+              className="flex shrink-0 items-stretch border-l"
+              style={{ borderColor: error ? "rgba(248,113,113,0.35)" : "var(--border-default)" }}
+            >
+              {endAdornment}
+            </div>
+          </div>
+        ) : (
+          <input
+            ref={ref}
+            id={id}
+            className={`${baseInputClasses} ${error ? "border-red-400 focus:ring-red-400/60 focus:border-red-400" : ""}`}
+            style={{
+              backgroundColor: "var(--bg-surface)",
+              borderColor: error ? undefined : "var(--border-default)",
+              color: "var(--text-primary)",
+            }}
+            {...rest}
+          />
+        )}
         {hint && !error && (
           <span className="text-[11px] leading-relaxed" style={{ color: "var(--text-tertiary)" }}>
             {hint}
