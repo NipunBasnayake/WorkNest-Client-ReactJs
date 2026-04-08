@@ -1,3 +1,4 @@
+import axios from "axios";
 import { apiClient, tokenStorage } from "@/services/http/client";
 import { unwrapApiData } from "@/services/http/response";
 import { getMeApi } from "@/services/api/authApi";
@@ -81,8 +82,11 @@ async function resolveWorkspace(authUser: AuthUser | null): Promise<WorkspaceSet
       databaseName: getString(payload.databaseName),
       dataSource: "backend",
     };
-  } catch {
-    return fallbackWorkspace(tenantKey);
+  } catch (error: unknown) {
+    if (axios.isAxiosError(error) && error.response?.status === 404) {
+      return fallbackWorkspace(tenantKey);
+    }
+    throw error;
   }
 }
 
@@ -140,19 +144,18 @@ function writePlatformSettings(data: PlatformSettings) {
   localStorage.setItem(PLATFORM_SETTINGS_KEY, JSON.stringify(data));
 }
 
-async function getCurrentAuthUserSafe(): Promise<AuthUser | null> {
-  try {
-    return await getMeApi();
-  } catch {
-    return null;
-  }
+async function getCurrentAuthUser(): Promise<AuthUser> {
+  return getMeApi();
 }
 
-async function getMyProfileSafe(): Promise<unknown | null> {
+async function getOptionalMyProfile(): Promise<unknown | null> {
   try {
     return await getMyEmployeeProfileApi();
-  } catch {
-    return null;
+  } catch (error: unknown) {
+    if (axios.isAxiosError(error) && error.response?.status === 404) {
+      return null;
+    }
+    throw error;
   }
 }
 
@@ -168,8 +171,8 @@ async function updateMyProfile(payload: {
 
 export async function getTenantSettings(): Promise<TenantSettingsBundle> {
   const [authUser, profileRaw] = await Promise.all([
-    getCurrentAuthUserSafe(),
-    getMyProfileSafe(),
+    getCurrentAuthUser(),
+    getOptionalMyProfile(),
   ]);
 
   const workspace = await resolveWorkspace(authUser);
@@ -189,7 +192,7 @@ export async function updateTenantProfile(profile: ProfileSettings): Promise<Pro
   };
 
   const updated = await updateMyProfile(payload);
-  const authUser = await getCurrentAuthUserSafe();
+  const authUser = await getCurrentAuthUser();
   return normalizeProfile(updated, authUser);
 }
 
@@ -216,8 +219,16 @@ export async function updateTenantWorkspace(workspace: WorkspaceSettings): Promi
 export async function updateTenantPreferences(preferences: PreferenceSettings): Promise<PreferenceSettings> {
   await sleep(LATENCY_MS);
 
-  const authUser = await getCurrentAuthUserSafe();
-  const profileRaw = await getMyProfileSafe();
+  let authUser: AuthUser | null = null;
+  let profileRaw: unknown | null = null;
+
+  try {
+    authUser = await getCurrentAuthUser();
+    profileRaw = await getOptionalMyProfile();
+  } catch {
+    // Preferences are local-only in this phase; fallback to persisted tenant context if profile APIs are unavailable.
+  }
+
   const tenantKey = authUser?.tenantKey ?? tokenStorage.getTenantKey() ?? "default";
   const userId = getId(firstDefined(asRecord(profileRaw).id, authUser?.id, "me"));
   writeTenantPreferences(tenantKey, userId, preferences);

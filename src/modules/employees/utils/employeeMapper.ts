@@ -64,7 +64,7 @@ export function toEmployeeFormValues(employee: Employee): EmployeeFormValues {
     position: view.position ?? "",
     department: pickString(view.department) ?? "",
     role: normalizeRole(view.role),
-    joinedDate: pickString(view.joinedAt) ?? new Date().toISOString().slice(0, 10),
+    joinedDate: pickString(view.joinedAt) ?? "",
     salary: view.salary !== undefined ? String(view.salary) : "",
     status: normalizeStatus(view.status),
   };

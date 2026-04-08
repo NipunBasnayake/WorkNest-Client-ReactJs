@@ -18,6 +18,7 @@ export function useAuth() {
     bootstrap,
     clearError,
     setPasswordChangeChallenge,
+    completePasswordChange,
   } = useAuthStore();
 
   const isPlatform = sessionType === "platform";
@@ -57,6 +58,7 @@ export function useAuth() {
     bootstrap,
     clearError,
     setPasswordChangeChallenge,
+    completePasswordChange,
   };
 }
 

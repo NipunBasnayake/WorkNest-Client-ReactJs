@@ -2,9 +2,10 @@ import { create } from "zustand";
 import { tokenStorage } from "@/services/http/client";
 import { loginApi, getMeApi, logoutApi, isPasswordChangeRequiredApiError } from "@/services/api/authApi";
 import type { AuthUser, LoginPayload, SessionType } from "@/types";
-import type { PasswordChangeRequirement } from "@/services/api/authApi";
+import type { ChangeRequiredPasswordResult, PasswordChangeRequirement } from "@/services/api/authApi";
 
 const SESSION_EXPIRED_ROUTE = "/session-expired";
+let bootstrapInFlight: Promise<void> | null = null;
 
 interface AuthState {
   /* State */
@@ -25,6 +26,7 @@ interface AuthState {
   clearError: () => void;
   setUser: (user: AuthUser) => void;
   setPasswordChangeChallenge: (challenge: PasswordChangeRequirement | null) => void;
+  completePasswordChange: (result: ChangeRequiredPasswordResult) => Promise<void>;
   applyTokenRefresh: (accessToken: string, refreshToken: string, tenantKey: string | null) => void;
   hardLogout: (redirectTo?: string) => void;
 }
@@ -136,12 +138,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   logout: async () => {
     const refreshToken = tokenStorage.getRefresh();
     const tenantKey = tokenStorage.getTenantKey();
+    let logoutWarning: string | null = null;
     try {
       if (refreshToken) {
         await logoutApi(refreshToken, tenantKey);
       }
     } catch {
-      // Even if logout API fails, clear locally
+      logoutWarning = "Logout request failed on the server, but your local session has been cleared.";
     } finally {
       tokenStorage.clear();
       set({
@@ -151,7 +154,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         tenantKey:       null,
         isLoading:       false,
         isBootstrapping: false,
-        error:           null,
+        error:           logoutWarning,
         passwordChangeRequired: false,
         passwordChangeChallenge: null,
       });
@@ -160,46 +163,59 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   /* ── Bootstrap — restore session on app load ── */
   bootstrap: async () => {
-    set({ isBootstrapping: true });
-    const accessToken = tokenStorage.getAccess();
-    const refreshToken = tokenStorage.getRefresh();
-
-    if (!accessToken && !refreshToken) {
-      tokenStorage.clear();
-      set({ isBootstrapping: false, isAuthenticated: false });
-      return;
+    if (bootstrapInFlight) {
+      return bootstrapInFlight;
     }
 
+    bootstrapInFlight = (async () => {
+      set({ isBootstrapping: true });
+      const accessToken = tokenStorage.getAccess();
+      const refreshToken = tokenStorage.getRefresh();
+
+      if (!accessToken && !refreshToken) {
+        tokenStorage.clear();
+        set({ isBootstrapping: false, isAuthenticated: false });
+        return;
+      }
+
+      try {
+        const user = await getMeApi();
+        const sessionType   = deriveSessionType(user);
+        const resolvedTenant = user.tenantKey ?? tokenStorage.getTenantKey();
+
+        tokenStorage.setContext(resolvedTenant, sessionType);
+
+        set({
+          user: { ...user, sessionType },
+          isAuthenticated: true,
+          sessionType,
+          tenantKey:       resolvedTenant,
+          isBootstrapping: false,
+          error:           null,
+          passwordChangeRequired: false,
+          passwordChangeChallenge: null,
+        });
+      } catch (err: unknown) {
+        // /me failed and refresh recovery did not produce a valid session.
+        // Clear local auth state to avoid stale authenticated UI.
+        tokenStorage.clear();
+        set({
+          user:            null,
+          isAuthenticated: false,
+          sessionType:     null,
+          tenantKey:       null,
+          isBootstrapping: false,
+          error: extractErrorMessage(err) ?? "Your previous session could not be restored. Please sign in again.",
+          passwordChangeRequired: false,
+          passwordChangeChallenge: null,
+        });
+      }
+    })();
+
     try {
-      const user = await getMeApi();
-      const sessionType   = deriveSessionType(user);
-      const resolvedTenant = user.tenantKey ?? tokenStorage.getTenantKey();
-
-      tokenStorage.setContext(resolvedTenant, sessionType);
-
-      set({
-        user: { ...user, sessionType },
-        isAuthenticated: true,
-        sessionType,
-        tenantKey:       resolvedTenant,
-        isBootstrapping: false,
-        error:           null,
-        passwordChangeRequired: false,
-        passwordChangeChallenge: null,
-      });
-    } catch {
-      // /me failed and refresh recovery did not produce a valid session.
-      // Clear local auth state to avoid stale authenticated UI.
-      tokenStorage.clear();
-      set({
-        user:            null,
-        isAuthenticated: false,
-        sessionType:     null,
-        tenantKey:       null,
-        isBootstrapping: false,
-        passwordChangeRequired: false,
-        passwordChangeChallenge: null,
-      });
+      await bootstrapInFlight;
+    } finally {
+      bootstrapInFlight = null;
     }
   },
 
@@ -210,6 +226,62 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     passwordChangeRequired: Boolean(challenge),
     error: challenge?.reason ?? null,
   }),
+  completePasswordChange: async (result) => {
+    const state = get();
+    const challengeTenantKey = state.passwordChangeChallenge?.tenantKey ?? state.tenantKey ?? tokenStorage.getTenantKey();
+
+    if (!result.tokens) {
+      tokenStorage.clear();
+      set({
+        user: null,
+        isAuthenticated: false,
+        sessionType: null,
+        tenantKey: challengeTenantKey,
+        isLoading: false,
+        error: null,
+        passwordChangeRequired: false,
+        passwordChangeChallenge: null,
+      });
+      return;
+    }
+
+    try {
+      tokenStorage.setTokens(result.tokens.accessToken, result.tokens.refreshToken);
+
+      const provisionalSessionType: SessionType = challengeTenantKey ? "tenant" : "platform";
+      tokenStorage.setContext(challengeTenantKey, provisionalSessionType);
+
+      const user = result.user ?? await getMeApi();
+      const resolvedSession = deriveSessionType(user);
+      const resolvedTenantKey = user.tenantKey ?? challengeTenantKey;
+
+      tokenStorage.setContext(resolvedTenantKey, resolvedSession);
+
+      set({
+        user: { ...user, sessionType: resolvedSession },
+        isAuthenticated: true,
+        sessionType: resolvedSession,
+        tenantKey: resolvedTenantKey,
+        isLoading: false,
+        error: null,
+        passwordChangeRequired: false,
+        passwordChangeChallenge: null,
+      });
+    } catch (err: unknown) {
+      tokenStorage.clear();
+      set({
+        user: null,
+        isAuthenticated: false,
+        sessionType: null,
+        tenantKey: challengeTenantKey,
+        isLoading: false,
+        error: extractErrorMessage(err) ?? "Password was updated, but the session could not be restored. Please sign in again.",
+        passwordChangeRequired: false,
+        passwordChangeChallenge: null,
+      });
+      throw err;
+    }
+  },
   applyTokenRefresh: (accessToken, refreshToken, tenantKey) => {
     const state = get();
     const resolvedTenantKey = tenantKey ?? state.tenantKey ?? tokenStorage.getTenantKey();

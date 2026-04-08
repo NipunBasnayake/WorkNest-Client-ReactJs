@@ -26,8 +26,6 @@ import {
 import type { Employee } from "@/types";
 import type { EmployeeSkill, EmployeeSkillPayload } from "@/modules/employees/types";
 
-export const DEFAULT_EMPLOYEE_TEMP_PASSWORD = "ChangeMe123!";
-
 function toApiRole(role: unknown): EmployeeApiRole {
   const value = getString(role)?.toUpperCase();
   if (value === "TENANT_ADMIN" || value === "ADMIN" || value === "MANAGER" || value === "HR" || value === "EMPLOYEE") {
@@ -110,9 +108,7 @@ function buildUpsertPayload(payload: Partial<Employee>, isCreate: boolean): Empl
   const joinedDate = toIsoDate(firstDefined(payload.joinedDate, payload.joinedAt));
   const salary = getNumber(payload.salary);
   const status = toApiStatus(payload.status);
-  const password =
-    getString(payload.password) ??
-    (isCreate ? DEFAULT_EMPLOYEE_TEMP_PASSWORD : undefined);
+  const password = getString(payload.password);
 
   const basePayload: EmployeeUpdateRequest = {
     firstName,
@@ -120,7 +116,7 @@ function buildUpsertPayload(payload: Partial<Employee>, isCreate: boolean): Empl
     email: getString(payload.email) ?? "",
     role: toApiRole(payload.role),
     designation,
-    joinedDate: joinedDate || new Date().toISOString().slice(0, 10),
+    joinedDate,
     status,
   };
 

@@ -36,7 +36,7 @@ export function AuthGuard() {
 
   if (isBootstrapping) return <BootstrapLoader />;
   if (passwordChangeRequired) {
-    return <Navigate to="/force-password-change" replace />;
+    return <Navigate to="/force-password-change" state={{ from: location }} replace />;
   }
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
@@ -55,7 +55,7 @@ export function PlatformGuard() {
 
   if (isBootstrapping) return <BootstrapLoader />;
   if (passwordChangeRequired) {
-    return <Navigate to="/force-password-change" replace />;
+    return <Navigate to="/force-password-change" state={{ from: location }} replace />;
   }
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
@@ -77,7 +77,7 @@ export function TenantGuard() {
 
   if (isBootstrapping) return <BootstrapLoader />;
   if (passwordChangeRequired) {
-    return <Navigate to="/force-password-change" replace />;
+    return <Navigate to="/force-password-change" state={{ from: location }} replace />;
   }
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
@@ -99,7 +99,7 @@ export function TenantRoleGuard({ allowedRoles }: TenantRoleGuardProps) {
 
   if (isBootstrapping) return <BootstrapLoader />;
   if (passwordChangeRequired) {
-    return <Navigate to="/force-password-change" replace />;
+    return <Navigate to="/force-password-change" state={{ from: location }} replace />;
   }
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;

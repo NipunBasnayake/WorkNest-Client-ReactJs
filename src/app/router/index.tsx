@@ -18,6 +18,8 @@ import { LandingPage } from "@/pages/public/LandingPage";
 import { LoginPage } from "@/pages/public/LoginPage";
 import { RegisterPage } from "@/pages/public/RegisterPage";
 import { ForcePasswordChangePage } from "@/pages/public/ForcePasswordChangePage";
+import { ForgotPasswordPage } from "@/pages/public/ForgotPasswordPage";
+import { ResetPasswordPage } from "@/pages/public/ResetPasswordPage";
 import { NotFoundPage } from "@/pages/public/NotFoundPage";
 import { UnauthorizedPage } from "@/pages/public/UnauthorizedPage";
 import { SessionExpiredPage } from "@/pages/public/SessionExpiredPage";
@@ -77,6 +79,9 @@ const router = createBrowserRouter([
           { path: "login", element: <LoginPage /> },
           { path: "register", element: <RegisterPage /> },
           { path: "register-company", element: <RegisterPage /> },
+          { path: "forgot-password", element: <ForgotPasswordPage /> },
+          { path: "reset-password", element: <ResetPasswordPage /> },
+          { path: "reset-password/:token", element: <ResetPasswordPage /> },
           { path: "force-password-change", element: <ForcePasswordChangePage /> },
           { path: "session-expired", element: <SessionExpiredPage /> },
         ],

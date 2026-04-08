@@ -93,7 +93,7 @@ export function toIsoDate(value: unknown): string {
 
 export function toIsoDateTime(value: unknown): string {
   const text = getString(value);
-  if (!text) return new Date().toISOString();
+  if (!text) return "";
 
   const date = new Date(text);
   if (Number.isNaN(date.getTime())) return text;
