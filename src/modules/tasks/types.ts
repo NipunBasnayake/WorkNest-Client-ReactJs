@@ -1,3 +1,5 @@
+import type { UploadedFileAsset } from "@/types";
+
 export type TaskStatus = "TODO" | "IN_PROGRESS" | "IN_REVIEW" | "BLOCKED" | "DONE";
 export type TaskPriority = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 
@@ -18,6 +20,7 @@ export interface Task {
   assigneeName?: string;
   projectId?: string;
   projectName?: string;
+  attachments: UploadedFileAsset[];
   createdAt: string;
   updatedAt: string;
 }
@@ -32,6 +35,7 @@ export interface TaskPayload {
   assigneeName?: string;
   projectId?: string;
   projectName?: string;
+  attachments: UploadedFileAsset[];
 }
 
 export interface TaskCreateRequest {
@@ -42,6 +46,7 @@ export interface TaskCreateRequest {
   priority: TaskPriority;
   assigneeId?: string;
   dueDate?: string;
+  attachmentUrls?: string[];
 }
 
 export interface TaskUpdateRequest {
@@ -51,6 +56,7 @@ export interface TaskUpdateRequest {
   priority: TaskPriority;
   assigneeId?: string;
   dueDate?: string;
+  attachmentUrls?: string[];
 }
 
 export interface TaskComment {
@@ -70,6 +76,7 @@ export interface TaskFormValues {
   dueDate: string;
   assigneeId: string;
   projectId: string;
+  attachments: UploadedFileAsset[];
 }
 
 export type TaskFormErrors = Partial<Record<keyof TaskFormValues, string>>;

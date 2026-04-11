@@ -1,5 +1,7 @@
 import { Input } from "@/components/common/Input";
 import { Button } from "@/components/common/Button";
+import { AppSelect } from "@/components/common/AppSelect";
+import { FileUploadField } from "@/components/common/FileUploadField";
 import type { ProjectFormErrors, ProjectFormValues } from "@/modules/projects/types";
 import type { Team } from "@/modules/teams/types";
 
@@ -8,6 +10,7 @@ interface ProjectFormProps {
   errors: ProjectFormErrors;
   teams: Team[];
   submitting: boolean;
+  canEditTeams?: boolean;
   submitLabel: string;
   onChange: (next: ProjectFormValues) => void;
   onSubmit: () => void;
@@ -19,6 +22,7 @@ export function ProjectForm({
   errors,
   teams,
   submitting,
+  canEditTeams = true,
   submitLabel,
   onChange,
   onSubmit,
@@ -52,19 +56,17 @@ export function ProjectForm({
           <label htmlFor="project-status" className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
             Status
           </label>
-          <select
+          <AppSelect
             id="project-status"
             value={values.status}
             onChange={(e) => onChange({ ...values, status: e.target.value as ProjectFormValues["status"] })}
-            className="w-full rounded-xl border px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/60"
-            style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)", color: "var(--text-primary)" }}
           >
             <option value="planned">Planned</option>
             <option value="active">Active</option>
             <option value="on_hold">On Hold</option>
             <option value="completed">Completed</option>
             <option value="cancelled">Cancelled</option>
-          </select>
+          </AppSelect>
         </div>
       </div>
 
@@ -116,6 +118,18 @@ export function ProjectForm({
         />
       </div>
 
+      <FileUploadField
+        id="project-documents"
+        label="Project Documents"
+        hint="Upload project briefs, contracts, or design references."
+        folder="projects/documents"
+        kind="document"
+        multiple
+        disabled={submitting}
+        value={values.documents}
+        onChange={(documents) => onChange({ ...values, documents })}
+      />
+
       <div>
         <div className="text-sm font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>
           Assigned Teams
@@ -124,6 +138,11 @@ export function ProjectForm({
           className="max-h-52 overflow-y-auto rounded-xl border p-2"
           style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)" }}
         >
+          {!canEditTeams && (
+            <p className="px-2 py-2 text-xs" style={{ color: "var(--text-tertiary)" }}>
+              Team assignment is restricted. You can update project details, but only workspace managers can change linked teams.
+            </p>
+          )}
           {teams.length === 0 && (
             <p className="px-2 py-2 text-xs" style={{ color: "var(--text-tertiary)" }}>
               No teams available. Create a team first to assign it to this project.
@@ -138,6 +157,7 @@ export function ProjectForm({
               <input
                 type="checkbox"
                 checked={values.teamIds.includes(team.id)}
+                disabled={!canEditTeams}
                 onChange={() => toggleTeam(team.id)}
               />
               <span className="truncate">{team.name}</span>

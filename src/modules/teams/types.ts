@@ -1,11 +1,10 @@
 export type TeamStatus = "active" | "planning" | "archived";
 
 export const TEAM_MEMBER_FUNCTIONAL_ROLES = [
-  "TEAM_LEAD",
   "PROJECT_MANAGER",
-  "BUSINESS_ANALYST",
-  "DEVELOPER",
-  "QA_ENGINEER",
+  "TEAM_LEAD",
+  "QA",
+  "DEV",
 ] as const;
 
 export type TeamMemberFunctionalRole = (typeof TEAM_MEMBER_FUNCTIONAL_ROLES)[number];

@@ -3,6 +3,7 @@ import { apiClient, tokenStorage } from "@/services/http/client";
 import { unwrapApiData } from "@/services/http/response";
 import { getMeApi } from "@/services/api/authApi";
 import { getMyEmployeeProfileApi } from "@/services/api/employeeApi";
+import { extractUploadedFileAssets } from "@/services/uploads/fileAssetParser";
 import { asRecord, firstDefined, getId, getString, toIsoDate } from "@/services/http/parsers";
 import type {
   PlatformSettings,
@@ -53,6 +54,17 @@ function normalizeProfile(employeeRaw: unknown, authUser: AuthUser | null): Prof
         getString(employee.position),
         getString(employee.title)
       ) ?? "",
+    avatarUrl:
+      firstDefined(
+        getString(employee.avatarUrl),
+        getString(employee.profileImageUrl),
+        getString(employee.imageUrl),
+        authUser?.avatarUrl
+      ) ?? undefined,
+    avatar: extractUploadedFileAssets(
+      firstDefined(employee.avatar, employee.profileImage),
+      firstDefined(employee.avatarUrl, employee.profileImageUrl, employee.imageUrl)
+    )[0] ?? null,
   };
 }
 
@@ -163,6 +175,7 @@ async function updateMyProfile(payload: {
   firstName: string;
   lastName: string;
   designation: string;
+  avatarUrl?: string;
   password?: string;
 }): Promise<unknown> {
   const { data } = await apiClient.put<ApiResponse<unknown> | unknown>("/api/tenant/employees/me", payload);
@@ -189,6 +202,7 @@ export async function updateTenantProfile(profile: ProfileSettings): Promise<Pro
     firstName: nameParts.firstName,
     lastName: nameParts.lastName,
     designation: profile.title.trim(),
+    avatarUrl: profile.avatarUrl,
   };
 
   const updated = await updateMyProfile(payload);
