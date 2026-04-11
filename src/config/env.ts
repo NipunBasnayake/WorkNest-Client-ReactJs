@@ -44,6 +44,7 @@ function readApiBaseUrl(): string {
 
 function buildEnv(): AppEnv {
   const mode = import.meta.env.MODE ?? "development";
+
   return {
     apiBaseUrl: readApiBaseUrl(),
     mode,

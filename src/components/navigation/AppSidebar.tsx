@@ -4,15 +4,16 @@ import {
   LogOut, ChevronLeft, ChevronRight, X,
   ClipboardList, CalendarCheck, Bell, MessageSquare, Briefcase, BarChart3, CheckSquare, BellRing,
 } from "lucide-react";
+import { FaUser } from "react-icons/fa6";
 import { useAuth } from "@/hooks/useAuth";
-import { Logo } from "@/components/common/Logo";
-import { TENANT_MODULE_ACCESS, TENANT_PROJECT_VIEW_ROLES, TENANT_TEAM_VIEW_ROLES } from "@/constants/access";
+import { type Permission, PERMISSIONS } from "@/constants/permissions";
+import { usePermission } from "@/hooks/usePermission";
 
 interface SidebarNavDef {
   label: string;
   to: string;
   icon: React.ReactNode;
-  roles?: string[];
+  permission?: Permission;
 }
 
 interface AppSidebarProps {
@@ -25,16 +26,16 @@ interface AppSidebarProps {
 
 const TENANT_NAV: SidebarNavDef[] = [
   { label: "Dashboard",     to: "/app/dashboard",     icon: <LayoutDashboard size={18} /> },
-  { label: "Employees",     to: "/app/employees",     icon: <Users size={18} />, roles: TENANT_MODULE_ACCESS.employees },
-  { label: "Teams",         to: "/app/teams",         icon: <Briefcase size={18} />, roles: TENANT_TEAM_VIEW_ROLES },
-  { label: "Projects",      to: "/app/projects",      icon: <ClipboardList size={18} />, roles: TENANT_PROJECT_VIEW_ROLES },
-  { label: "Tasks",         to: "/app/tasks",         icon: <CheckSquare size={18} />, roles: TENANT_MODULE_ACCESS.tasks },
-  { label: "Analytics",     to: "/app/analytics",     icon: <BarChart3 size={18} />, roles: TENANT_MODULE_ACCESS.analytics },
-  { label: "Attendance",    to: "/app/attendance",    icon: <CalendarCheck size={18} />, roles: TENANT_MODULE_ACCESS.attendance },
-  { label: "Leave",         to: "/app/leave",         icon: <CalendarCheck size={18} />, roles: TENANT_MODULE_ACCESS.leave },
-  { label: "Announcements", to: "/app/announcements", icon: <Bell size={18} />, roles: TENANT_MODULE_ACCESS.announcements },
-  { label: "Notifications", to: "/app/notifications", icon: <BellRing size={18} />, roles: TENANT_MODULE_ACCESS.notifications },
-  { label: "Chat",          to: "/app/chat",          icon: <MessageSquare size={18} />, roles: TENANT_MODULE_ACCESS.chat },
+  { label: "Employees",     to: "/app/employees",     icon: <Users size={18} />, permission: PERMISSIONS.EMPLOYEES_VIEW },
+  { label: "Teams",         to: "/app/teams",         icon: <Briefcase size={18} />, permission: PERMISSIONS.TEAMS_VIEW },
+  { label: "Projects",      to: "/app/projects",      icon: <ClipboardList size={18} />, permission: PERMISSIONS.PROJECTS_VIEW },
+  { label: "Tasks",         to: "/app/tasks",         icon: <CheckSquare size={18} />, permission: PERMISSIONS.TASKS_VIEW },
+  { label: "Analytics",     to: "/app/analytics",     icon: <BarChart3 size={18} />, permission: PERMISSIONS.ANALYTICS_VIEW },
+  { label: "Attendance",    to: "/app/attendance",    icon: <CalendarCheck size={18} />, permission: PERMISSIONS.ATTENDANCE_VIEW },
+  { label: "Leave",         to: "/app/leave",         icon: <CalendarCheck size={18} />, permission: PERMISSIONS.LEAVE_VIEW },
+  { label: "Announcements", to: "/app/announcements", icon: <Bell size={18} />, permission: PERMISSIONS.ANNOUNCEMENTS_VIEW },
+  { label: "Notifications", to: "/app/notifications", icon: <BellRing size={18} />, permission: PERMISSIONS.NOTIFICATIONS_VIEW },
+  { label: "Chat",          to: "/app/chat",          icon: <MessageSquare size={18} />, permission: PERMISSIONS.CHAT_VIEW },
 ];
 
 const PLATFORM_NAV: SidebarNavDef[] = [
@@ -67,7 +68,7 @@ function NavItem({
   const isDisabled = COMING_SOON.includes(item.to);
 
   const base =
-    "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 group relative";
+    "group relative flex items-center gap-3 rounded-2xl px-3.5 py-3 text-sm font-medium transition-all duration-150";
   const active =
     "text-white";
   const inactive =
@@ -109,7 +110,7 @@ function NavItem({
       }
       style={({ isActive }) => ({
         background: isActive
-          ? "linear-gradient(135deg, rgba(147,50,234,0.85) 0%, rgba(124,31,209,0.75) 100%)"
+          ? "linear-gradient(135deg, rgba(147,50,234,0.88) 0%, rgba(124,31,209,0.78) 100%)"
           : "transparent",
         color: isActive ? "white" : "rgba(255,255,255,0.6)",
         boxShadow: isActive ? "0 4px 12px rgba(147,50,234,0.3)" : undefined,
@@ -131,10 +132,11 @@ function NavItem({
 }
 
 export function AppSidebar({ area, collapsed, mobileOpen, onToggleCollapse, onMobileClose }: AppSidebarProps) {
-  const { user, logout, hasRole } = useAuth();
+  const { user, logout, role } = useAuth();
+  const { hasPermission } = usePermission();
   const navigate = useNavigate();
 
-  const mainNav   = area === "tenant" ? TENANT_NAV.filter((item) => !item.roles || hasRole(...item.roles)) : PLATFORM_NAV;
+  const mainNav   = area === "tenant" ? TENANT_NAV.filter((item) => !item.permission || hasPermission(item.permission)) : PLATFORM_NAV;
   const bottomNav = area === "tenant" ? BOTTOM_NAV_TENANT : BOTTOM_NAV_PLATFORM;
 
   async function handleLogout() {
@@ -146,20 +148,52 @@ export function AppSidebar({ area, collapsed, mobileOpen, onToggleCollapse, onMo
     <div
       className="flex flex-col h-full relative"
       style={{
-        background: "linear-gradient(180deg, #1a0a2e 0%, #120820 50%, #0d0616 100%)",
+        background: "linear-gradient(180deg, #180a29 0%, #12081f 38%, #0b0716 100%)",
+        boxShadow: "16px 0 40px rgba(15, 8, 32, 0.18)",
       }}
     >
       {/* Header */}
       <div className="flex items-center justify-between px-4 h-16 shrink-0 border-b border-white/8">
-        {!collapsed && <Logo size="md" />}
-        {collapsed && (
+        <div className="inline-flex items-center gap-2.5 min-w-0">
           <div
-            className="w-8 h-8 rounded-xl flex items-center justify-center"
-            style={{ background: "linear-gradient(135deg, #9332EA 0%, #7c1fd1 100%)" }}
+            className="flex h-8 w-8 items-center justify-center rounded-xl shrink-0"
+            style={{
+              background: "linear-gradient(135deg, #9332EA 0%, #c084fc 100%)",
+              boxShadow: "0 4px 12px rgba(147,50,234,0.4)",
+            }}
           >
-            <span className="text-white font-bold text-sm">W</span>
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              aria-hidden="true"
+            >
+              <path
+                d="M4 6L7.5 18L12 10L16.5 18L20 6"
+                stroke="white"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
           </div>
-        )}
+
+          {!collapsed && (
+            <span
+              className="text-xl font-bold tracking-tight truncate"
+              style={{
+                background: "linear-gradient(135deg, #9332EA 0%, #a855f7 60%, #c084fc 100%)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+              }}
+            >
+              WorkNest
+            </span>
+          )}
+        </div>
         <div className="flex items-center gap-1 ml-auto">
           {/* Mobile close */}
           <button
@@ -179,26 +213,6 @@ export function AppSidebar({ area, collapsed, mobileOpen, onToggleCollapse, onMo
           </button>
         </div>
       </div>
-
-      {/* Session badge */}
-      {!collapsed && (
-        <div className="px-4 pt-3 pb-1">
-          <div
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider"
-            style={{
-              background: area === "platform" ? "rgba(147,50,234,0.25)" : "rgba(99,102,241,0.2)",
-              color: area === "platform" ? "#c084fc" : "#a5b4fc",
-              border: `1px solid ${area === "platform" ? "rgba(147,50,234,0.3)" : "rgba(99,102,241,0.25)"}`,
-            }}
-          >
-            <span
-              className="w-1.5 h-1.5 rounded-full"
-              style={{ background: area === "platform" ? "#c084fc" : "#a5b4fc" }}
-            />
-            {area === "platform" ? "Platform Admin" : "Workspace"}
-          </div>
-        </div>
-      )}
 
       {/* Main nav */}
       <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5 scrollbar-hide">
@@ -237,23 +251,52 @@ export function AppSidebar({ area, collapsed, mobileOpen, onToggleCollapse, onMo
       </div>
 
       {/* User info */}
-      {!collapsed && user && (
+      {user && (
         <div
-          className="mx-3 mb-3 px-3 py-2.5 rounded-xl border border-white/8"
+          className={`mx-3 mb-3 rounded-xl border border-white/8 ${collapsed ? "px-2 py-2" : "px-3 py-2.5"}`}
           style={{ background: "rgba(255,255,255,0.04)" }}
+          title={collapsed ? user.name : undefined}
         >
-          <div className="flex items-center gap-2.5">
-            <div
-              className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-sm font-bold text-white"
-              style={{ background: "linear-gradient(135deg, #9332EA 0%, #7c1fd1 100%)" }}
-            >
-              {user.name?.[0]?.toUpperCase() ?? "U"}
+          {collapsed ? (
+            <div className="flex items-center justify-center">
+              {user.avatarUrl ? (
+                <img
+                  src={user.avatarUrl}
+                  alt={user.name}
+                  className="h-8 w-8 shrink-0 rounded-full object-cover"
+                />
+              ) : (
+                <div
+                  className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-white"
+                  style={{ backgroundColor: "#6b7280" }}
+                >
+                  <FaUser size={12} />
+                </div>
+              )}
             </div>
-            <div className="min-w-0">
-              <div className="text-xs font-semibold text-white/90 truncate">{user.name}</div>
-              <div className="text-[10px] text-white/40 truncate">{user.email}</div>
+          ) : (
+            <div className="flex items-center gap-2.5">
+              {user.avatarUrl ? (
+                <img
+                  src={user.avatarUrl}
+                  alt={user.name}
+                  className="h-8 w-8 shrink-0 rounded-full object-cover"
+                />
+              ) : (
+                <div
+                  className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-white"
+                  style={{ backgroundColor: "#6b7280" }}
+                >
+                  <FaUser size={12} />
+                </div>
+              )}
+              <div className="min-w-0">
+                <div className="text-xs font-semibold text-white/90 truncate">{user.name}</div>
+                <div className="text-[10px] text-white/40 truncate">{user.email}</div>
+                <div className="mt-1 text-[10px] uppercase tracking-[0.18em] text-white/30 truncate">{role ?? "workspace"}</div>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
     </div>
@@ -274,7 +317,7 @@ export function AppSidebar({ area, collapsed, mobileOpen, onToggleCollapse, onMo
       <aside
         className={`fixed lg:relative inset-y-0 left-0 z-40 flex flex-col transition-all duration-300 lg:translate-x-0 ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
-        } ${collapsed ? "w-[4.5rem]" : "w-64"}`}
+        } ${collapsed ? "w-[5rem]" : "w-72"}`}
         style={{ height: "100vh" }}
       >
         {sidebarContent}
