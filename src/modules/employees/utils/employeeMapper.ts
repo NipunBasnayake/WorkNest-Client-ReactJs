@@ -12,7 +12,10 @@ function normalizeStatus(value: unknown): "active" | "inactive" {
 
 function normalizeRole(value: unknown): EmployeeRole {
   const raw = pickString(value)?.toUpperCase();
-  if (raw === "TENANT_ADMIN" || raw === "ADMIN" || raw === "MANAGER" || raw === "HR" || raw === "EMPLOYEE") {
+  if (raw === "TENANT_ADMIN" || raw === "ADMIN" || raw === "MANAGER") {
+    return "TENANT_ADMIN";
+  }
+  if (raw === "HR" || raw === "EMPLOYEE") {
     return raw as EmployeeRole;
   }
   return "EMPLOYEE";

@@ -28,7 +28,10 @@ import type { EmployeeSkill, EmployeeSkillPayload } from "@/modules/employees/ty
 
 function toApiRole(role: unknown): EmployeeApiRole {
   const value = getString(role)?.toUpperCase();
-  if (value === "TENANT_ADMIN" || value === "ADMIN" || value === "MANAGER" || value === "HR" || value === "EMPLOYEE") {
+  if (value === "TENANT_ADMIN" || value === "ADMIN" || value === "MANAGER") {
+    return "TENANT_ADMIN";
+  }
+  if (value === "HR" || value === "EMPLOYEE") {
     return value;
   }
   return "EMPLOYEE";
@@ -68,6 +71,7 @@ function normalizeEmployee(input: unknown): Employee {
     status,
     joinedAt: toIsoDate(firstDefined(value.joinedAt, value.joinedDate, value.joinDate)),
     joinedDate: toIsoDate(firstDefined(value.joinedDate, value.joinedAt, value.joinDate)),
+    avatarUrl: firstDefined(getString(value.avatarUrl), getString(value.profileImageUrl), getString(value.imageUrl)),
   };
 }
 

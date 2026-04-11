@@ -1,6 +1,9 @@
 import { apiClient } from "@/services/http/client";
 import { unwrapApiData } from "@/services/http/response";
 import { asRecord, extractList, firstDefined, getId, getString, toIsoDate, toIsoDateTime } from "@/services/http/parsers";
+import { PERMISSIONS } from "@/constants/permissions";
+import { getRolePermissions } from "@/constants/rolePermissionMap";
+import { extractUploadedFileAssets } from "@/services/uploads/fileAssetParser";
 import { useAuthStore } from "@/store/authStore";
 import type { LeavePayload, LeaveRequest, LeaveStatus } from "@/modules/leave/types";
 import type { ApiResponse } from "@/types";
@@ -49,14 +52,17 @@ function normalizeLeave(input: unknown): LeaveRequest {
       getString(value.comment),
       getString(value.approvalReason)
     ),
+    attachments: extractUploadedFileAssets(
+      firstDefined(value.attachments, value.files),
+      firstDefined(value.attachmentUrls, value.fileUrls)
+    ),
     createdAt: toIsoDateTime(firstDefined(value.createdAt, value.createdDate)),
     updatedAt: toIsoDateTime(firstDefined(value.updatedAt, value.updatedDate, value.modifiedAt)),
   };
 }
 
 function isReviewerRole(role?: string): boolean {
-  const normalized = role?.toUpperCase();
-  return normalized === "TENANT_ADMIN" || normalized === "ADMIN" || normalized === "MANAGER" || normalized === "HR";
+  return getRolePermissions(role).includes(PERMISSIONS.LEAVE_REVIEW);
 }
 
 export async function getLeaveRequests(): Promise<LeaveRequest[]> {
@@ -83,6 +89,7 @@ export async function createLeaveRequest(payload: LeavePayload): Promise<LeaveRe
     startDate: payload.startDate,
     endDate: payload.endDate,
     reason: payload.reason.trim(),
+    attachmentUrls: payload.attachments.map((attachment) => attachment.url),
   });
   return normalizeLeave(unwrapApiData<unknown>(data));
 }
@@ -93,6 +100,7 @@ export async function updateLeaveRequest(id: string, payload: Omit<LeavePayload,
     startDate: payload.startDate,
     endDate: payload.endDate,
     reason: payload.reason.trim(),
+    attachmentUrls: payload.attachments.map((attachment) => attachment.url),
   });
   return normalizeLeave(unwrapApiData<unknown>(data));
 }
