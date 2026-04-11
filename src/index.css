@@ -67,6 +67,7 @@
   /* Borders */
   --border-default: #e5dff4;
   --border-strong:  #ccc0e8;
+  --border-color:   var(--border-default);
 
   /* Brand glow */
   --glow-primary:   rgba(147, 50, 234, 0.18);
@@ -97,6 +98,7 @@
 
   --border-default: #2a2240;
   --border-strong:  #3d3056;
+  --border-color:   var(--border-default);
 
   --glow-primary:   rgba(147, 50, 234, 0.25);
   --glow-subtle:    rgba(147, 50, 234, 0.12);
@@ -131,9 +133,119 @@ body {
   margin: 0;
   font-family: var(--font-sans);
   background-color: var(--bg-base);
+  background-image:
+    radial-gradient(circle at top left, rgba(147, 50, 234, 0.09), transparent 26%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0));
   color: var(--text-primary);
   transition: background-color 0.25s ease, color 0.25s ease;
   line-height: 1.6;
+  min-height: 100vh;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+input,
+select,
+textarea,
+button {
+  transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease, color 0.2s ease;
+}
+
+/* Global dropdown theme */
+select {
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+  border-color: var(--border-color);
+}
+
+select option,
+select optgroup {
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+}
+
+select option:checked {
+  background-color: var(--bg-surface-hover);
+  color: var(--color-primary-700);
+}
+
+.dark select option:checked {
+  color: var(--color-primary-300);
+}
+
+.app-select {
+  appearance: none;
+  min-height: 42px;
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+  border-color: var(--border-color);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease, color 0.2s ease;
+}
+
+.app-select:hover:not(:disabled) {
+  border-color: var(--border-strong);
+}
+
+.app-select:focus,
+.app-select:focus-visible {
+  border-color: var(--color-primary-500);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary-500) 32%, transparent);
+}
+
+.app-select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background-color: var(--bg-muted);
+}
+
+.app-select--error {
+  border-color: rgba(239, 68, 68, 0.5);
+}
+
+.app-select--error:focus,
+.app-select--error:focus-visible {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.25);
+}
+
+/* Global checkbox theme color */
+input[type="checkbox"] {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px; /* makes it rounded */
+  border: 2px solid var(--color-primary-500);
+  cursor: pointer;
+  display: inline-grid;
+  place-content: center;
+}
+
+input[type="checkbox"]:checked {
+  background-color: var(--color-primary-500);
+  border-color: var(--color-primary-500);
+}
+
+input[type="checkbox"]::after {
+  content: "";
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  transform: scale(0);
+  transition: transform 0.1s ease-in-out;
+  background: white;
+}
+
+input[type="checkbox"]:checked::after {
+  transform: scale(1);
+}
+
+::selection {
+  background: rgba(147, 50, 234, 0.18);
+  color: var(--text-primary);
 }
 
 /* Focus visible with purple ring */

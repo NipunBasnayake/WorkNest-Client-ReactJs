@@ -2,6 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { BriefcaseBusiness, Loader2, MessageSquarePlus, Search, Users, X } from "lucide-react";
 import { listHrConversationTargets } from "@/modules/chat/services/chatService";
 import { getMyTeams } from "@/modules/teams/services/teamService";
+import { AppSelect } from "@/components/common/AppSelect";
 import type { ChatParticipant, ChatType } from "@/modules/chat/types";
 import type { Team } from "@/modules/teams/types";
 import { formatTargetLabel, toRole } from "@/app/chat/chatUtils";
@@ -45,7 +46,7 @@ export function NewConversationModal({
   const [searchQuery, setSearchQuery] = useState<string>("");
 
   const normalizedRole = toRole(currentUserRole);
-  const isHrInitiator = normalizedRole === "HR" || normalizedRole === "ADMIN";
+  const isHrInitiator = normalizedRole === "HR" || normalizedRole === "TENANT_ADMIN";
 
   const filteredTeams = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -351,16 +352,10 @@ export function NewConversationModal({
             <label className="block text-sm font-medium" style={{ color: "var(--text-primary)" }}>
               Team
             </label>
-            <select
+            <AppSelect
               value={selectedTeamId}
               onChange={(event) => setSelectedTeamId(event.target.value)}
               disabled={loadingOptions || filteredTeams.length === 0 || submitting}
-              className="w-full rounded-xl border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary-500/30 disabled:opacity-60"
-              style={{
-                borderColor: "var(--border-default)",
-                backgroundColor: "var(--bg-surface)",
-                color: "var(--text-primary)",
-              }}
             >
               {filteredTeams.length === 0 && <option value="">No matching teams found</option>}
               {filteredTeams.map((team) => (
@@ -368,7 +363,7 @@ export function NewConversationModal({
                   {team.name}
                 </option>
               ))}
-            </select>
+            </AppSelect>
           </div>
         )}
 
@@ -384,16 +379,10 @@ export function NewConversationModal({
                   <label className="mb-1 block text-sm font-medium" style={{ color: "var(--text-primary)" }}>
                     Employee
                   </label>
-                  <select
+                  <AppSelect
                     value={selectedEmployeeId}
                     onChange={(event) => setSelectedEmployeeId(event.target.value)}
                     disabled={loadingOptions || filteredEmployeeTargets.length === 0 || submitting}
-                    className="w-full rounded-xl border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary-500/30 disabled:opacity-60"
-                    style={{
-                      borderColor: "var(--border-default)",
-                      backgroundColor: "var(--bg-surface)",
-                      color: "var(--text-primary)",
-                    }}
                   >
                     {filteredEmployeeTargets.length === 0 && <option value="">No matching employees found</option>}
                     {filteredEmployeeTargets.map((target) => (
@@ -401,7 +390,7 @@ export function NewConversationModal({
                         {formatTargetLabel(target)}
                       </option>
                     ))}
-                  </select>
+                  </AppSelect>
                 </div>
               </>
             ) : (
@@ -414,16 +403,10 @@ export function NewConversationModal({
                   <label className="mb-1 block text-sm font-medium" style={{ color: "var(--text-primary)" }}>
                     HR Representative
                   </label>
-                  <select
+                  <AppSelect
                     value={selectedHrId}
                     onChange={(event) => setSelectedHrId(event.target.value)}
                     disabled={loadingOptions || filteredHrTargets.length === 0 || submitting}
-                    className="w-full rounded-xl border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary-500/30 disabled:opacity-60"
-                    style={{
-                      borderColor: "var(--border-default)",
-                      backgroundColor: "var(--bg-surface)",
-                      color: "var(--text-primary)",
-                    }}
                   >
                     {filteredHrTargets.length === 0 && <option value="">No matching HR representatives found</option>}
                     {filteredHrTargets.map((target) => (
@@ -431,7 +414,7 @@ export function NewConversationModal({
                         {formatTargetLabel(target)}
                       </option>
                     ))}
-                  </select>
+                  </AppSelect>
                 </div>
               </>
             )}
