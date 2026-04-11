@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { Megaphone, PlusCircle, Search, Trash2 } from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
-import { useAuth } from "@/hooks/useAuth";
+import { PERMISSIONS } from "@/constants/permissions";
+import { usePermission } from "@/hooks/usePermission";
 import { deleteAnnouncement, getAnnouncements } from "@/modules/announcements/services/announcementService";
 import { AnnouncementCard } from "@/modules/announcements/components/AnnouncementCard";
-import { TENANT_COMMUNICATION_ROLES } from "@/constants/access";
 import { PageHeader } from "@/components/common/PageHeader";
 import { SectionCard } from "@/components/common/SectionCard";
 import { Button } from "@/components/common/Button";
@@ -14,7 +14,7 @@ import type { Announcement } from "@/modules/announcements/types";
 
 export function AnnouncementsPage() {
   usePageMeta({ title: "Announcements", breadcrumb: ["Workspace", "Announcements"] });
-  const { hasRole } = useAuth();
+  const { hasPermission } = usePermission();
 
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
@@ -24,7 +24,7 @@ export function AnnouncementsPage() {
   const [deleteTarget, setDeleteTarget] = useState<Announcement | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const canManage = hasRole(...TENANT_COMMUNICATION_ROLES);
+  const canManage = hasPermission(PERMISSIONS.ANNOUNCEMENTS_MANAGE);
 
   async function fetchAnnouncements() {
     setLoading(true);
@@ -134,7 +134,7 @@ export function AnnouncementsPage() {
                 <div className="flex justify-end gap-2">
                   <Button variant="outline" size="sm" to={`/app/announcements/${announcement.id}/edit`}>Edit</Button>
                   <Button variant="danger" size="sm" onClick={() => setDeleteTarget(announcement)}>
-                    <Trash2 size={14} />
+                    <Trash2 size={14} color="#ef4444" />
                     Delete
                   </Button>
                 </div>

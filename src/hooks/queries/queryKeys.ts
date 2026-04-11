@@ -1,0 +1,21 @@
+export const queryKeys = {
+  tenantDashboard: () => ["tenant-dashboard"] as const,
+  tenantAnalytics: () => ["tenant-analytics"] as const,
+  platformAnalytics: () => ["platform-analytics"] as const,
+  platformTenants: () => ["platform-tenants"] as const,
+  platformTenantDetail: (tenantKey: string | undefined) => ["platform-tenant", tenantKey ?? ""] as const,
+  projects: () => ["projects"] as const,
+  projectDetail: (projectId: string | undefined) => ["project", projectId ?? ""] as const,
+  teams: () => ["teams"] as const,
+  teamDetail: (teamId: string | undefined) => ["team", teamId ?? ""] as const,
+  tasks: () => ["tasks"] as const,
+  taskDetail: (taskId: string | undefined) => ["task", taskId ?? ""] as const,
+  taskComments: (taskId: string | undefined) => ["task-comments", taskId ?? ""] as const,
+  taskViewerIdentity: () => ["task-viewer-identity"] as const,
+  employees: () => ["employees"] as const,
+  myEmployeeProfile: () => ["my-employee-profile"] as const,
+  hrConversations: () => ["chat", "hr-conversations"] as const,
+  teamConversations: () => ["chat", "team-conversations"] as const,
+  conversationMessages: (type: string | null | undefined, conversationId: string | null | undefined) =>
+    ["chat", "messages", type ?? "none", conversationId ?? "none"] as const,
+} as const;

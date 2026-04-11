@@ -2,8 +2,11 @@ import { useNavigate } from "react-router-dom";
 import { ShieldOff, ArrowLeft, LogIn } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/common/Button";
+import { usePageMeta } from "@/hooks/usePageMeta";
 
 export function UnauthorizedPage() {
+  usePageMeta({ title: "Unauthorized - WorkNest" });
+
   const navigate               = useNavigate();
   const { isAuthenticated, sessionType } = useAuth();
 

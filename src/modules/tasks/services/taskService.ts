@@ -1,6 +1,7 @@
 import { apiClient } from "@/services/http/client";
 import { unwrapApiData } from "@/services/http/response";
 import { asRecord, extractList, firstDefined, getId, getString, toIsoDate, toIsoDateTime } from "@/services/http/parsers";
+import { extractUploadedFileAssets } from "@/services/uploads/fileAssetParser";
 import { useAuthStore } from "@/store/authStore";
 import { getMyEmployeeProfile } from "@/modules/employees/services/employeeService";
 import { TASK_PRIORITY_VALUES, TASK_STATUS_VALUES } from "@/constants/apiEnums";
@@ -133,6 +134,10 @@ function normalizeTask(input: unknown): Task {
       getString(value.projectName),
       getString(asRecord(value.project).name)
     ),
+    attachments: extractUploadedFileAssets(
+      firstDefined(value.attachments, value.files),
+      firstDefined(value.attachmentUrls, value.fileUrls)
+    ),
     createdAt: toIsoDateTime(firstDefined(value.createdAt, value.createdDate)),
     updatedAt: toIsoDateTime(firstDefined(value.updatedAt, value.updatedDate, value.modifiedAt)),
   };
@@ -242,7 +247,7 @@ function normalizeTaskComment(input: unknown): TaskComment {
 
 function buildTaskBasePayload(
   payload: TaskPayload
-): Pick<TaskCreateRequest, "title" | "description" | "status" | "priority" | "assigneeId" | "dueDate"> {
+): Pick<TaskCreateRequest, "title" | "description" | "status" | "priority" | "assigneeId" | "dueDate" | "attachmentUrls"> {
   return {
     title: payload.title.trim(),
     description: payload.description.trim(),
@@ -250,6 +255,7 @@ function buildTaskBasePayload(
     priority: payload.priority,
     assigneeId: payload.assigneeId || undefined,
     dueDate: payload.dueDate || undefined,
+    attachmentUrls: payload.attachments.map((attachment) => attachment.url),
   };
 }
 

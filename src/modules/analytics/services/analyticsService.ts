@@ -1,6 +1,8 @@
 import { apiClient } from "@/services/http/client";
 import { unwrapApiData } from "@/services/http/response";
 import { asRecord, extractList, firstDefined, getNumber, getString, toIsoDate } from "@/services/http/parsers";
+import { PERMISSIONS } from "@/constants/permissions";
+import { getRolePermissions, normalizeAppRole } from "@/constants/rolePermissionMap";
 import { useAuthStore } from "@/store/authStore";
 import { getPlatformTenants } from "@/modules/platform/services/platformTenantService";
 import { getEmployees } from "@/modules/employees/services/employeeService";
@@ -44,9 +46,7 @@ const STATUS_COLORS: Record<string, string> = {
   ACTIVE: "#10b981",
   INACTIVE: "#64748b",
   SUSPENDED: "#ef4444",
-  ADMIN: "#9332EA",
   TENANT_ADMIN: "#9332EA",
-  MANAGER: "#6366f1",
   HR: "#d97706",
   EMPLOYEE: "#10b981",
 };
@@ -131,15 +131,45 @@ function toProgressFromUnknown(input: unknown): ProgressDatum[] {
 }
 
 function roleDashboardEndpoint(): string {
-  const role = (useAuthStore.getState().user?.role ?? "").toString().toUpperCase();
-  if (role === "ADMIN" || role === "TENANT_ADMIN") return "/api/tenant/dashboard/tenant-admin";
-  if (role === "MANAGER") return "/api/tenant/dashboard/manager";
+  const role = normalizeAppRole(useAuthStore.getState().user?.role);
+  if (role === "TENANT_ADMIN") return "/api/tenant/dashboard/tenant-admin";
   if (role === "HR") return "/api/tenant/dashboard/hr";
   return "/api/tenant/dashboard/me";
 }
 
 async function fetchDashboardRaw(): Promise<unknown> {
-  const { data } = await apiClient.get<ApiResponse<unknown> | unknown>(roleDashboardEndpoint());
+  const role = normalizeAppRole(useAuthStore.getState().user?.role);
+  const primaryEndpoint = roleDashboardEndpoint();
+  const fallbackEndpoints =
+    role === "TENANT_ADMIN"
+      ? ["/api/tenant/dashboard/hr", "/api/tenant/dashboard/me"]
+      : role === "HR"
+        ? ["/api/tenant/dashboard/me"]
+        : [];
+
+  const endpoints = [primaryEndpoint, ...fallbackEndpoints].filter(
+    (endpoint, index, list) => list.indexOf(endpoint) === index
+  );
+
+  let lastError: unknown;
+
+  for (const endpoint of endpoints) {
+    try {
+      const { data } = await apiClient.get<ApiResponse<unknown> | unknown>(endpoint);
+      return unwrapApiData<unknown>(data);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError ?? new Error("Unable to fetch tenant dashboard data.");
+}
+
+async function fetchTenantAnalyticsPayload(
+  endpoint: string,
+  params?: Record<string, string>
+): Promise<unknown> {
+  const { data } = await apiClient.get<ApiResponse<unknown> | unknown>(endpoint, { params });
   return unwrapApiData<unknown>(data);
 }
 
@@ -210,7 +240,7 @@ function createEmptyTenantDashboardSnapshot(): TenantDashboardSnapshot {
 }
 
 function normalizeRole(role: unknown): string {
-  return getString(role)?.toUpperCase() ?? "";
+  return normalizeAppRole(getString(role)) ?? "";
 }
 
 function isEmployeeRole(role: string): boolean {
@@ -218,7 +248,7 @@ function isEmployeeRole(role: string): boolean {
 }
 
 function isManagementRole(role: string): boolean {
-  return role === "TENANT_ADMIN" || role === "ADMIN" || role === "MANAGER" || role === "HR";
+  return getRolePermissions(role).includes(PERMISSIONS.ANALYTICS_VIEW);
 }
 
 function toTimestamp(value: string | undefined): number {
@@ -276,7 +306,7 @@ function toLeaveStatusSummary(leaves: LeaveRequest[], dashboardStatusMap: Record
 
 export async function getTenantDashboardSnapshot(): Promise<TenantDashboardSnapshot> {
   try {
-    const raw = asRecord(await fetchDashboardRaw().catch(() => ({})));
+    const raw = asRecord(await fetchDashboardRaw());
     const role = normalizeRole(useAuthStore.getState().user?.role);
     const isEmployee = isEmployeeRole(role);
     const canAccessManagementData = isManagementRole(role);
@@ -425,74 +455,74 @@ export async function getTenantDashboardSnapshot(): Promise<TenantDashboardSnaps
       : attendanceSummary.present;
 
     return {
-      totalEmployees: firstDefined(getNumber(raw.totalEmployees), getNumber(raw.employeeCount)) ?? (isEmployee ? 1 : employees.length),
-      activeTeams: firstDefined(
-        getNumber(raw.activeTeams),
-        getNumber(raw.teamCount),
-        getNumber(raw.totalTeams)
-      ) ?? teams.filter((team) => team.status === "active").length,
-      activeProjects: firstDefined(
-        getNumber(raw.activeProjects),
-        getNumber(raw.projectCount),
-        getNumber(raw.managedProjects)
-      ) ?? projects.filter((project) => project.status !== "completed" && project.status !== "cancelled").length,
-      completedTasks,
-      openTasks,
-      pendingLeaves:
-        pendingLeavesFromDashboard ??
-        leaveStatusSummary.PENDING,
-      presentToday,
-      unreadNotifications: notifications.filter((notification) => !notification.read).length,
-      taskStatusSummary,
-      leaveStatusSummary,
-      attendanceSummary,
-      dueSoonTasks: effectiveDueSoonTasks.map((task) => ({
-        id: task.id,
-        title: task.title,
-        dueDate: task.dueDate,
-        status: task.status,
-        priority: task.priority,
+    totalEmployees: firstDefined(getNumber(raw.totalEmployees), getNumber(raw.employeeCount)) ?? (isEmployee ? 1 : employees.length),
+    activeTeams: firstDefined(
+      getNumber(raw.activeTeams),
+      getNumber(raw.teamCount),
+      getNumber(raw.totalTeams)
+    ) ?? teams.filter((team) => team.status === "active").length,
+    activeProjects: firstDefined(
+      getNumber(raw.activeProjects),
+      getNumber(raw.projectCount),
+      getNumber(raw.managedProjects)
+    ) ?? projects.filter((project) => project.status !== "completed" && project.status !== "cancelled").length,
+    completedTasks,
+    openTasks,
+    pendingLeaves:
+      pendingLeavesFromDashboard ??
+      leaveStatusSummary.PENDING,
+    presentToday,
+    unreadNotifications: notifications.filter((notification) => !notification.read).length,
+    taskStatusSummary,
+    leaveStatusSummary,
+    attendanceSummary,
+    dueSoonTasks: effectiveDueSoonTasks.map((task) => ({
+      id: task.id,
+      title: task.title,
+      dueDate: task.dueDate,
+      status: task.status,
+      priority: task.priority,
+    })),
+    recentTasks: sortedRecentTasks.slice(0, 5).map((task) => ({
+      id: task.id,
+      title: task.title,
+      dueDate: task.dueDate,
+      status: task.status,
+      priority: task.priority,
+    })),
+    recentLeaves: sortedRecentLeaves
+      .slice(0, 5)
+      .map((leave) => ({
+        id: leave.id,
+        employeeName: leave.employeeName,
+        leaveType: leave.leaveType,
+        startDate: leave.startDate,
+        endDate: leave.endDate,
+        status: leave.status,
       })),
-      recentTasks: sortedRecentTasks.slice(0, 5).map((task) => ({
-        id: task.id,
-        title: task.title,
-        dueDate: task.dueDate,
-        status: task.status,
-        priority: task.priority,
+    pendingApprovals: sortedRecentLeaves
+      .filter((leave) => leave.status === "PENDING")
+      .slice(0, 5)
+      .map((leave) => ({
+        id: leave.id,
+        employeeName: leave.employeeName,
+        leaveType: leave.leaveType,
+        startDate: leave.startDate,
+        endDate: leave.endDate,
+        status: leave.status,
       })),
-      recentLeaves: sortedRecentLeaves
-        .slice(0, 5)
-        .map((leave) => ({
-          id: leave.id,
-          employeeName: leave.employeeName,
-          leaveType: leave.leaveType,
-          startDate: leave.startDate,
-          endDate: leave.endDate,
-          status: leave.status,
-        })),
-      pendingApprovals: sortedRecentLeaves
-        .filter((leave) => leave.status === "PENDING")
-        .slice(0, 5)
-        .map((leave) => ({
-          id: leave.id,
-          employeeName: leave.employeeName,
-          leaveType: leave.leaveType,
-          startDate: leave.startDate,
-          endDate: leave.endDate,
-          status: leave.status,
-        })),
-      announcements: announcements.slice(0, 4).map((announcement) => ({
-        id: announcement.id,
-        title: announcement.title,
-        createdAt: announcement.createdAt,
-      })),
-      notifications: notifications.slice(0, 4).map((notification) => ({
-        id: notification.id,
-        title: notification.title,
-        createdAt: notification.createdAt,
-        read: notification.read,
-        link: notification.link,
-      })),
+    announcements: announcements.slice(0, 4).map((announcement) => ({
+      id: announcement.id,
+      title: announcement.title,
+      createdAt: announcement.createdAt,
+    })),
+    notifications: notifications.slice(0, 4).map((notification) => ({
+      id: notification.id,
+      title: notification.title,
+      createdAt: notification.createdAt,
+      read: notification.read,
+      link: notification.link,
+    })),
     };
   } catch {
     return createEmptyTenantDashboardSnapshot();
@@ -500,7 +530,7 @@ export async function getTenantDashboardSnapshot(): Promise<TenantDashboardSnaps
 }
 
 export async function getTenantAnalyticsData(): Promise<TenantAnalyticsData> {
-  const snapshotPromise = getTenantDashboardSnapshot().catch(() => createEmptyTenantDashboardSnapshot());
+  const snapshotPromise = getTenantDashboardSnapshot();
 
   const now = new Date();
   const fromDate = new Date(now);
@@ -508,14 +538,15 @@ export async function getTenantAnalyticsData(): Promise<TenantAnalyticsData> {
 
   const [snapshot, tasksByAssigneeRaw, projectProgressRaw, attendanceTrendRaw, roleDistributionRaw, tasks, leaves] = await Promise.all([
     snapshotPromise,
-    apiClient.get<ApiResponse<unknown> | unknown>("/api/tenant/analytics/tasks/by-assignee").then((res) => unwrapApiData<unknown>(res.data)).catch(() => []),
-    apiClient.get<ApiResponse<unknown> | unknown>("/api/tenant/analytics/projects/progress").then((res) => unwrapApiData<unknown>(res.data)).catch(() => []),
-    apiClient.get<ApiResponse<unknown> | unknown>("/api/tenant/analytics/attendance/trend", {
-      params: { fromDate: fromDate.toISOString().slice(0, 10), toDate: now.toISOString().slice(0, 10) },
-    }).then((res) => unwrapApiData<unknown>(res.data)).catch(() => []),
-    apiClient.get<ApiResponse<unknown> | unknown>("/api/tenant/analytics/employees/role-distribution").then((res) => unwrapApiData<unknown>(res.data)).catch(() => []),
-    getTasks().catch(() => []),
-    getLeaveRequests().catch(() => []),
+    fetchTenantAnalyticsPayload("/api/tenant/analytics/tasks/by-assignee"),
+    fetchTenantAnalyticsPayload("/api/tenant/analytics/projects/progress"),
+    fetchTenantAnalyticsPayload("/api/tenant/analytics/attendance/trend", {
+      fromDate: fromDate.toISOString().slice(0, 10),
+      toDate: now.toISOString().slice(0, 10),
+    }),
+    fetchTenantAnalyticsPayload("/api/tenant/analytics/employees/role-distribution"),
+    getTasks(),
+    getLeaveRequests(),
   ]);
 
   const taskStatusMap = tasks.reduce<Record<string, number>>((acc, task) => {
@@ -569,7 +600,7 @@ export async function getTenantAnalyticsData(): Promise<TenantAnalyticsData> {
 }
 
 export async function getPlatformAnalyticsData(): Promise<PlatformAnalyticsData> {
-  const tenants = await getPlatformTenants().catch(() => []);
+  const tenants = await getPlatformTenants();
   const now = new Date();
   const currentMonth = now.toISOString().slice(0, 7);
 

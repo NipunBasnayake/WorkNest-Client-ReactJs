@@ -81,14 +81,58 @@ export async function getAttendanceSummary(date?: string): Promise<AttendanceSum
     const { data } = await apiClient.get<ApiResponse<unknown> | unknown>("/api/tenant/attendance/summary/daily", {
       params: { workDate },
     });
-    const summary = asRecord(unwrapApiData<unknown>(data));
-    return {
-      total: getNumber(summary.total) ?? 0,
-      present: getNumber(summary.present) ?? 0,
-      late: getNumber(summary.late) ?? 0,
-      absent: getNumber(summary.absent) ?? 0,
-      halfDay: getNumber(firstDefined(summary.halfDay, summary.half_day)) ?? 0,
+    const payload = asRecord(unwrapApiData<unknown>(data));
+    const nested = asRecord(firstDefined(payload.todayAttendance, payload.summary, payload.dailySummary));
+
+    const parsed: AttendanceSummary = {
+      total: firstDefined(
+        getNumber(payload.total),
+        getNumber(payload.totalCount),
+        getNumber(payload.totalAttendance),
+        getNumber(nested.total),
+        getNumber(nested.totalCount)
+      ) ?? 0,
+      present: firstDefined(
+        getNumber(payload.present),
+        getNumber(payload.presentCount),
+        getNumber(payload.presentToday),
+        getNumber(payload.todayPresent),
+        getNumber(nested.present),
+        getNumber(nested.presentCount)
+      ) ?? 0,
+      late: firstDefined(
+        getNumber(payload.late),
+        getNumber(payload.lateCount),
+        getNumber(nested.late),
+        getNumber(nested.lateCount)
+      ) ?? 0,
+      absent: firstDefined(
+        getNumber(payload.absent),
+        getNumber(payload.absentCount),
+        getNumber(nested.absent),
+        getNumber(nested.absentCount)
+      ) ?? 0,
+      halfDay: firstDefined(
+        getNumber(payload.halfDay),
+        getNumber(payload.half_day),
+        getNumber(payload.halfDayCount),
+        getNumber(nested.halfDay),
+        getNumber(nested.half_day),
+        getNumber(nested.halfDayCount)
+      ) ?? 0,
     };
+
+    const allZero = parsed.total === 0
+      && parsed.present === 0
+      && parsed.late === 0
+      && parsed.absent === 0
+      && parsed.halfDay === 0;
+
+    if (allZero) {
+      return summarize(await getAttendanceRecords(workDate));
+    }
+
+    return parsed;
   } catch {
     return summarize(await getAttendanceRecords(workDate));
   }

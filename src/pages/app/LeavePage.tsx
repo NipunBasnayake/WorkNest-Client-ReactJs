@@ -1,14 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
-import { Check, PlusCircle, Search, XCircle } from "lucide-react";
+import { PlusCircle, Search } from "lucide-react";
+import { FiCheck, FiEdit2, FiEye, FiTrash2, FiX } from "react-icons/fi";
+import { Link } from "react-router-dom";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { useAuth } from "@/hooks/useAuth";
+import { PERMISSIONS } from "@/constants/permissions";
+import { usePermission } from "@/hooks/usePermission";
 import { cancelLeaveRequest, getLeaveRequests, reviewLeaveRequest } from "@/modules/leave/services/leaveService";
 import { LEAVE_TYPE_OPTIONS, type LeaveRequest, type LeaveStatus, type LeaveType } from "@/modules/leave/types";
 import { LeaveStatusBadge } from "@/modules/leave/components/LeaveStatusBadge";
-import { TENANT_COMMUNICATION_ROLES } from "@/constants/access";
 import { PageHeader } from "@/components/common/PageHeader";
 import { SectionCard } from "@/components/common/SectionCard";
 import { Button } from "@/components/common/Button";
+import { AppSelect } from "@/components/common/AppSelect";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { EmptyState, ErrorBanner, SkeletonRow } from "@/components/common/AppUI";
 import { getErrorMessage } from "@/utils/errorHandler";
@@ -22,7 +26,8 @@ function toLabel(value: string): string {
 
 export function LeavePage() {
   usePageMeta({ title: "Leave", breadcrumb: ["Workspace", "Leave"] });
-  const { user, hasRole } = useAuth();
+  const { user, role } = useAuth();
+  const { hasPermission } = usePermission();
 
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -35,7 +40,8 @@ export function LeavePage() {
   const [reviewTarget, setReviewTarget] = useState<{ item: LeaveRequest; status: "APPROVED" | "REJECTED" } | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
 
-  const canReview = hasRole(...TENANT_COMMUNICATION_ROLES);
+  const canReview = hasPermission(PERMISSIONS.LEAVE_REVIEW);
+  const canApplyLeave = hasPermission(PERMISSIONS.LEAVE_REQUEST) && role !== "TENANT_ADMIN";
 
   async function fetchLeaves() {
     setLoading(true);
@@ -109,12 +115,12 @@ export function LeavePage() {
       <PageHeader
         title="Leave Management"
         description={loading ? "Loading leave requests..." : `${leaveRequests.length} leave request${leaveRequests.length === 1 ? "" : "s"} logged.`}
-        actions={(
+        actions={canApplyLeave ? (
           <Button variant="primary" to="/app/leave/new">
             <PlusCircle size={16} />
             Apply Leave
           </Button>
-        )}
+        ) : undefined}
       />
 
       <SectionCard>
@@ -131,31 +137,27 @@ export function LeavePage() {
             />
           </div>
 
-          <select
+          <AppSelect
             value={statusFilter}
             onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)}
-            className="rounded-xl border px-3 py-2.5 text-sm outline-none transition-all focus:ring-2 focus:ring-primary-500/30"
-            style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)", color: "var(--text-primary)" }}
           >
             {STATUS_OPTIONS.map((status) => (
               <option key={status} value={status}>
                 {status === "ALL" ? "All Statuses" : toLabel(status)}
               </option>
             ))}
-          </select>
+          </AppSelect>
 
-          <select
+          <AppSelect
             value={typeFilter}
             onChange={(event) => setTypeFilter(event.target.value as typeof typeFilter)}
-            className="rounded-xl border px-3 py-2.5 text-sm outline-none transition-all focus:ring-2 focus:ring-primary-500/30"
-            style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)", color: "var(--text-primary)" }}
           >
             {TYPE_OPTIONS.map((type) => (
               <option key={type} value={type}>
                 {type === "ALL" ? "All Types" : toLabel(type)}
               </option>
             ))}
-          </select>
+          </AppSelect>
         </div>
       </SectionCard>
 
@@ -175,36 +177,37 @@ export function LeavePage() {
       {error && <ErrorBanner message={error} onRetry={fetchLeaves} />}
 
       <SectionCard className="overflow-hidden" contentClassName="p-0" title="Leave Requests" subtitle="Review requests and keep leave schedules organized.">
-        <div
-          className="hidden md:grid grid-cols-[1.2fr_0.8fr_1fr_1fr_2fr_1fr_1.8fr] gap-3 border-b px-5 py-3 text-xs font-semibold uppercase tracking-wider"
-          style={{ color: "var(--text-tertiary)", borderColor: "var(--border-default)", backgroundColor: "var(--bg-muted)" }}
-        >
-          <span>Employee</span>
-          <span>Type</span>
-          <span>Start</span>
-          <span>End</span>
-          <span>Reason</span>
-          <span>Status</span>
-          <span className="text-right">Actions</span>
-        </div>
+        <div className="overflow-x-auto">
+          <div
+            className="hidden min-w-[1040px] md:grid grid-cols-[1.2fr_0.8fr_1fr_1fr_2fr_1fr_1.8fr] gap-3 border-b px-5 py-3 text-xs font-semibold uppercase tracking-wider"
+            style={{ color: "var(--text-tertiary)", borderColor: "var(--border-default)", backgroundColor: "var(--bg-muted)" }}
+          >
+            <span>Employee</span>
+            <span>Type</span>
+            <span>Start</span>
+            <span>End</span>
+            <span>Reason</span>
+            <span>Status</span>
+            <span className="text-right">Actions</span>
+          </div>
 
-        {loading && Array.from({ length: 5 }).map((_, index) => <SkeletonRow key={index} cols={7} />)}
+          {loading && Array.from({ length: 5 }).map((_, index) => <SkeletonRow key={index} cols={7} />)}
 
         {!loading && !error && filtered.length === 0 && (
           <EmptyState
             title={search || statusFilter !== "ALL" || typeFilter !== "ALL" ? "No matching leave requests" : "No leave requests yet"}
             description={search || statusFilter !== "ALL" || typeFilter !== "ALL" ? "Try adjusting your filters." : "Leave requests submitted by employees will appear here."}
-            action={<Button variant="outline" to="/app/leave/new">Apply Leave</Button>}
+            action={canApplyLeave ? <Button variant="outline" to="/app/leave/new">Apply Leave</Button> : undefined}
           />
         )}
 
         {!loading && filtered.length > 0 && (
           <>
-            <div className="hidden md:block">
+            <div className="hidden min-w-[1040px] md:block">
               {filtered.map((item) => {
                 const owner = isOwner(item);
-                const canEdit = owner && item.status === "PENDING";
-                const canCancel = owner && item.status === "PENDING";
+                const canEdit = canApplyLeave && owner && item.status === "PENDING";
+                const canCancel = canApplyLeave && owner && item.status === "PENDING";
                 const canApprove = canReview && item.status === "PENDING";
 
                 return (
@@ -219,18 +222,61 @@ export function LeavePage() {
                     <span className="text-sm" style={{ color: "var(--text-secondary)" }}>{item.endDate}</span>
                     <span className="truncate text-sm" style={{ color: "var(--text-secondary)" }}>{item.reason}</span>
                     <LeaveStatusBadge status={item.status} />
-                    <div className="flex flex-wrap items-center justify-end gap-1.5">
-                      <Button variant="ghost" size="sm" to={`/app/leave/${item.id}`}>View</Button>
-                      {canEdit && <Button variant="outline" size="sm" to={`/app/leave/${item.id}/edit`}>Edit</Button>}
-                      {canCancel && <Button variant="danger" size="sm" onClick={() => setCancelTarget(item)}>Cancel</Button>}
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                      <Link
+                        to={`/app/leave/${item.id}`}
+                        title="View leave request"
+                        aria-label="View leave request"
+                        className="inline-flex items-center justify-center p-1 transition-opacity hover:opacity-80"
+                        style={{ color: "var(--text-secondary)" }}
+                      >
+                        <FiEye size={15} />
+                      </Link>
+                      {canEdit && (
+                        <Link
+                          to={`/app/leave/${item.id}/edit`}
+                          title="Edit leave request"
+                          aria-label="Edit leave request"
+                          className="inline-flex items-center justify-center p-1 transition-opacity hover:opacity-80"
+                          style={{ color: "var(--text-secondary)" }}
+                        >
+                          <FiEdit2 size={15} />
+                        </Link>
+                      )}
+                      {canCancel && (
+                        <button
+                          type="button"
+                          onClick={() => setCancelTarget(item)}
+                          title="Cancel leave request"
+                          aria-label="Cancel leave request"
+                          className="inline-flex items-center justify-center p-1 transition-opacity hover:opacity-80"
+                          style={{ color: "#ef4444" }}
+                        >
+                          <FiTrash2 size={15} />
+                        </button>
+                      )}
                       {canApprove && (
                         <>
-                          <Button variant="outline" size="sm" onClick={() => setReviewTarget({ item, status: "APPROVED" })}>
-                            <Check size={14} />
-                          </Button>
-                          <Button variant="danger" size="sm" onClick={() => setReviewTarget({ item, status: "REJECTED" })}>
-                            <XCircle size={14} />
-                          </Button>
+                          <button
+                            type="button"
+                            onClick={() => setReviewTarget({ item, status: "APPROVED" })}
+                            title="Approve leave request"
+                            aria-label="Approve leave request"
+                            className="inline-flex items-center justify-center p-1 transition-opacity hover:opacity-80"
+                            style={{ color: "var(--text-secondary)" }}
+                          >
+                            <FiCheck size={15} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setReviewTarget({ item, status: "REJECTED" })}
+                            title="Reject leave request"
+                            aria-label="Reject leave request"
+                            className="inline-flex items-center justify-center p-1 transition-opacity hover:opacity-80"
+                            style={{ color: "var(--text-secondary)" }}
+                          >
+                            <FiX size={15} />
+                          </button>
                         </>
                       )}
                     </div>
@@ -242,8 +288,8 @@ export function LeavePage() {
             <div className="space-y-3 p-4 md:hidden">
               {filtered.map((item) => {
                 const owner = isOwner(item);
-                const canEdit = owner && item.status === "PENDING";
-                const canCancel = owner && item.status === "PENDING";
+                const canEdit = canApplyLeave && owner && item.status === "PENDING";
+                const canCancel = canApplyLeave && owner && item.status === "PENDING";
                 const canApprove = canReview && item.status === "PENDING";
 
                 return (
@@ -281,6 +327,7 @@ export function LeavePage() {
             </div>
           </>
         )}
+        </div>
       </SectionCard>
 
       <ConfirmDialog

@@ -1,6 +1,7 @@
 import { apiClient } from "@/services/http/client";
 import { unwrapApiData } from "@/services/http/response";
 import { asRecord, extractList, firstDefined, getId, getNumber, getString, toIsoDate, toIsoDateTime } from "@/services/http/parsers";
+import { extractUploadedFileAssets } from "@/services/uploads/fileAssetParser";
 import type { Project, ProjectFormValues, ProjectStatus } from "@/modules/projects/types";
 import type { ApiResponse } from "@/types";
 
@@ -57,19 +58,19 @@ function normalizeProject(input: unknown, teamIds: string[] = []): Project {
         ? Math.max(0, Math.min(100, progress))
         : (toUiStatus(firstDefined(value.status, value.projectStatus)) === "completed" ? 100 : 0),
     teamIds: teamIds.length > 0 ? teamIds : fallbackTeamIds,
+    documents: extractUploadedFileAssets(
+      firstDefined(value.documents, value.files, value.attachments),
+      firstDefined(value.documentUrls, value.fileUrls, value.attachmentUrls)
+    ),
     createdAt: toIsoDateTime(firstDefined(value.createdAt, value.createdDate)),
     updatedAt: toIsoDateTime(firstDefined(value.updatedAt, value.updatedDate, value.modifiedAt)),
   };
 }
 
 async function getProjectTeams(projectId: string): Promise<string[]> {
-  try {
-    const { data } = await apiClient.get<ApiResponse<unknown> | unknown>(`/api/tenant/projects/${projectId}/teams`);
-    const teams = extractList(unwrapApiData<unknown>(data));
-    return normalizeTeamIds(teams);
-  } catch {
-    return [];
-  }
+  const { data } = await apiClient.get<ApiResponse<unknown> | unknown>(`/api/tenant/projects/${projectId}/teams`);
+  const teams = extractList(unwrapApiData<unknown>(data));
+  return normalizeTeamIds(teams);
 }
 
 export async function assignTeamToProject(projectId: string, teamId: string): Promise<void> {
@@ -104,6 +105,7 @@ function toProjectPayload(values: ProjectFormValues) {
     startDate: values.startDate || undefined,
     endDate: values.endDate || undefined,
     status: toApiStatus(values.status),
+    documentUrls: values.documents.map((document) => document.url),
   };
 
   return payload;
@@ -113,19 +115,15 @@ export async function getProjects(): Promise<Project[]> {
   const { data } = await apiClient.get<ApiResponse<unknown> | unknown>("/api/tenant/projects");
   const list = extractList(unwrapApiData<unknown>(data));
 
-  const items = await Promise.all(
-    list.map(async (item) => {
-      const record = asRecord(item);
-      const projectId = getId(firstDefined(record.id, record.projectId));
-      const nestedTeamIds = normalizeTeamIds(
-        firstDefined(record.teamIds, record.teams, record.projectTeams, record.assignedTeams)
-      );
-      const teamIds = nestedTeamIds.length > 0 || !projectId
-        ? nestedTeamIds
-        : await getProjectTeams(projectId);
-      return normalizeProject(record, teamIds);
-    })
-  );
+  // Avoid per-project fallback calls (`/projects/:id/teams`) to prevent N+1 list hydration.
+  // Team ids are derived from the list payload; single-project fetch still hydrates if needed.
+  const items = list.map((item) => {
+    const record = asRecord(item);
+    const teamIds = normalizeTeamIds(
+      firstDefined(record.teamIds, record.teams, record.projectTeams, record.assignedTeams)
+    );
+    return normalizeProject(record, teamIds);
+  });
 
   return items.sort((a, b) => a.name.localeCompare(b.name));
 }

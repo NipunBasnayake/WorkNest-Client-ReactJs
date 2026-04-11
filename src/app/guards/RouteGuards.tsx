@@ -1,7 +1,7 @@
 import { Navigate, Outlet, useLocation } from "react-router-dom";
+import type { Permission } from "@/constants/permissions";
+import { usePermission } from "@/hooks/usePermission";
 import { useAuthStore } from "@/store/authStore";
-import { hasTenantRole } from "@/constants/access";
-import type { TenantRole } from "@/types";
 
 /* ─── Spinner shown while bootstrapping ─── */
 function BootstrapLoader() {
@@ -36,7 +36,7 @@ export function AuthGuard() {
 
   if (isBootstrapping) return <BootstrapLoader />;
   if (passwordChangeRequired) {
-    return <Navigate to="/force-password-change" replace />;
+    return <Navigate to="/force-password-change" state={{ from: location }} replace />;
   }
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
@@ -55,7 +55,7 @@ export function PlatformGuard() {
 
   if (isBootstrapping) return <BootstrapLoader />;
   if (passwordChangeRequired) {
-    return <Navigate to="/force-password-change" replace />;
+    return <Navigate to="/force-password-change" state={{ from: location }} replace />;
   }
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
@@ -77,7 +77,7 @@ export function TenantGuard() {
 
   if (isBootstrapping) return <BootstrapLoader />;
   if (passwordChangeRequired) {
-    return <Navigate to="/force-password-change" replace />;
+    return <Navigate to="/force-password-change" state={{ from: location }} replace />;
   }
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
@@ -89,17 +89,18 @@ export function TenantGuard() {
   return <Outlet />;
 }
 
-interface TenantRoleGuardProps {
-  allowedRoles: TenantRole[];
+interface PermissionGuardProps {
+  permission: Permission;
 }
 
-export function TenantRoleGuard({ allowedRoles }: TenantRoleGuardProps) {
+export function PermissionGuard({ permission }: PermissionGuardProps) {
   const { isAuthenticated, isBootstrapping, sessionType, user, passwordChangeRequired } = useAuthStore();
+  const { hasPermission } = usePermission();
   const location = useLocation();
 
   if (isBootstrapping) return <BootstrapLoader />;
   if (passwordChangeRequired) {
-    return <Navigate to="/force-password-change" replace />;
+    return <Navigate to="/force-password-change" state={{ from: location }} replace />;
   }
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
@@ -107,7 +108,7 @@ export function TenantRoleGuard({ allowedRoles }: TenantRoleGuardProps) {
   if (sessionType !== "tenant") {
     return <Navigate to="/unauthorized" replace />;
   }
-  if (!user || !hasTenantRole(user.role, allowedRoles)) {
+  if (!user || !hasPermission(permission)) {
     return <Navigate to="/unauthorized" replace />;
   }
 

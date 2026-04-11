@@ -1,3 +1,4 @@
+import axios from "axios";
 import { apiClient } from "@/services/http/client";
 import { unwrapApiData } from "@/services/http/response";
 import { asRecord, extractList } from "@/services/http/parsers";
@@ -57,8 +58,11 @@ export async function tenantAccessCheckApi(): Promise<boolean> {
   try {
     await apiClient.get("/api/tenant/access-check");
     return true;
-  } catch {
-    return false;
+  } catch (error: unknown) {
+    if (axios.isAxiosError(error) && (error.response?.status === 401 || error.response?.status === 403)) {
+      return false;
+    }
+    throw error;
   }
 }
 

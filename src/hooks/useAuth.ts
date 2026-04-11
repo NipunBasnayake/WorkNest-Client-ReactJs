@@ -1,5 +1,5 @@
 import { useAuthStore } from "@/store/authStore";
-import { hasTenantRole } from "@/constants/access";
+import { normalizeAppRole } from "@/constants/rolePermissionMap";
 import type { LoginPayload, SessionType, TenantRole, PlatformRole } from "@/types";
 
 export function useAuth() {
@@ -18,21 +18,16 @@ export function useAuth() {
     bootstrap,
     clearError,
     setPasswordChangeChallenge,
+    completePasswordChange,
   } = useAuthStore();
 
   const isPlatform = sessionType === "platform";
   const isTenant   = sessionType === "tenant";
-
-  const hasRole = (...roles: string[]): boolean => {
-    if (!user) return false;
-    return hasTenantRole(user.role, roles as TenantRole[]);
-  };
-
-  const isPlatformAdmin = () => hasRole("PLATFORM_ADMIN");
-  const isTenantAdmin   = () => hasRole("TENANT_ADMIN", "ADMIN");
-  const isManager       = () => hasRole("MANAGER");
-  const isHR            = () => hasRole("HR");
-  const isEmployee      = () => hasRole("EMPLOYEE");
+  const normalizedRole = normalizeAppRole(user?.role);
+  const isPlatformAdmin = () => normalizedRole === "PLATFORM_ADMIN";
+  const isTenantAdmin   = () => normalizedRole === "TENANT_ADMIN";
+  const isHR            = () => normalizedRole === "HR";
+  const isEmployee      = () => normalizedRole === "EMPLOYEE";
 
   return {
     user,
@@ -46,10 +41,9 @@ export function useAuth() {
     passwordChangeChallenge,
     isPlatform,
     isTenant,
-    hasRole,
+    role: normalizedRole,
     isPlatformAdmin,
     isTenantAdmin,
-    isManager,
     isHR,
     isEmployee,
     login: (payload: LoginPayload) => login(payload),
@@ -57,6 +51,7 @@ export function useAuth() {
     bootstrap,
     clearError,
     setPasswordChangeChallenge,
+    completePasswordChange,
   };
 }
 

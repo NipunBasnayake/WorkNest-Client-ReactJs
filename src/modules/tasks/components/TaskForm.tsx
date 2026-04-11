@@ -1,5 +1,7 @@
 import { Input } from "@/components/common/Input";
 import { Button } from "@/components/common/Button";
+import { AppSelect } from "@/components/common/AppSelect";
+import { FileUploadField } from "@/components/common/FileUploadField";
 import { TASK_PRIORITY_OPTIONS, TASK_STATUS_OPTIONS, type TaskFormErrors, type TaskFormValues } from "@/modules/tasks/types";
 
 interface Option {
@@ -13,6 +15,7 @@ interface TaskFormProps {
   assignees: Option[];
   projects: Option[];
   submitting: boolean;
+  submitDisabled?: boolean;
   submitLabel: string;
   onChange: (next: TaskFormValues) => void;
   onSubmit: () => void;
@@ -33,6 +36,7 @@ export function TaskForm({
   assignees,
   projects,
   submitting,
+  submitDisabled = false,
   submitLabel,
   onChange,
   onSubmit,
@@ -81,38 +85,34 @@ export function TaskForm({
           <label htmlFor="task-status" className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
             Status
           </label>
-          <select
+          <AppSelect
             id="task-status"
             value={values.status}
             onChange={(event) => onChange({ ...values, status: event.target.value as TaskFormValues["status"] })}
-            className="w-full rounded-xl border px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/60"
-            style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)", color: "var(--text-primary)" }}
           >
             {TASK_STATUS_OPTIONS.map((status) => (
               <option key={status} value={status}>
                 {toLabel(status)}
               </option>
             ))}
-          </select>
+          </AppSelect>
         </div>
 
         <div className="flex flex-col gap-1.5">
           <label htmlFor="task-priority" className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
             Priority
           </label>
-          <select
+          <AppSelect
             id="task-priority"
             value={values.priority}
             onChange={(event) => onChange({ ...values, priority: event.target.value as TaskFormValues["priority"] })}
-            className="w-full rounded-xl border px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/60"
-            style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)", color: "var(--text-primary)" }}
           >
             {TASK_PRIORITY_OPTIONS.map((priority) => (
               <option key={priority} value={priority}>
                 {toLabel(priority)}
               </option>
             ))}
-          </select>
+          </AppSelect>
         </div>
 
         <Input
@@ -130,16 +130,11 @@ export function TaskForm({
           <label htmlFor="task-assignee" className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
             Assignee
           </label>
-          <select
+          <AppSelect
             id="task-assignee"
             value={values.assigneeId}
             onChange={(event) => onChange({ ...values, assigneeId: event.target.value })}
-            className="w-full rounded-xl border px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/60"
-            style={{
-              backgroundColor: "var(--bg-surface)",
-              borderColor: errors.assigneeId ? "rgba(239,68,68,0.4)" : "var(--border-default)",
-              color: "var(--text-primary)",
-            }}
+            error={Boolean(errors.assigneeId)}
           >
             <option value="">Select assignee</option>
             {assignees.map((assignee) => (
@@ -147,7 +142,7 @@ export function TaskForm({
                 {assignee.label}
               </option>
             ))}
-          </select>
+          </AppSelect>
           {errors.assigneeId && <p className="text-xs text-red-500">{errors.assigneeId}</p>}
         </div>
 
@@ -155,16 +150,11 @@ export function TaskForm({
           <label htmlFor="task-project" className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
             Project
           </label>
-          <select
+          <AppSelect
             id="task-project"
             value={values.projectId}
             onChange={(event) => onChange({ ...values, projectId: event.target.value })}
-            className="w-full rounded-xl border px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/60"
-            style={{
-              backgroundColor: "var(--bg-surface)",
-              borderColor: errors.projectId ? "rgba(239,68,68,0.4)" : "var(--border-default)",
-              color: "var(--text-primary)",
-            }}
+            error={Boolean(errors.projectId)}
           >
             <option value="">Select project</option>
             {projects.map((project) => (
@@ -172,16 +162,28 @@ export function TaskForm({
                 {project.label}
               </option>
             ))}
-          </select>
+          </AppSelect>
           {errors.projectId && <p className="text-xs text-red-500">{errors.projectId}</p>}
         </div>
       </div>
+
+      <FileUploadField
+        id="task-attachments"
+        label="Attachments"
+        hint="Share screenshots, requirement notes, or supporting PDFs."
+        folder="tasks/attachments"
+        kind="document"
+        multiple
+        disabled={submitting}
+        value={values.attachments}
+        onChange={(attachments) => onChange({ ...values, attachments })}
+      />
 
       <div className="flex flex-wrap items-center justify-end gap-2 pt-2">
         <Button type="button" variant="ghost" onClick={onCancel} disabled={submitting}>
           Cancel
         </Button>
-        <Button type="submit" variant="primary" disabled={submitting}>
+        <Button type="submit" variant="primary" disabled={submitting || submitDisabled}>
           {submitting ? "Saving..." : submitLabel}
         </Button>
       </div>

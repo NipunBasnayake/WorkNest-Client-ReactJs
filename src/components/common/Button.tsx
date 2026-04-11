@@ -1,13 +1,25 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { Link, type LinkProps, type To } from "react-router-dom";
 
-interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+interface ButtonBaseProps {
   variant?: "primary" | "secondary" | "ghost" | "outline" | "danger";
   size?: "sm" | "md" | "lg";
-  to?: string;
   children: ReactNode;
   className?: string;
 }
+
+type ButtonAsNative = ButtonBaseProps &
+  ButtonHTMLAttributes<HTMLButtonElement> & {
+    to?: undefined;
+  };
+
+type ButtonAsLink = ButtonBaseProps &
+  Omit<LinkProps, "to" | "className" | "children"> & {
+    to: To;
+    disabled?: boolean;
+  };
+
+type ButtonProps = ButtonAsNative | ButtonAsLink;
 
 const base =
   "inline-flex items-center justify-center font-semibold rounded-xl transition-all duration-200 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 disabled:opacity-50 disabled:pointer-events-none select-none";
@@ -34,23 +46,48 @@ const sizes = {
 export function Button({
   variant = "primary",
   size = "md",
-  to,
   children,
   className = "",
   ...rest
 }: ButtonProps) {
-  const classes = `${base} ${variants[variant]} ${sizes[size]} ${className}`;
+  const classes = `${base} ${variants[variant]} ${sizes[size]} ${className}`.trim();
 
-  if (to) {
+  if ("to" in rest && rest.to !== undefined) {
+    const {
+      to,
+      disabled = false,
+      onClick,
+      tabIndex,
+      ...linkProps
+    } = rest as ButtonAsLink;
+
+    const linkClasses = disabled
+      ? `${classes} opacity-50 pointer-events-none cursor-not-allowed`
+      : classes;
+
     return (
-      <Link to={to} className={classes}>
+      <Link
+        {...linkProps}
+        to={to}
+        className={linkClasses}
+        aria-disabled={disabled || undefined}
+        tabIndex={disabled ? -1 : tabIndex}
+        onClick={(event) => {
+          if (disabled) {
+            event.preventDefault();
+            event.stopPropagation();
+            return;
+          }
+          onClick?.(event);
+        }}
+      >
         {children}
       </Link>
     );
   }
 
   return (
-    <button className={classes} {...rest}>
+    <button className={classes} {...(rest as ButtonAsNative)}>
       {children}
     </button>
   );

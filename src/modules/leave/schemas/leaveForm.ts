@@ -5,6 +5,7 @@ export const DEFAULT_LEAVE_FORM: LeaveFormValues = {
   startDate: "",
   endDate: "",
   reason: "",
+  attachments: [],
 };
 
 export function validateLeaveForm(values: LeaveFormValues): LeaveFormErrors {

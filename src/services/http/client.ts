@@ -4,41 +4,13 @@ import { asRecord, firstDefined, getString } from "@/services/http/parsers";
 import { attachApiErrorInfo, isNetworkFailure } from "@/services/http/errorMapper";
 import { unwrapApiData } from "@/services/http/response";
 import { useNetworkStore } from "@/store/networkStore";
+import { ENV } from "@/config/env";
+import { tokenStorage } from "@/services/auth/tokenStorage";
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080";
+const BASE_URL = ENV.apiBaseUrl;
 const SESSION_EXPIRED_ROUTE = "/session-expired";
 
-const STORAGE_KEYS = {
-  ACCESS_TOKEN: "wn_access_token",
-  REFRESH_TOKEN: "wn_refresh_token",
-  TENANT_KEY: "wn_tenant_key",
-  SESSION_TYPE: "wn_session_type",
-} as const;
-
-export const tokenStorage = {
-  getAccess: () => localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN),
-  getRefresh: () => localStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN),
-  getTenantKey: () => localStorage.getItem(STORAGE_KEYS.TENANT_KEY),
-  getSession: () => localStorage.getItem(STORAGE_KEYS.SESSION_TYPE) as "platform" | "tenant" | null,
-
-  setTokens: (access: string, refresh: string) => {
-    localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, access);
-    localStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, refresh);
-  },
-
-  setContext: (tenantKey: string | null, sessionType: "platform" | "tenant") => {
-    if (tenantKey) {
-      localStorage.setItem(STORAGE_KEYS.TENANT_KEY, tenantKey);
-    } else {
-      localStorage.removeItem(STORAGE_KEYS.TENANT_KEY);
-    }
-    localStorage.setItem(STORAGE_KEYS.SESSION_TYPE, sessionType);
-  },
-
-  clear: () => {
-    Object.values(STORAGE_KEYS).forEach((k) => localStorage.removeItem(k));
-  },
-};
+export { tokenStorage };
 
 export const publicClient: AxiosInstance = axios.create({
   baseURL: BASE_URL,

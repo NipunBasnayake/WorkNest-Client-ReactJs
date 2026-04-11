@@ -25,7 +25,9 @@ export function AppLayout({ area }: AppLayoutProps) {
     >
       <div
         className="flex h-screen overflow-hidden"
-        style={{ backgroundColor: "var(--bg-base)" }}
+        style={{
+          background: "linear-gradient(180deg, rgba(147,50,234,0.04) 0%, rgba(147,50,234,0) 20%), var(--bg-base)",
+        }}
       >
         {/* Sidebar */}
         <AppSidebar
@@ -37,7 +39,7 @@ export function AppLayout({ area }: AppLayoutProps) {
         />
 
         {/* Main content */}
-        <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+        <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
           <NetworkStatusBanner />
           <AppTopbar
             area={area}
@@ -51,7 +53,7 @@ export function AppLayout({ area }: AppLayoutProps) {
             className="flex-1 overflow-y-auto"
             style={{ backgroundColor: "var(--bg-base)" }}
           >
-            <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
+            <div className="mx-auto w-full max-w-[1500px] px-4 py-4 sm:px-6 sm:py-6 xl:px-8 xl:py-8 2xl:px-10">
               <Outlet />
             </div>
           </main>

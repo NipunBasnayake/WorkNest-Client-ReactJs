@@ -1,17 +1,81 @@
 import { useEffect, useMemo, useState } from "react";
 import { Eye, EyeOff, ArrowRight } from "lucide-react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useSearchParams, type Location } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Input } from "@/components/common/Input";
 import { Button } from "@/components/common/Button";
+import type { SessionType } from "@/types";
 
 interface LoginTouched {
   email: boolean;
   password: boolean;
 }
 
+interface LoginRouteState {
+  from?: Location;
+  message?: string;
+}
+
+const AUTH_ONLY_PATHS = [
+  "/login",
+  "/register",
+  "/register-company",
+  "/forgot-password",
+  "/reset-password",
+  "/force-password-change",
+  "/session-expired",
+];
+
+function readLoginRouteState(value: unknown): LoginRouteState {
+  if (!value || typeof value !== "object") return {};
+
+  const candidate = value as { from?: unknown; message?: unknown };
+  const message = typeof candidate.message === "string" && candidate.message.trim()
+    ? candidate.message.trim()
+    : undefined;
+
+  const maybeFrom = candidate.from;
+  if (!maybeFrom || typeof maybeFrom !== "object") {
+    return { message };
+  }
+
+  const from = maybeFrom as Partial<Location>;
+  if (typeof from.pathname !== "string" || !from.pathname.startsWith("/")) {
+    return { message };
+  }
+
+  return {
+    message,
+    from: {
+      ...from,
+      pathname: from.pathname,
+      search: typeof from.search === "string" ? from.search : "",
+      hash: typeof from.hash === "string" ? from.hash : "",
+      state: from.state,
+      key: typeof from.key === "string" ? from.key : "",
+    } as Location,
+  };
+}
+
+function isAuthOnlyPath(pathname: string): boolean {
+  return AUTH_ONLY_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));
+}
+
+function resolveRedirectPath(from: Location | undefined, sessionType: SessionType | null): string {
+  const fallback = sessionType === "platform" ? "/platform/dashboard" : "/app/dashboard";
+  if (!from) return fallback;
+
+  const pathname = from.pathname || "";
+  if (!pathname.startsWith("/") || isAuthOnlyPath(pathname)) {
+    return fallback;
+  }
+
+  return `${pathname}${from.search ?? ""}${from.hash ?? ""}`;
+}
+
 export function LoginForm() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const {
     login,
@@ -24,6 +88,7 @@ export function LoginForm() {
     passwordChangeChallenge,
   } = useAuth();
 
+  const routeState = useMemo(() => readLoginRouteState(location.state), [location.state]);
   const [email, setEmail] = useState(searchParams.get("email") ?? "");
   const [password, setPassword] = useState("");
   const [tenantKey, setTenantKey] = useState(searchParams.get("tenant") ?? "");
@@ -31,18 +96,24 @@ export function LoginForm() {
   const [touched, setTouched] = useState<LoginTouched>({ email: false, password: false });
   const [formError, setFormError] = useState<string | null>(null);
 
+  const redirectPath = useMemo(
+    () => resolveRedirectPath(routeState.from, sessionType),
+    [routeState.from, sessionType]
+  );
+
   useEffect(() => {
     if (!isAuthenticated) return;
-    navigate(sessionType === "platform" ? "/platform/dashboard" : "/app/dashboard", {
-      replace: true,
-    });
-  }, [isAuthenticated, sessionType, navigate]);
+    navigate(redirectPath, { replace: true });
+  }, [isAuthenticated, navigate, redirectPath]);
 
   useEffect(() => {
     if (passwordChangeRequired && passwordChangeChallenge) {
-      navigate("/force-password-change", { replace: true });
+      navigate("/force-password-change", {
+        replace: true,
+        state: routeState.from ? { from: routeState.from } : undefined,
+      });
     }
-  }, [passwordChangeRequired, passwordChangeChallenge, navigate]);
+  }, [passwordChangeRequired, passwordChangeChallenge, navigate, routeState.from]);
 
   const emailError = useMemo(() => {
     if (!touched.email) return undefined;
@@ -57,6 +128,15 @@ export function LoginForm() {
     return undefined;
   }, [password, touched.password]);
 
+  const forgotPasswordHref = useMemo(() => {
+    const params = new URLSearchParams();
+    if (email.trim()) params.set("email", email.trim());
+    if (tenantKey.trim()) params.set("tenant", tenantKey.trim());
+    const query = params.toString();
+    return query ? `/forgot-password?${query}` : "/forgot-password";
+  }, [email, tenantKey]);
+
+  const infoMessage = !formError && !error ? routeState.message ?? null : null;
   const displayError = formError || error;
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -84,6 +164,19 @@ export function LoginForm() {
 
   return (
     <form onSubmit={onSubmit} className="space-y-5" noValidate>
+      {infoMessage ? (
+        <div
+          className="rounded-xl border px-4 py-3 text-sm"
+          style={{
+            borderColor: "rgba(14,165,233,0.35)",
+            backgroundColor: "rgba(14,165,233,0.08)",
+            color: "#0ea5e9",
+          }}
+        >
+          {infoMessage}
+        </div>
+      ) : null}
+
       {displayError ? (
         <div
           className="rounded-xl border px-4 py-3 text-sm"
@@ -160,7 +253,9 @@ export function LoginForm() {
       </div>
 
       <p className="text-right text-xs" style={{ color: "var(--text-tertiary)" }}>
-        Password reset is not available yet.
+        <Link to={forgotPasswordHref} className="font-medium text-primary-600 transition hover:text-primary-700 hover:underline">
+          Forgot your password?
+        </Link>
       </p>
 
       <Button

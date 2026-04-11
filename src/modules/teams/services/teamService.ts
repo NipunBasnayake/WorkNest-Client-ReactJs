@@ -22,10 +22,15 @@ function normalizeFunctionalRole(role: unknown): TeamMemberFunctionalRole | unde
   if (!normalized) return undefined;
   if (normalized === "TEAM_LEAD") return "TEAM_LEAD";
   if (normalized === "PROJECT_MANAGER") return "PROJECT_MANAGER";
-  if (normalized === "BUSINESS_ANALYST") return "BUSINESS_ANALYST";
-  if (normalized === "DEVELOPER") return "DEVELOPER";
-  if (normalized === "QA_ENGINEER" || normalized === "QA") return "QA_ENGINEER";
+  if (normalized === "QA_ENGINEER" || normalized === "QA") return "QA";
+  if (normalized === "DEVELOPER" || normalized === "DEV") return "DEV";
   return undefined;
+}
+
+function toApiFunctionalRole(role: TeamMemberFunctionalRole | null): string | null {
+  if (role === "DEV") return "DEVELOPER";
+  if (role === "QA") return "QA_ENGINEER";
+  return role;
 }
 
 function normalizeTeamMember(input: unknown): TeamMember | null {
@@ -147,30 +152,24 @@ function normalizeTeamMembersPayload(payload: unknown): TeamMember[] {
 }
 
 async function listTeamMembers(teamId: string): Promise<TeamMember[]> {
-  try {
-    const { data } = await apiClient.get<ApiResponse<unknown> | unknown>(
-      `/api/tenant/teams/${teamId}/members`
-    );
-    return normalizeTeamMembersPayload(unwrapApiData<unknown>(data));
-  } catch {
-    return [];
-  }
+  const { data } = await apiClient.get<ApiResponse<unknown> | unknown>(
+    `/api/tenant/teams/${teamId}/members`
+  );
+  return normalizeTeamMembersPayload(unwrapApiData<unknown>(data));
 }
 
-async function hydrateTeams(list: unknown[]): Promise<Team[]> {
-  const withMembers = await Promise.all(
-    list.map(async (item) => {
-      const teamValue = asRecord(item);
-      const teamId = getId(firstDefined(teamValue.id, teamValue.teamId));
-      const nestedMembers = normalizeTeamMembersPayload(
-        firstDefined(teamValue.members, teamValue.memberList, teamValue.teamMembers)
-      );
-      const members = nestedMembers.length > 0 || !teamId ? nestedMembers : await listTeamMembers(teamId);
-      return normalizeTeam(item, members);
-    })
-  );
+function hydrateTeams(list: unknown[]): Team[] {
+  // Avoid per-team fallback calls (`/teams/:id/members`) to prevent N+1 list hydration.
+  // Detailed team fetch still hydrates members if list payload is sparse.
+  const normalized = list.map((item) => {
+    const teamValue = asRecord(item);
+    const nestedMembers = normalizeTeamMembersPayload(
+      firstDefined(teamValue.members, teamValue.memberList, teamValue.teamMembers)
+    );
+    return normalizeTeam(item, nestedMembers);
+  });
 
-  return withMembers.sort((a, b) => a.name.localeCompare(b.name));
+  return normalized.sort((a, b) => a.name.localeCompare(b.name));
 }
 
 function withManagerMembership(values: TeamFormValues): string[] {
@@ -219,12 +218,12 @@ function extractErrorMessage(err: unknown): string | null {
 export async function addTeamMember(
   teamId: string,
   employeeId: string,
-  functionalRole: TeamMemberFunctionalRole = "DEVELOPER"
+  functionalRole: TeamMemberFunctionalRole = "DEV"
 ): Promise<void> {
   const normalizedEmployeeId = Number(employeeId);
   await apiClient.post(`/api/tenant/teams/${teamId}/members`, {
     employeeId: Number.isNaN(normalizedEmployeeId) ? employeeId : normalizedEmployeeId,
-    functionalRole,
+    functionalRole: toApiFunctionalRole(functionalRole),
   });
 }
 
@@ -237,9 +236,33 @@ export async function updateTeamMemberFunctionalRole(
   employeeId: string,
   functionalRole: TeamMemberFunctionalRole | null
 ): Promise<void> {
-  const payload = { functionalRole };
+  const payload = { functionalRole: toApiFunctionalRole(functionalRole) };
+  const normalizedEmployeeId = Number(employeeId);
+  const employeePathId = Number.isNaN(normalizedEmployeeId) ? employeeId : String(normalizedEmployeeId);
+
   try {
-    await apiClient.patch(`/api/tenant/teams/${teamId}/members/${employeeId}/functional-role`, payload);
+    await apiClient.patch(`/api/tenant/teams/${teamId}/members/${employeePathId}/functional-role`, payload);
+    return;
+  } catch (err: unknown) {
+    const message = extractErrorMessage(err) ?? "";
+    const fallbackEligible = /404|405|not\s*found|method\s*not\s*allowed/i.test(message);
+
+    if (!fallbackEligible) {
+      throw new Error(
+        message || "Functional role update is not supported by the current backend API."
+      );
+    }
+  }
+
+  try {
+    await apiClient.patch(`/api/tenant/teams/${teamId}/members/${employeePathId}`, payload);
+    return;
+  } catch {
+    // Try PUT fallback as a final compatibility path for legacy APIs.
+  }
+
+  try {
+    await apiClient.put(`/api/tenant/teams/${teamId}/members/${employeePathId}`, payload);
   } catch (err: unknown) {
     throw new Error(
       extractErrorMessage(err) ??

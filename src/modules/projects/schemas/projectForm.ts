@@ -7,6 +7,7 @@ export const DEFAULT_PROJECT_FORM: ProjectFormValues = {
   startDate: "",
   endDate: "",
   teamIds: [],
+  documents: [],
 };
 
 export function validateProjectForm(values: ProjectFormValues): ProjectFormErrors {

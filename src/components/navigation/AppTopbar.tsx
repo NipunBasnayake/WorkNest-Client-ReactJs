@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BellRing, Menu } from "lucide-react";
+import { FaUser } from "react-icons/fa6";
 import { Link } from "react-router-dom";
 import { ThemeToggle } from "@/components/common/ThemeToggle";
 import { useAuth } from "@/hooks/useAuth";
@@ -86,10 +87,12 @@ export function AppTopbar({ area, pageTitle, breadcrumb, onMobileMenuToggle }: A
 
   return (
     <header
-      className="h-16 flex items-center gap-4 px-4 sm:px-6 border-b shrink-0 transition-colors duration-200"
+      className="sticky top-0 z-30 flex min-h-16 items-center gap-4 border-b px-4 sm:px-6 shrink-0 transition-colors duration-200"
       style={{
-        backgroundColor: "var(--bg-surface)",
-        borderColor:     "var(--border-default)",
+        backgroundColor: "var(--bg-navbar)",
+        borderColor: "var(--border-default)",
+        backdropFilter: "var(--navbar-blur)",
+        boxShadow: "var(--shadow-sm)",
       }}
     >
       {/* Mobile menu trigger */}
@@ -105,14 +108,14 @@ export function AppTopbar({ area, pageTitle, breadcrumb, onMobileMenuToggle }: A
       {/* Page title + breadcrumb */}
       <div className="flex-1 min-w-0">
         {breadcrumb && breadcrumb.length > 0 && (
-          <div className="flex items-center gap-1.5 mb-0.5">
+          <div className="mb-1 hidden items-center gap-1.5 sm:flex">
             {breadcrumb.map((crumb, i) => (
               <span key={i} className="flex items-center gap-1.5">
                 {i > 0 && (
                   <span style={{ color: "var(--text-tertiary)" }} className="text-xs">/</span>
                 )}
                 <span
-                  className="text-xs"
+                  className="text-[11px] uppercase tracking-[0.18em]"
                   style={{ color: i < breadcrumb.length - 1 ? "var(--text-tertiary)" : "var(--text-secondary)" }}
                 >
                   {crumb}
@@ -122,7 +125,7 @@ export function AppTopbar({ area, pageTitle, breadcrumb, onMobileMenuToggle }: A
           </div>
         )}
         <h1
-          className="text-base font-semibold truncate leading-tight"
+          className="truncate text-sm font-semibold leading-tight sm:text-base"
           style={{ color: "var(--text-primary)" }}
         >
           {pageTitle}
@@ -218,15 +221,22 @@ export function AppTopbar({ area, pageTitle, breadcrumb, onMobileMenuToggle }: A
         {/* User avatar */}
         {user && (
           <div className="flex items-center gap-2">
-            <div
-              className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold text-white cursor-default"
-              style={{
-                background: "linear-gradient(135deg, #9332EA 0%, #7c1fd1 100%)",
-              }}
-              title={user.name}
-            >
-              {user.name?.[0]?.toUpperCase() ?? "U"}
-            </div>
+            {user.avatarUrl ? (
+              <img
+                src={user.avatarUrl}
+                alt={user.name}
+                className="h-8 w-8 rounded-full object-cover"
+                title={user.name}
+              />
+            ) : (
+              <div
+                className="w-8 h-8 rounded-full flex items-center justify-center text-white cursor-default"
+                style={{ backgroundColor: "#6b7280" }}
+                title={user.name}
+              >
+                <FaUser size={12} />
+              </div>
+            )}
           </div>
         )}
       </div>

@@ -12,7 +12,10 @@ function normalizeStatus(value: unknown): "active" | "inactive" {
 
 function normalizeRole(value: unknown): EmployeeRole {
   const raw = pickString(value)?.toUpperCase();
-  if (raw === "TENANT_ADMIN" || raw === "ADMIN" || raw === "MANAGER" || raw === "HR" || raw === "EMPLOYEE") {
+  if (raw === "TENANT_ADMIN" || raw === "ADMIN" || raw === "MANAGER") {
+    return "TENANT_ADMIN";
+  }
+  if (raw === "HR" || raw === "EMPLOYEE") {
     return raw as EmployeeRole;
   }
   return "EMPLOYEE";
@@ -64,7 +67,7 @@ export function toEmployeeFormValues(employee: Employee): EmployeeFormValues {
     position: view.position ?? "",
     department: pickString(view.department) ?? "",
     role: normalizeRole(view.role),
-    joinedDate: pickString(view.joinedAt) ?? new Date().toISOString().slice(0, 10),
+    joinedDate: pickString(view.joinedAt) ?? "",
     salary: view.salary !== undefined ? String(view.salary) : "",
     status: normalizeStatus(view.status),
   };

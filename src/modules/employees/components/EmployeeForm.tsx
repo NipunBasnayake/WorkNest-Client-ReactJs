@@ -1,5 +1,6 @@
 import { Input } from "@/components/common/Input";
 import { Button } from "@/components/common/Button";
+import { AppSelect } from "@/components/common/AppSelect";
 import type { EmployeeFormErrors, EmployeeFormValues } from "@/modules/employees/types";
 
 interface EmployeeFormProps {
@@ -51,23 +52,15 @@ export function EmployeeForm({
           >
             Role
           </label>
-          <select
+          <AppSelect
             id="employee-role"
             value={values.role}
             onChange={(e) => onChange({ ...values, role: e.target.value as EmployeeFormValues["role"] })}
-            className="w-full rounded-xl border px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/60"
-            style={{
-              backgroundColor: "var(--bg-surface)",
-              borderColor: "var(--border-default)",
-              color: "var(--text-primary)",
-            }}
           >
             <option value="TENANT_ADMIN">Tenant Admin</option>
-            <option value="EMPLOYEE">Employee</option>
             <option value="HR">HR</option>
-            <option value="MANAGER">Manager</option>
-            <option value="ADMIN">Admin</option>
-          </select>
+            <option value="EMPLOYEE">Employee</option>
+          </AppSelect>
         </div>
       </div>
 
@@ -169,20 +162,14 @@ export function EmployeeForm({
           >
             Status
           </label>
-          <select
+          <AppSelect
             id="employee-status"
             value={values.status}
             onChange={(e) => onChange({ ...values, status: e.target.value as EmployeeFormValues["status"] })}
-            className="w-full rounded-xl border px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/60"
-            style={{
-              backgroundColor: "var(--bg-surface)",
-              borderColor: "var(--border-default)",
-              color: "var(--text-primary)",
-            }}
           >
             <option value="active">Active</option>
             <option value="inactive">Inactive</option>
-          </select>
+          </AppSelect>
         </div>
       </div>
 

@@ -3,6 +3,8 @@ import { ArrowLeft, BriefcaseBusiness, Building2, CircleAlert, Mail, Phone, Spar
 import { useParams } from "react-router-dom";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { useAuth } from "@/hooks/useAuth";
+import { PERMISSIONS } from "@/constants/permissions";
+import { usePermission } from "@/hooks/usePermission";
 import {
   addEmployeeSkill,
   deleteEmployeeSkill,
@@ -15,6 +17,7 @@ import { SectionCard } from "@/components/common/SectionCard";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { AvatarInitials } from "@/components/common/AvatarInitials";
 import { Button } from "@/components/common/Button";
+import { AppSelect } from "@/components/common/AppSelect";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { EmptyState, ErrorBanner } from "@/components/common/AppUI";
 import { toEmployeeViewModel } from "@/modules/employees/utils/employeeMapper";
@@ -31,12 +34,13 @@ interface SkillEditorState {
 
 export function EmployeeDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { user, hasRole } = useAuth();
+  const { user } = useAuth();
+  const { hasPermission } = usePermission();
   usePageMeta({ title: "Employee Details", breadcrumb: ["Workspace", "Employees", "Details"] });
 
-  const canEdit = hasRole("TENANT_ADMIN", "ADMIN", "HR", "MANAGER");
-  const canManageStatus = hasRole("TENANT_ADMIN", "ADMIN", "HR");
-  const canManageSkills = hasRole("TENANT_ADMIN", "ADMIN", "HR", "MANAGER");
+  const canEdit = hasPermission(PERMISSIONS.EMPLOYEES_MANAGE);
+  const canManageStatus = hasPermission(PERMISSIONS.EMPLOYEE_STATUS_MANAGE);
+  const canManageSkills = hasPermission(PERMISSIONS.EMPLOYEE_SKILLS_MANAGE);
 
   const [employee, setEmployee] = useState<EmployeeViewModel | null>(null);
   const [skills, setSkills] = useState<EmployeeSkill[]>([]);
@@ -310,18 +314,16 @@ export function EmployeeDetailPage() {
                       className="rounded-xl border px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary-500/30"
                       style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)", color: "var(--text-primary)" }}
                     />
-                    <select
+                    <AppSelect
                       value={newSkillLevel}
                       onChange={(event) => setNewSkillLevel(event.target.value as SkillLevel)}
-                      className="rounded-xl border px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary-500/30"
-                      style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)", color: "var(--text-primary)" }}
                     >
                       {SKILL_LEVELS.map((level) => (
                         <option key={level} value={level}>
                           {toReadableLabel(level)}
                         </option>
                       ))}
-                    </select>
+                    </AppSelect>
                     <Button variant="primary" onClick={handleCreateSkill} disabled={skillSubmitting || !newSkillName.trim()}>
                       Add Skill
                     </Button>
@@ -351,16 +353,14 @@ export function EmployeeDetailPage() {
                               className="rounded-xl border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary-500/30"
                               style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)", color: "var(--text-primary)" }}
                             />
-                            <select
+                            <AppSelect
                               value={editingSkill.level}
                               onChange={(event) => setEditingSkill((prev) => prev ? { ...prev, level: event.target.value as SkillLevel } : prev)}
-                              className="rounded-xl border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary-500/30"
-                              style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)", color: "var(--text-primary)" }}
                             >
                               {SKILL_LEVELS.map((level) => (
                                 <option key={level} value={level}>{toReadableLabel(level)}</option>
                               ))}
-                            </select>
+                            </AppSelect>
                             <Button variant="outline" size="sm" onClick={handleUpdateSkill} disabled={skillSubmitting || !editingSkill.name.trim()}>
                               Save
                             </Button>

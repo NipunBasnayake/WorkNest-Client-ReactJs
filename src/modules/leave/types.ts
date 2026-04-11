@@ -1,3 +1,5 @@
+import type { UploadedFileAsset } from "@/types";
+
 export type LeaveStatus = "PENDING" | "APPROVED" | "REJECTED" | "CANCELLED";
 export type LeaveType = "ANNUAL" | "SICK" | "CASUAL" | "UNPAID";
 
@@ -13,6 +15,7 @@ export interface LeaveRequest {
   reviewerId?: string;
   reviewerName?: string;
   reviewComment?: string;
+  attachments: UploadedFileAsset[];
   createdAt: string;
   updatedAt: string;
 }
@@ -24,6 +27,7 @@ export interface LeavePayload {
   startDate: string;
   endDate: string;
   reason: string;
+  attachments: UploadedFileAsset[];
 }
 
 export interface LeaveFormValues {
@@ -31,6 +35,7 @@ export interface LeaveFormValues {
   startDate: string;
   endDate: string;
   reason: string;
+  attachments: UploadedFileAsset[];
 }
 
 export type LeaveFormErrors = Partial<Record<keyof LeaveFormValues, string>>;

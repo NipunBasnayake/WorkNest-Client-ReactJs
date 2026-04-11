@@ -1,70 +1,98 @@
+import { lazy, Suspense, type ComponentType } from "react";
 import { createBrowserRouter, Navigate, RouterProvider } from "react-router-dom";
 import { AuthLayout } from "@/app/layouts/AuthLayout";
 import { PublicLayout } from "@/app/layouts/PublicLayout";
 import { PlatformLayout, TenantLayout } from "@/app/layouts/AppLayout";
-import { GuestGuard, PlatformGuard, TenantGuard, TenantRoleGuard } from "@/app/guards/RouteGuards";
-import {
-  TENANT_COMMUNICATION_ROLES,
-  TENANT_MODULE_ACCESS,
-  TENANT_PROJECT_MANAGEMENT_ROLES,
-  TENANT_PROJECT_VIEW_ROLES,
-  TENANT_TASK_MANAGEMENT_ROLES,
-  TENANT_TASK_VIEW_ROLES,
-  TENANT_TEAM_MANAGEMENT_ROLES,
-  TENANT_TEAM_VIEW_ROLES,
-} from "@/constants/access";
+import { GuestGuard, PermissionGuard, PlatformGuard, TenantGuard } from "@/app/guards/RouteGuards";
+import { PERMISSIONS } from "@/constants/permissions";
 
-import { LandingPage } from "@/pages/public/LandingPage";
-import { LoginPage } from "@/pages/public/LoginPage";
-import { RegisterPage } from "@/pages/public/RegisterPage";
-import { ForcePasswordChangePage } from "@/pages/public/ForcePasswordChangePage";
-import { NotFoundPage } from "@/pages/public/NotFoundPage";
-import { UnauthorizedPage } from "@/pages/public/UnauthorizedPage";
-import { SessionExpiredPage } from "@/pages/public/SessionExpiredPage";
+function RouteLoader() {
+  return (
+    <div className="flex min-h-[40vh] items-center justify-center">
+      <div
+        className="h-9 w-9 animate-spin rounded-full border-4 border-transparent"
+        style={{ borderTopColor: "#9332EA", borderLeftColor: "rgba(147,50,234,0.3)" }}
+      />
+    </div>
+  );
+}
 
-import { TenantDashboardPage } from "@/pages/app/TenantDashboardPage";
-import { EmployeesPage } from "@/pages/app/EmployeesPage";
-import { EmployeeDetailPage } from "@/pages/app/EmployeeDetailPage";
-import { EmployeeFormPage } from "@/pages/app/EmployeeFormPage";
-import { TeamsPage } from "@/pages/app/TeamsPage";
-import { TeamDetailPage } from "@/pages/app/TeamDetailPage";
-import { TeamFormPage } from "@/pages/app/TeamFormPage";
-import { ProjectsPage } from "@/pages/app/ProjectsPage";
-import { ProjectDetailPage } from "@/pages/app/ProjectDetailPage";
-import { ProjectFormPage } from "@/pages/app/ProjectFormPage";
-import { TasksPage } from "@/pages/app/TasksPage";
-import { TaskDetailPage } from "@/pages/app/TaskDetailPage";
-import { TaskFormPage } from "@/pages/app/TaskFormPage";
-import { TaskBoardPage } from "@/pages/app/TaskBoardPage";
-import { AttendancePage } from "@/pages/app/AttendancePage";
-import { LeavePage } from "@/pages/app/LeavePage";
-import { LeaveDetailPage } from "@/pages/app/LeaveDetailPage";
-import { LeaveFormPage } from "@/pages/app/LeaveFormPage";
-import { AnnouncementsPage } from "@/pages/app/AnnouncementsPage";
-import { AnnouncementDetailPage } from "@/pages/app/AnnouncementDetailPage";
-import { AnnouncementFormPage } from "@/pages/app/AnnouncementFormPage";
-import { NotificationsPage } from "@/pages/app/NotificationsPage";
-import { ChatPage } from "@/pages/app/ChatPage";
-import { AnalyticsPage } from "@/pages/app/AnalyticsPage";
-import { AppSettingsLayoutPage } from "@/pages/app/settings/AppSettingsLayoutPage";
-import { AppSettingsProfilePage } from "@/pages/app/settings/AppSettingsProfilePage";
-import { AppSettingsWorkspacePage } from "@/pages/app/settings/AppSettingsWorkspacePage";
-import { AppSettingsPreferencesPage } from "@/pages/app/settings/AppSettingsPreferencesPage";
-import { ProfilePage } from "@/pages/app/ProfilePage";
+function lazyElement<TModule extends Record<string, unknown>>(
+  importer: () => Promise<TModule>,
+  exportName: keyof TModule
+) {
+  const LazyComponent = lazy(async () => {
+    const module = await importer();
+    const component = module[exportName] as ComponentType<unknown> | undefined;
 
-import { PlatformDashboardPage } from "@/pages/platform/PlatformDashboardPage";
-import { PlatformAnalyticsPage } from "@/pages/platform/PlatformAnalyticsPage";
-import { PlatformSettingsPage } from "@/pages/platform/PlatformSettingsPage";
-import { PlatformTenantsPage } from "@/pages/platform/PlatformTenantsPage";
-import { TenantDetailPage } from "@/pages/platform/TenantDetailPage";
+    if (!component) {
+      throw new Error(`Route export "${String(exportName)}" was not found.`);
+    }
+
+    return { default: component };
+  });
+
+  return (
+    <Suspense fallback={<RouteLoader />}>
+      <LazyComponent />
+    </Suspense>
+  );
+}
+
+const landingPage = lazyElement(() => import("@/pages/public/LandingPage"), "LandingPage");
+const loginPage = lazyElement(() => import("@/pages/public/LoginPage"), "LoginPage");
+const registerPage = lazyElement(() => import("@/pages/public/RegisterPage"), "RegisterPage");
+const forgotPasswordPage = lazyElement(() => import("@/pages/public/ForgotPasswordPage"), "ForgotPasswordPage");
+const resetPasswordPage = lazyElement(() => import("@/pages/public/ResetPasswordPage"), "ResetPasswordPage");
+const forcePasswordChangePage = lazyElement(() => import("@/pages/public/ForcePasswordChangePage"), "ForcePasswordChangePage");
+const sessionExpiredPage = lazyElement(() => import("@/pages/public/SessionExpiredPage"), "SessionExpiredPage");
+const unauthorizedPage = lazyElement(() => import("@/pages/public/UnauthorizedPage"), "UnauthorizedPage");
+const notFoundPage = lazyElement(() => import("@/pages/public/NotFoundPage"), "NotFoundPage");
+
+const tenantDashboardPage = lazyElement(() => import("@/pages/app/TenantDashboardPage"), "TenantDashboardPage");
+const employeesPage = lazyElement(() => import("@/pages/app/EmployeesPage"), "EmployeesPage");
+const employeeDetailPage = lazyElement(() => import("@/pages/app/EmployeeDetailPage"), "EmployeeDetailPage");
+const employeeFormPage = lazyElement(() => import("@/pages/app/EmployeeFormPage"), "EmployeeFormPage");
+const teamsPage = lazyElement(() => import("@/pages/app/TeamsPage"), "TeamsPage");
+const teamDetailPage = lazyElement(() => import("@/pages/app/TeamDetailPage"), "TeamDetailPage");
+const teamFormPage = lazyElement(() => import("@/pages/app/TeamFormPage"), "TeamFormPage");
+const projectsPage = lazyElement(() => import("@/pages/app/ProjectsPage"), "ProjectsPage");
+const projectDetailPage = lazyElement(() => import("@/pages/app/ProjectDetailPage"), "ProjectDetailPage");
+const projectFormPage = lazyElement(() => import("@/pages/app/ProjectFormPage"), "ProjectFormPage");
+const tasksPage = lazyElement(() => import("@/pages/app/TasksPage"), "TasksPage");
+const taskDetailPage = lazyElement(() => import("@/pages/app/TaskDetailPage"), "TaskDetailPage");
+const taskFormPage = lazyElement(() => import("@/pages/app/TaskFormPage"), "TaskFormPage");
+const taskBoardPage = lazyElement(() => import("@/pages/app/TaskBoardPage"), "TaskBoardPage");
+const attendancePage = lazyElement(() => import("@/pages/app/AttendancePage"), "AttendancePage");
+const leavePage = lazyElement(() => import("@/pages/app/LeavePage"), "LeavePage");
+const leaveDetailPage = lazyElement(() => import("@/pages/app/LeaveDetailPage"), "LeaveDetailPage");
+const leaveFormPage = lazyElement(() => import("@/pages/app/LeaveFormPage"), "LeaveFormPage");
+const announcementsPage = lazyElement(() => import("@/pages/app/AnnouncementsPage"), "AnnouncementsPage");
+const announcementDetailPage = lazyElement(() => import("@/pages/app/AnnouncementDetailPage"), "AnnouncementDetailPage");
+const announcementFormPage = lazyElement(() => import("@/pages/app/AnnouncementFormPage"), "AnnouncementFormPage");
+const notificationsPage = lazyElement(() => import("@/pages/app/NotificationsPage"), "NotificationsPage");
+const chatPage = lazyElement(() => import("@/pages/app/ChatPage"), "ChatPage");
+const analyticsPage = lazyElement(() => import("@/pages/app/AnalyticsPage"), "AnalyticsPage");
+const profilePage = lazyElement(() => import("@/pages/app/ProfilePage"), "ProfilePage");
+
+const appSettingsLayoutPage = lazyElement(() => import("@/pages/app/settings/AppSettingsLayoutPage"), "AppSettingsLayoutPage");
+const appSettingsProfilePage = lazyElement(() => import("@/pages/app/settings/AppSettingsProfilePage"), "AppSettingsProfilePage");
+const appSettingsWorkspacePage = lazyElement(() => import("@/pages/app/settings/AppSettingsWorkspacePage"), "AppSettingsWorkspacePage");
+const appSettingsPreferencesPage = lazyElement(() => import("@/pages/app/settings/AppSettingsPreferencesPage"), "AppSettingsPreferencesPage");
+
+const platformDashboardPage = lazyElement(() => import("@/pages/platform/PlatformDashboardPage"), "PlatformDashboardPage");
+const platformAnalyticsPage = lazyElement(() => import("@/pages/platform/PlatformAnalyticsPage"), "PlatformAnalyticsPage");
+const platformSettingsPage = lazyElement(() => import("@/pages/platform/PlatformSettingsPage"), "PlatformSettingsPage");
+const platformTenantsPage = lazyElement(() => import("@/pages/platform/PlatformTenantsPage"), "PlatformTenantsPage");
+const tenantDetailPlatformPage = lazyElement(() => import("@/pages/platform/TenantDetailPage"), "TenantDetailPage");
 
 const router = createBrowserRouter([
   {
     element: <PublicLayout />,
     children: [
-      { index: true, element: <LandingPage /> },
-      { path: "unauthorized", element: <UnauthorizedPage /> },
-      { path: "*", element: <NotFoundPage /> },
+      { index: true, element: landingPage },
+      { path: "unauthorized", element: unauthorizedPage },
+      { path: "*", element: notFoundPage },
     ],
   },
 
@@ -74,11 +102,14 @@ const router = createBrowserRouter([
       {
         element: <GuestGuard />,
         children: [
-          { path: "login", element: <LoginPage /> },
-          { path: "register", element: <RegisterPage /> },
-          { path: "register-company", element: <RegisterPage /> },
-          { path: "force-password-change", element: <ForcePasswordChangePage /> },
-          { path: "session-expired", element: <SessionExpiredPage /> },
+          { path: "login", element: loginPage },
+          { path: "register", element: registerPage },
+          { path: "register-company", element: registerPage },
+          { path: "forgot-password", element: forgotPasswordPage },
+          { path: "reset-password", element: resetPasswordPage },
+          { path: "reset-password/:token", element: resetPasswordPage },
+          { path: "force-password-change", element: forcePasswordChangePage },
+          { path: "session-expired", element: sessionExpiredPage },
         ],
       },
     ],
@@ -91,130 +122,138 @@ const router = createBrowserRouter([
         element: <TenantLayout />,
         children: [
           { path: "app", element: <Navigate to="/app/dashboard" replace /> },
-          { path: "app/dashboard", element: <TenantDashboardPage /> },
+          { path: "app/dashboard", element: tenantDashboardPage },
 
           {
-            element: <TenantRoleGuard allowedRoles={TENANT_MODULE_ACCESS.employees} />,
+            element: <PermissionGuard permission={PERMISSIONS.EMPLOYEES_VIEW} />,
             children: [
-              { path: "app/employees", element: <EmployeesPage /> },
-              { path: "app/employees/new", element: <EmployeeFormPage /> },
-              { path: "app/employees/:id", element: <EmployeeDetailPage /> },
-              { path: "app/employees/:id/edit", element: <EmployeeFormPage /> },
+              { path: "app/employees", element: employeesPage },
+              { path: "app/employees/:id", element: employeeDetailPage },
             ],
           },
 
           {
-            element: <TenantRoleGuard allowedRoles={TENANT_TEAM_VIEW_ROLES} />,
+            element: <PermissionGuard permission={PERMISSIONS.EMPLOYEES_MANAGE} />,
             children: [
-              { path: "app/teams", element: <TeamsPage /> },
-              { path: "app/teams/:id", element: <TeamDetailPage /> },
+              { path: "app/employees/new", element: employeeFormPage },
+              { path: "app/employees/:id/edit", element: employeeFormPage },
             ],
           },
 
           {
-            element: <TenantRoleGuard allowedRoles={TENANT_TEAM_MANAGEMENT_ROLES} />,
+            element: <PermissionGuard permission={PERMISSIONS.TEAMS_VIEW} />,
             children: [
-              { path: "app/teams/new", element: <TeamFormPage /> },
-              { path: "app/teams/:id/edit", element: <TeamFormPage /> },
+              { path: "app/teams", element: teamsPage },
+              { path: "app/teams/:id", element: teamDetailPage },
             ],
           },
 
           {
-            element: <TenantRoleGuard allowedRoles={TENANT_PROJECT_VIEW_ROLES} />,
+            element: <PermissionGuard permission={PERMISSIONS.TEAMS_MANAGE} />,
             children: [
-              { path: "app/projects", element: <ProjectsPage /> },
-              { path: "app/projects/:id", element: <ProjectDetailPage /> },
+              { path: "app/teams/new", element: teamFormPage },
+              { path: "app/teams/:id/edit", element: teamFormPage },
             ],
           },
 
           {
-            element: <TenantRoleGuard allowedRoles={TENANT_PROJECT_MANAGEMENT_ROLES} />,
+            element: <PermissionGuard permission={PERMISSIONS.PROJECTS_VIEW} />,
             children: [
-              { path: "app/projects/new", element: <ProjectFormPage /> },
-              { path: "app/projects/:id/edit", element: <ProjectFormPage /> },
+              { path: "app/projects", element: projectsPage },
+              { path: "app/projects/:id", element: projectDetailPage },
             ],
           },
 
           {
-            element: <TenantRoleGuard allowedRoles={TENANT_TASK_VIEW_ROLES} />,
+            element: <PermissionGuard permission={PERMISSIONS.PROJECTS_MANAGE} />,
             children: [
-              { path: "app/tasks", element: <TasksPage /> },
-              { path: "app/tasks/board", element: <TaskBoardPage /> },
-              { path: "app/tasks/:id", element: <TaskDetailPage /> },
+              { path: "app/projects/new", element: projectFormPage },
             ],
           },
 
           {
-            element: <TenantRoleGuard allowedRoles={TENANT_TASK_MANAGEMENT_ROLES} />,
+            element: <PermissionGuard permission={PERMISSIONS.PROJECTS_VIEW} />,
+            children: [{ path: "app/projects/:id/edit", element: projectFormPage }],
+          },
+
+          {
+            element: <PermissionGuard permission={PERMISSIONS.TASKS_VIEW} />,
             children: [
-              { path: "app/tasks/new", element: <TaskFormPage /> },
-              { path: "app/tasks/:id/edit", element: <TaskFormPage /> },
+              { path: "app/tasks", element: tasksPage },
+              { path: "app/tasks/board", element: taskBoardPage },
+              { path: "app/tasks/new", element: taskFormPage },
+              { path: "app/tasks/:id", element: taskDetailPage },
             ],
           },
 
           {
-            element: <TenantRoleGuard allowedRoles={TENANT_MODULE_ACCESS.attendance} />,
+            element: <PermissionGuard permission={PERMISSIONS.TASKS_MANAGE} />,
             children: [
-              { path: "app/attendance", element: <AttendancePage /> },
+              { path: "app/tasks/:id/edit", element: taskFormPage },
             ],
           },
 
           {
-            element: <TenantRoleGuard allowedRoles={TENANT_MODULE_ACCESS.leave} />,
+            element: <PermissionGuard permission={PERMISSIONS.ATTENDANCE_VIEW} />,
+            children: [{ path: "app/attendance", element: attendancePage }],
+          },
+
+          {
+            element: <PermissionGuard permission={PERMISSIONS.LEAVE_VIEW} />,
             children: [
-              { path: "app/leave", element: <LeavePage /> },
-              { path: "app/leave/new", element: <LeaveFormPage /> },
-              { path: "app/leave/:id", element: <LeaveDetailPage /> },
-              { path: "app/leave/:id/edit", element: <LeaveFormPage /> },
+              { path: "app/leave", element: leavePage },
+              { path: "app/leave/:id", element: leaveDetailPage },
             ],
           },
 
           {
-            element: <TenantRoleGuard allowedRoles={TENANT_MODULE_ACCESS.announcements} />,
+            element: <PermissionGuard permission={PERMISSIONS.LEAVE_REQUEST} />,
             children: [
-              { path: "app/announcements", element: <AnnouncementsPage /> },
-              { path: "app/announcements/:id", element: <AnnouncementDetailPage /> },
+              { path: "app/leave/new", element: leaveFormPage },
+              { path: "app/leave/:id/edit", element: leaveFormPage },
             ],
           },
 
           {
-            element: <TenantRoleGuard allowedRoles={TENANT_COMMUNICATION_ROLES} />,
+            element: <PermissionGuard permission={PERMISSIONS.ANNOUNCEMENTS_VIEW} />,
             children: [
-              { path: "app/announcements/new", element: <AnnouncementFormPage /> },
-              { path: "app/announcements/:id/edit", element: <AnnouncementFormPage /> },
+              { path: "app/announcements", element: announcementsPage },
+              { path: "app/announcements/:id", element: announcementDetailPage },
             ],
           },
 
           {
-            element: <TenantRoleGuard allowedRoles={TENANT_MODULE_ACCESS.notifications} />,
+            element: <PermissionGuard permission={PERMISSIONS.ANNOUNCEMENTS_MANAGE} />,
             children: [
-              { path: "app/notifications", element: <NotificationsPage /> },
+              { path: "app/announcements/new", element: announcementFormPage },
+              { path: "app/announcements/:id/edit", element: announcementFormPage },
             ],
           },
 
           {
-            element: <TenantRoleGuard allowedRoles={TENANT_MODULE_ACCESS.chat} />,
-            children: [
-              { path: "app/chat", element: <ChatPage /> },
-            ],
+            element: <PermissionGuard permission={PERMISSIONS.NOTIFICATIONS_VIEW} />,
+            children: [{ path: "app/notifications", element: notificationsPage }],
           },
 
           {
-            element: <TenantRoleGuard allowedRoles={TENANT_MODULE_ACCESS.analytics} />,
-            children: [
-              { path: "app/analytics", element: <AnalyticsPage /> },
-            ],
+            element: <PermissionGuard permission={PERMISSIONS.CHAT_VIEW} />,
+            children: [{ path: "app/chat", element: chatPage }],
           },
 
-          { path: "app/profile", element: <ProfilePage /> },
+          {
+            element: <PermissionGuard permission={PERMISSIONS.ANALYTICS_VIEW} />,
+            children: [{ path: "app/analytics", element: analyticsPage }],
+          },
+
+          { path: "app/profile", element: profilePage },
           {
             path: "app/settings",
-            element: <AppSettingsLayoutPage />,
+            element: appSettingsLayoutPage,
             children: [
               { index: true, element: <Navigate to="profile" replace /> },
-              { path: "profile", element: <AppSettingsProfilePage /> },
-              { path: "workspace", element: <AppSettingsWorkspacePage /> },
-              { path: "preferences", element: <AppSettingsPreferencesPage /> },
+              { path: "profile", element: appSettingsProfilePage },
+              { path: "workspace", element: appSettingsWorkspacePage },
+              { path: "preferences", element: appSettingsPreferencesPage },
             ],
           },
           { path: "app/*", element: <ComingSoonPage /> },
@@ -230,12 +269,12 @@ const router = createBrowserRouter([
         element: <PlatformLayout />,
         children: [
           { path: "platform", element: <Navigate to="/platform/dashboard" replace /> },
-          { path: "platform/dashboard", element: <PlatformDashboardPage /> },
-          { path: "platform/analytics", element: <PlatformAnalyticsPage /> },
-          { path: "platform/tenants", element: <PlatformTenantsPage /> },
-          { path: "platform/tenants/:tenantKey", element: <TenantDetailPage /> },
-          { path: "platform/profile", element: <ProfilePage /> },
-          { path: "platform/settings", element: <PlatformSettingsPage /> },
+          { path: "platform/dashboard", element: platformDashboardPage },
+          { path: "platform/analytics", element: platformAnalyticsPage },
+          { path: "platform/tenants", element: platformTenantsPage },
+          { path: "platform/tenants/:tenantKey", element: tenantDetailPlatformPage },
+          { path: "platform/profile", element: profilePage },
+          { path: "platform/settings", element: platformSettingsPage },
           { path: "platform/*", element: <ComingSoonPage /> },
         ],
       },

@@ -12,22 +12,26 @@ interface SectionCardProps {
 export function SectionCard({ title, subtitle, action, children, className = "", contentClassName = "" }: SectionCardProps) {
   return (
     <section
-      className={`rounded-2xl border ${className}`}
-      style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)" }}
+      className={`rounded-3xl border ${className}`}
+      style={{
+        backgroundColor: "var(--bg-surface)",
+        borderColor: "var(--border-default)",
+        boxShadow: "var(--shadow-md)",
+      }}
     >
       {(title || subtitle || action) && (
         <div
-          className="flex flex-col gap-3 border-b px-5 py-4 sm:flex-row sm:items-center sm:justify-between"
+          className="flex flex-col gap-3 border-b px-5 py-5 sm:flex-row sm:items-center sm:justify-between lg:px-6"
           style={{ borderColor: "var(--border-default)" }}
         >
           <div className="min-w-0">
             {title && (
-              <h2 className="text-base font-semibold truncate" style={{ color: "var(--text-primary)" }}>
+              <h2 className="truncate text-base font-semibold tracking-tight sm:text-lg" style={{ color: "var(--text-primary)" }}>
                 {title}
               </h2>
             )}
             {subtitle && (
-              <p className="mt-0.5 text-sm" style={{ color: "var(--text-secondary)" }}>
+              <p className="mt-1 text-sm leading-6" style={{ color: "var(--text-secondary)" }}>
                 {subtitle}
               </p>
             )}
@@ -36,7 +40,7 @@ export function SectionCard({ title, subtitle, action, children, className = "",
         </div>
       )}
 
-      <div className={`p-4 sm:p-5 ${contentClassName}`}>{children}</div>
+      <div className={`p-5 sm:p-6 ${contentClassName}`}>{children}</div>
     </section>
   );
 }

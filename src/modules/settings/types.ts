@@ -1,9 +1,13 @@
+import type { UploadedFileAsset } from "@/types";
+
 export type ThemePreference = "system" | "light" | "dark";
 
 export interface ProfileSettings {
   fullName: string;
   email: string;
   title: string;
+  avatarUrl?: string;
+  avatar?: UploadedFileAsset | null;
 }
 
 export interface WorkspaceSettings {

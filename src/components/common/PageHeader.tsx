@@ -8,18 +8,18 @@ interface PageHeaderProps {
 
 export function PageHeader({ title, description, actions }: PageHeaderProps) {
   return (
-    <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+    <div className="mb-7 flex flex-col gap-5 lg:mb-8 lg:flex-row lg:items-start lg:justify-between">
       <div className="min-w-0">
-        <h1 className="text-xl font-bold truncate" style={{ color: "var(--text-primary)" }}>
+        <h1 className="truncate text-2xl font-semibold tracking-tight sm:text-[2rem]" style={{ color: "var(--text-primary)" }}>
           {title}
         </h1>
         {description && (
-          <p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>
+          <p className="mt-2 max-w-3xl text-sm leading-6 sm:text-[15px]" style={{ color: "var(--text-secondary)" }}>
             {description}
           </p>
         )}
       </div>
-      {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
+      {actions && <div className="flex shrink-0 flex-wrap items-center gap-2.5">{actions}</div>}
     </div>
   );
 }

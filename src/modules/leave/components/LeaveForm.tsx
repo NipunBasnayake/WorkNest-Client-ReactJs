@@ -1,5 +1,7 @@
 import { Input } from "@/components/common/Input";
 import { Button } from "@/components/common/Button";
+import { AppSelect } from "@/components/common/AppSelect";
+import { FileUploadField } from "@/components/common/FileUploadField";
 import { LEAVE_TYPE_OPTIONS, type LeaveFormErrors, type LeaveFormValues } from "@/modules/leave/types";
 
 interface LeaveFormProps {
@@ -27,19 +29,17 @@ export function LeaveForm({ values, errors, submitting, submitLabel, onChange, o
           <label htmlFor="leave-type" className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
             Leave Type
           </label>
-          <select
+          <AppSelect
             id="leave-type"
             value={values.leaveType}
             onChange={(event) => onChange({ ...values, leaveType: event.target.value as LeaveFormValues["leaveType"] })}
-            className="w-full rounded-xl border px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/60"
-            style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)", color: "var(--text-primary)" }}
           >
             {LEAVE_TYPE_OPTIONS.map((leaveType) => (
               <option key={leaveType} value={leaveType}>
                 {leaveType.charAt(0) + leaveType.slice(1).toLowerCase()}
               </option>
             ))}
-          </select>
+          </AppSelect>
         </div>
 
         <Input
@@ -80,6 +80,18 @@ export function LeaveForm({ values, errors, submitting, submitLabel, onChange, o
         />
         {errors.reason && <p className="text-xs text-red-500">{errors.reason}</p>}
       </div>
+
+      <FileUploadField
+        id="leave-attachments"
+        label="Supporting Documents"
+        hint="Attach medical notes or supporting documents when needed."
+        folder="leave/attachments"
+        kind="document"
+        multiple
+        disabled={submitting}
+        value={values.attachments}
+        onChange={(attachments) => onChange({ ...values, attachments })}
+      />
 
       <div className="flex flex-wrap items-center justify-end gap-2 pt-2">
         <Button type="button" variant="ghost" onClick={onCancel} disabled={submitting}>

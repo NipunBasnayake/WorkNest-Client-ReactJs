@@ -13,112 +13,20 @@ import {
 } from "@/modules/chat/services/chatService";
 import { getMyEmployeeProfile } from "@/modules/employees/services/employeeService";
 import type { ChatConversation, ChatMessage, ChatType } from "@/modules/chat/types";
+import { buildConversationKey, sortMessages } from "@/app/chat/chatUtils";
+import {
+  areMessagesEquivalent,
+  clearUnread,
+  createRealtimeMessageKey,
+  placeConversationOnTop,
+  trimSeenRealtimeMap,
+  updateConversationPreview,
+  upsertMessage,
+} from "@/app/chat/useChat.helpers";
 
 interface RefreshOptions {
   silent?: boolean;
   force?: boolean;
-}
-
-function buildConversationKey(conversation: Pick<ChatConversation, "id" | "type">): string {
-  return `${conversation.type}:${conversation.id}`;
-}
-
-function sortConversations(conversations: ChatConversation[]): ChatConversation[] {
-  return [...conversations].sort((a, b) => b.lastMessageAt.localeCompare(a.lastMessageAt));
-}
-
-function sortMessages(messages: ChatMessage[]): ChatMessage[] {
-  return [...messages].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
-}
-
-function clearUnread(
-  conversations: ChatConversation[],
-  target: Pick<ChatConversation, "id" | "type">
-): ChatConversation[] {
-  return conversations.map((conversation) => {
-    if (conversation.id !== target.id || conversation.type !== target.type) return conversation;
-    return {
-      ...conversation,
-      unreadCount: 0,
-    };
-  });
-}
-
-function upsertMessage(messages: ChatMessage[], incoming: ChatMessage): ChatMessage[] {
-  const index = messages.findIndex((message) => message.id === incoming.id);
-  if (index >= 0) {
-    const next = [...messages];
-    next[index] = incoming;
-    return sortMessages(next);
-  }
-
-  return sortMessages([...messages, incoming]);
-}
-
-function trimSeenRealtimeMap(seen: Map<string, number>): void {
-  if (seen.size <= 500) return;
-  const sortedEntries = [...seen.entries()].sort((a, b) => a[1] - b[1]);
-  const removeCount = seen.size - 350;
-  for (let index = 0; index < removeCount; index += 1) {
-    const key = sortedEntries[index]?.[0];
-    if (key) seen.delete(key);
-  }
-}
-
-function createRealtimeMessageKey(message: ChatMessage): string {
-  return `${message.chatType}:${message.conversationId}:${message.id}`;
-}
-
-function placeConversationOnTop(conversations: ChatConversation[], incoming: ChatConversation): ChatConversation[] {
-  const withoutTarget = conversations.filter(
-    (conversation) => !(conversation.id === incoming.id && conversation.type === incoming.type)
-  );
-  return [incoming, ...withoutTarget];
-}
-
-function updateConversationPreview(
-  conversations: ChatConversation[],
-  message: ChatMessage,
-  incrementUnread: boolean
-): { next: ChatConversation[]; found: boolean } {
-  let found = false;
-  const next = conversations.map((conversation) => {
-    if (conversation.id !== message.conversationId || conversation.type !== message.chatType) return conversation;
-    found = true;
-
-    return {
-      ...conversation,
-      lastMessage: message.message,
-      lastMessageAt: message.createdAt,
-      unreadCount: incrementUnread ? conversation.unreadCount + 1 : 0,
-    };
-  });
-
-  return {
-    next: sortConversations(next),
-    found,
-  };
-}
-
-function areMessagesEquivalent(left: ChatMessage[], right: ChatMessage[]): boolean {
-  if (left.length !== right.length) return false;
-
-  for (let index = 0; index < left.length; index += 1) {
-    const a = left[index];
-    const b = right[index];
-
-    if (
-      a.id !== b.id ||
-      a.message !== b.message ||
-      a.editedAt !== b.editedAt ||
-      a.createdAt !== b.createdAt ||
-      a.senderEmployeeId !== b.senderEmployeeId
-    ) {
-      return false;
-    }
-  }
-
-  return true;
 }
 
 export function useChat(currentUserId: string | undefined) {

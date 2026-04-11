@@ -1,8 +1,11 @@
 import { useNavigate } from "react-router-dom";
 import { TimerOff, LogIn } from "lucide-react";
 import { Button } from "@/components/common/Button";
+import { usePageMeta } from "@/hooks/usePageMeta";
 
 export function SessionExpiredPage() {
+  usePageMeta({ title: "Session Expired - WorkNest" });
+
   const navigate = useNavigate();
 
   return (

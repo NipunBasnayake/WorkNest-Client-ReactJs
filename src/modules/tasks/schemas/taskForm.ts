@@ -8,6 +8,7 @@ export const DEFAULT_TASK_FORM: TaskFormValues = {
   dueDate: "",
   assigneeId: "",
   projectId: "",
+  attachments: [],
 };
 
 export function validateTaskForm(values: TaskFormValues): TaskFormErrors {
