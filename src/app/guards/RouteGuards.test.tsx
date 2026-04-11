@@ -1,6 +1,7 @@
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { render, screen } from "@testing-library/react";
-import { PlatformGuard, TenantGuard, TenantRoleGuard } from "@/app/guards/RouteGuards";
+import { PlatformGuard, TenantGuard, PermissionGuard } from "@/app/guards/RouteGuards";
+import { PERMISSIONS } from "@/constants/permissions";
 import { useAuthStore } from "@/store/authStore";
 
 function renderWithRoutes(element: React.ReactNode) {
@@ -46,14 +47,14 @@ describe("Route guards", () => {
     expect(screen.getByText("Protected Content")).toBeInTheDocument();
   });
 
-  it("treats TENANT_ADMIN as ADMIN for role-protected modules", () => {
+  it("allows tenant admins through permission-protected modules", () => {
     useAuthStore.setState({
       isAuthenticated: true,
       sessionType: "tenant",
       user: { id: "2", name: "Tenant Admin", email: "admin@worknest.test", role: "TENANT_ADMIN", tenantKey: "acme" },
     });
 
-    renderWithRoutes(<TenantRoleGuard allowedRoles={["ADMIN"]} />);
+    renderWithRoutes(<PermissionGuard permission={PERMISSIONS.EMPLOYEES_MANAGE} />);
     expect(screen.getByText("Protected Content")).toBeInTheDocument();
   });
 
