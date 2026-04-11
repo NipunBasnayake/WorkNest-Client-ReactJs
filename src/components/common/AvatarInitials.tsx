@@ -1,6 +1,9 @@
+import { FaUser } from "react-icons/fa6";
+
 interface AvatarInitialsProps {
   name: string;
   size?: "sm" | "md" | "lg";
+  src?: string;
 }
 
 const SIZE_CLASS: Record<NonNullable<AvatarInitialsProps["size"]>, string> = {
@@ -9,21 +12,25 @@ const SIZE_CLASS: Record<NonNullable<AvatarInitialsProps["size"]>, string> = {
   lg: "h-14 w-14 text-lg",
 };
 
-function getInitials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "??";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return `${parts[0][0] ?? ""}${parts[1][0] ?? ""}`.toUpperCase();
-}
+export function AvatarInitials({ name, size = "md", src }: AvatarInitialsProps) {
+  if (src) {
+    return (
+      <img
+        src={src}
+        alt={name}
+        className={`${SIZE_CLASS[size]} shrink-0 rounded-full object-cover`}
+        title={name}
+      />
+    );
+  }
 
-export function AvatarInitials({ name, size = "md" }: AvatarInitialsProps) {
   return (
     <div
-      className={`${SIZE_CLASS[size]} shrink-0 rounded-full flex items-center justify-center font-bold text-white`}
-      style={{ background: "linear-gradient(135deg, #9332EA 0%, #7c1fd1 100%)" }}
+      className={`${SIZE_CLASS[size]} shrink-0 rounded-full flex items-center justify-center text-white`}
+      style={{ backgroundColor: "#6b7280" }}
       title={name}
     >
-      {getInitials(name)}
+      <FaUser size={size === "lg" ? 20 : size === "md" ? 14 : 12} />
     </div>
   );
 }
