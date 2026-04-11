@@ -3,6 +3,8 @@ import { useParams } from "react-router-dom";
 import { ArrowLeft, Calendar, ClipboardList, Layers3 } from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { useAuth } from "@/hooks/useAuth";
+import { PERMISSIONS } from "@/constants/permissions";
+import { usePermission } from "@/hooks/usePermission";
 import {
   assignTeamToProject,
   getProjectById,
@@ -11,8 +13,11 @@ import {
 import { getMyEmployeeProfile } from "@/modules/employees/services/employeeService";
 import { getTeams } from "@/modules/teams/services/teamService";
 import { getTasks } from "@/modules/tasks/services/taskService";
+import { resolveViewerTeamRoles } from "@/modules/teams/utils/teamRoles";
+import { FileAssetList } from "@/components/common/FileAssetList";
 import { SectionCard } from "@/components/common/SectionCard";
 import { Button } from "@/components/common/Button";
+import { AppSelect } from "@/components/common/AppSelect";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { EmptyState, ErrorBanner } from "@/components/common/AppUI";
@@ -28,11 +33,12 @@ interface ViewerContext {
 
 export function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { hasRole, user } = useAuth();
+  const { role, user } = useAuth();
+  const { hasPermission } = usePermission();
   usePageMeta({ title: "Project Details", breadcrumb: ["Workspace", "Projects", "Details"] });
 
-  const canManageProjects = hasRole("TENANT_ADMIN", "ADMIN", "MANAGER");
-  const isEmployeeOnly = hasRole("EMPLOYEE") && !canManageProjects;
+  const canManageProjects = hasPermission(PERMISSIONS.PROJECTS_MANAGE);
+  const isEmployeeOnly = role === "EMPLOYEE" && !canManageProjects;
 
   const [project, setProject] = useState<Project | null>(null);
   const [teams, setTeams] = useState<Team[]>([]);
@@ -117,6 +123,14 @@ export function ProjectDetailPage() {
     const map = new Map(teams.map((team) => [team.id, team]));
     return project.teamIds.map((teamId) => map.get(teamId)).filter((item): item is Team => Boolean(item));
   }, [project, teams]);
+
+  const viewerTeamRoles = useMemo(
+    () => resolveViewerTeamRoles(teams, viewer, project?.teamIds),
+    [project?.teamIds, teams, viewer]
+  );
+
+  const canEditProject = hasPermission(PERMISSIONS.PROJECTS_EDIT, { teamRoles: viewerTeamRoles });
+  const canAssignProjectTasks = hasPermission(PERMISSIONS.TASKS_ASSIGN, { teamRoles: viewerTeamRoles });
 
   const unlinkedTeamIds = useMemo(() => {
     if (!project) return [];
@@ -203,7 +217,7 @@ export function ProjectDetailPage() {
           <ArrowLeft size={16} />
           Back
         </Button>
-        {project && canManageProjects && <Button variant="outline" to={`/app/projects/${project.id}/edit`}>Edit Project</Button>}
+        {project && canEditProject && <Button variant="outline" to={`/app/projects/${project.id}/edit`}>Edit Project</Button>}
       </div>
 
       {message && (
@@ -317,8 +331,8 @@ export function ProjectDetailPage() {
                 <Button size="sm" variant="outline" to="/app/tasks">
                   Open Tasks
                 </Button>
-                {canManageProjects && (
-                  <Button size="sm" variant="primary" to="/app/tasks/new">
+                {(hasPermission(PERMISSIONS.TASKS_MANAGE) || canAssignProjectTasks) && (
+                  <Button size="sm" variant="primary" to={`/app/tasks/new?projectId=${project.id}`}>
                     Create Task
                   </Button>
                 )}
@@ -369,11 +383,9 @@ export function ProjectDetailPage() {
             <SectionCard title="Assigned Teams" subtitle="Teams currently linked to this project.">
             {canManageProjects && (
               <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto]">
-                <select
+                <AppSelect
                   value={teamToAssign}
                   onChange={(event) => setTeamToAssign(event.target.value)}
-                  className="rounded-xl border px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary-500/30"
-                  style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)", color: "var(--text-primary)" }}
                   disabled={availableTeamsToAssign.length === 0}
                 >
                   <option value="">
@@ -384,7 +396,7 @@ export function ProjectDetailPage() {
                       {team.name}
                     </option>
                   ))}
-                </select>
+                </AppSelect>
                 <Button variant="primary" onClick={handleAssignTeam} disabled={!teamToAssign || assigningTeam}>
                   {assigningTeam ? "Assigning..." : "Assign Team"}
                 </Button>
@@ -437,6 +449,13 @@ export function ProjectDetailPage() {
             )}
             </SectionCard>
           </div>
+
+          <SectionCard title="Project Documents" subtitle="Shared files linked to this project.">
+            <FileAssetList
+              items={project.documents}
+              emptyLabel="No project documents uploaded yet."
+            />
+          </SectionCard>
         </>
       )}
 

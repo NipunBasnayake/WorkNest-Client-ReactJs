@@ -1,6 +1,7 @@
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { useAuth } from "@/hooks/useAuth";
 import { Mail, User, Shield, Building2 } from "lucide-react";
+import { AvatarInitials } from "@/components/common/AvatarInitials";
 
 export function ProfilePage() {
   const { user, tenantKey, sessionType } = useAuth();
@@ -17,12 +18,7 @@ export function ProfilePage() {
       >
         {/* Avatar */}
         <div className="flex items-start gap-5 mb-8">
-          <div
-            className="w-20 h-20 rounded-2xl flex items-center justify-center text-3xl font-bold text-white shrink-0"
-            style={{ background: "linear-gradient(135deg, #9332EA 0%, #7c1fd1 100%)" }}
-          >
-            {user.name?.[0]?.toUpperCase() ?? "U"}
-          </div>
+          <AvatarInitials name={user.name} size="lg" src={user.avatarUrl} />
           <div className="min-w-0">
             <h2 className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>{user.name}</h2>
             <p className="text-sm mt-0.5" style={{ color: "var(--text-secondary)" }}>{user.email}</p>

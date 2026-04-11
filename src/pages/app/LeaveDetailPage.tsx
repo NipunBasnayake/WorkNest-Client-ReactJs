@@ -3,9 +3,11 @@ import { useParams } from "react-router-dom";
 import { ArrowLeft, CalendarDays, MessageSquareText, UserCircle2 } from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { useAuth } from "@/hooks/useAuth";
+import { PERMISSIONS } from "@/constants/permissions";
+import { usePermission } from "@/hooks/usePermission";
 import { getLeaveRequestById } from "@/modules/leave/services/leaveService";
 import { LeaveStatusBadge } from "@/modules/leave/components/LeaveStatusBadge";
-import { TENANT_COMMUNICATION_ROLES } from "@/constants/access";
+import { FileAssetList } from "@/components/common/FileAssetList";
 import { SectionCard } from "@/components/common/SectionCard";
 import { Button } from "@/components/common/Button";
 import { EmptyState, ErrorBanner } from "@/components/common/AppUI";
@@ -18,7 +20,8 @@ function toLabel(value: string): string {
 export function LeaveDetailPage() {
   const { id } = useParams<{ id: string }>();
   usePageMeta({ title: "Leave Details", breadcrumb: ["Workspace", "Leave", "Details"] });
-  const { user, hasRole } = useAuth();
+  const { user } = useAuth();
+  const { hasPermission } = usePermission();
 
   const [leaveRequest, setLeaveRequest] = useState<LeaveRequest | null>(null);
   const [loading, setLoading] = useState(Boolean(id));
@@ -49,7 +52,7 @@ export function LeaveDetailPage() {
     leaveRequest &&
     leaveRequest.status === "PENDING" &&
     user &&
-    (leaveRequest.employeeId === user.id || leaveRequest.employeeName === user.name || hasRole(...TENANT_COMMUNICATION_ROLES));
+    (leaveRequest.employeeId === user.id || leaveRequest.employeeName === user.name || hasPermission(PERMISSIONS.LEAVE_REVIEW));
 
   return (
     <div className="space-y-6">
@@ -118,6 +121,13 @@ export function LeaveDetailPage() {
                 Approval details will appear after manager review.
               </div>
             )}
+          </SectionCard>
+
+          <SectionCard title="Attachments">
+            <FileAssetList
+              items={leaveRequest.attachments}
+              emptyLabel="No supporting files uploaded for this leave request."
+            />
           </SectionCard>
         </>
       )}

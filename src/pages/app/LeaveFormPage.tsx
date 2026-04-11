@@ -49,6 +49,7 @@ export function LeaveFormPage() {
           startDate: request.startDate,
           endDate: request.endDate,
           reason: request.reason,
+          attachments: request.attachments,
         });
       })
       .catch(() => {
