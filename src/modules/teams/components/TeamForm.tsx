@@ -1,5 +1,6 @@
 import { Input } from "@/components/common/Input";
 import { Button } from "@/components/common/Button";
+import { AppSelect } from "@/components/common/AppSelect";
 import type { TeamFormErrors, TeamFormValues } from "@/modules/teams/types";
 
 interface EmployeeOption {
@@ -60,17 +61,15 @@ export function TeamForm({
           <label htmlFor="team-status" className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
             Status
           </label>
-          <select
+          <AppSelect
             id="team-status"
             value={values.status}
             onChange={(e) => onChange({ ...values, status: e.target.value as TeamFormValues["status"] })}
-            className="w-full rounded-xl border px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/60"
-            style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)", color: "var(--text-primary)" }}
           >
             <option value="active">Active</option>
             <option value="planning">Planning</option>
             <option value="archived">Archived</option>
-          </select>
+          </AppSelect>
         </div>
       </div>
 
@@ -93,7 +92,7 @@ export function TeamForm({
         <label htmlFor="team-manager-employee" className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
           Manager (Select Employee)
         </label>
-        <select
+        <AppSelect
           id="team-manager-employee"
           value={values.managerEmployeeId}
           onChange={(e) => {
@@ -106,14 +105,12 @@ export function TeamForm({
                 : values.memberIds.filter((memberId) => memberId !== values.managerEmployeeId),
             });
           }}
-          className="w-full rounded-xl border px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/60"
-          style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)", color: "var(--text-primary)" }}
         >
           <option value="">Select manager</option>
           {employeeOptions.map((opt) => (
             <option key={opt.id} value={opt.id}>{opt.name}</option>
           ))}
-        </select>
+        </AppSelect>
         {errors.managerEmployeeId && (
           <p className="text-xs text-red-500">{errors.managerEmployeeId}</p>
         )}

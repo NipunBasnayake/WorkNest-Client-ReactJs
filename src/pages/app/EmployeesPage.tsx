@@ -1,10 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { Building2, CalendarDays, Mail, Phone, Search, UserCheck, UserPlus, UserX, Users } from "lucide-react";
-import { usePageMeta } from "@/hooks/usePageMeta";
+import { FiEdit2, FiEye } from "react-icons/fi";
+import { Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { usePageMeta } from "@/hooks/usePageMeta";
+import { PERMISSIONS } from "@/constants/permissions";
+import { usePermission } from "@/hooks/usePermission";
 import { getEmployees, updateEmployeeStatus } from "@/modules/employees/services/employeeService";
 import { EmptyState, ErrorBanner, SkeletonRow } from "@/components/common/AppUI";
 import { Button } from "@/components/common/Button";
+import { AppSelect } from "@/components/common/AppSelect";
 import { PageHeader } from "@/components/common/PageHeader";
 import { SectionCard } from "@/components/common/SectionCard";
 import { AvatarInitials } from "@/components/common/AvatarInitials";
@@ -15,7 +20,7 @@ import type { EmployeeViewModel } from "@/modules/employees/types";
 import { getErrorMessage } from "@/utils/errorHandler";
 
 type EmployeeStatusFilter = "all" | "active" | "inactive";
-type EmployeeRoleFilter = "all" | "TENANT_ADMIN" | "ADMIN" | "MANAGER" | "HR" | "EMPLOYEE";
+type EmployeeRoleFilter = "all" | "TENANT_ADMIN" | "HR" | "EMPLOYEE";
 
 interface StatusActionTarget {
   employee: EmployeeViewModel;
@@ -24,10 +29,11 @@ interface StatusActionTarget {
 
 export function EmployeesPage() {
   usePageMeta({ title: "Employees", breadcrumb: ["Workspace", "Employees"] });
-  const { hasRole } = useAuth();
+  const { hasPermission } = usePermission();
+  const { role: currentUserRole } = useAuth();
 
-  const canCreateOrEdit = hasRole("TENANT_ADMIN", "ADMIN", "HR", "MANAGER");
-  const canManageStatus = hasRole("TENANT_ADMIN", "ADMIN", "HR");
+  const canCreateOrEdit = hasPermission(PERMISSIONS.EMPLOYEES_MANAGE);
+  const canManageStatus = hasPermission(PERMISSIONS.EMPLOYEE_STATUS_MANAGE);
 
   const [employees, setEmployees] = useState<EmployeeViewModel[]>([]);
   const [loading, setLoading] = useState(true);
@@ -92,6 +98,14 @@ export function EmployeesPage() {
 
   async function handleStatusConfirm() {
     if (!statusTarget) return;
+    const targetRole = String(statusTarget.employee.role ?? "").toUpperCase();
+    const isHrToHrDeactivation = currentUserRole === "HR" && targetRole === "HR" && statusTarget.nextStatus === "inactive";
+    if (isHrToHrDeactivation) {
+      setFeedback("HR users cannot deactivate another HR employee.");
+      setStatusTarget(null);
+      return;
+    }
+
     setUpdatingStatus(true);
     setFeedback(null);
 
@@ -150,55 +164,35 @@ export function EmployeesPage() {
             />
           </div>
 
-          <select
+          <AppSelect
             value={departmentFilter}
             onChange={(e) => setDepartmentFilter(e.target.value)}
-            className="w-full rounded-xl border px-3 py-2.5 text-sm outline-none transition-all focus:ring-2 focus:ring-primary-500/30"
-            style={{
-              backgroundColor: "var(--bg-surface)",
-              borderColor: "var(--border-default)",
-              color: "var(--text-primary)",
-            }}
           >
             {departmentOptions.map((option) => (
               <option key={option} value={option}>
                 {option === "all" ? "All Departments" : option}
               </option>
             ))}
-          </select>
+          </AppSelect>
 
-          <select
+          <AppSelect
             value={roleFilter}
             onChange={(e) => setRoleFilter(e.target.value as EmployeeRoleFilter)}
-            className="w-full rounded-xl border px-3 py-2.5 text-sm outline-none transition-all focus:ring-2 focus:ring-primary-500/30"
-            style={{
-              backgroundColor: "var(--bg-surface)",
-              borderColor: "var(--border-default)",
-              color: "var(--text-primary)",
-            }}
           >
             <option value="all">All Roles</option>
             <option value="TENANT_ADMIN">Tenant Admin</option>
-            <option value="ADMIN">Admin</option>
-            <option value="MANAGER">Manager</option>
             <option value="HR">HR</option>
             <option value="EMPLOYEE">Employee</option>
-          </select>
+          </AppSelect>
 
-          <select
+          <AppSelect
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as EmployeeStatusFilter)}
-            className="w-full rounded-xl border px-3 py-2.5 text-sm outline-none transition-all focus:ring-2 focus:ring-primary-500/30"
-            style={{
-              backgroundColor: "var(--bg-surface)",
-              borderColor: "var(--border-default)",
-              color: "var(--text-primary)",
-            }}
           >
             <option value="all">All Statuses</option>
             <option value="active">Active</option>
             <option value="inactive">Inactive</option>
-          </select>
+          </AppSelect>
         </div>
       </SectionCard>
 
@@ -251,6 +245,9 @@ export function EmployeesPage() {
                 {filtered.map((emp) => {
                   const currentStatus = String(emp.status ?? "active").toLowerCase() === "inactive" ? "inactive" : "active";
                   const nextStatus = currentStatus === "active" ? "inactive" : "active";
+                  const employeeRole = String(emp.role ?? "").toUpperCase();
+                  const canDeactivateThisEmployee = !(currentUserRole === "HR" && employeeRole === "HR");
+                  const canShowStatusAction = canManageStatus && (nextStatus === "active" || canDeactivateThisEmployee);
 
                   return (
                     <div
@@ -276,18 +273,38 @@ export function EmployeesPage() {
                       <span className="truncate text-sm" style={{ color: "var(--text-secondary)" }}>{formatDate(emp.joinedAt || emp.joinedDate)}</span>
                       <StatusBadge status={currentStatus} />
 
-                      <div className="flex items-center justify-end gap-1.5">
-                        <Button variant="ghost" size="sm" to={`/app/employees/${emp.id}`}>View</Button>
-                        {canCreateOrEdit && <Button variant="outline" size="sm" to={`/app/employees/${emp.id}/edit`}>Edit</Button>}
-                        {canManageStatus && (
-                          <Button
-                            variant={currentStatus === "active" ? "danger" : "outline"}
-                            size="sm"
-                            onClick={() => setStatusTarget({ employee: emp, nextStatus })}
+                      <div className="flex items-center justify-end gap-2">
+                        <Link
+                          to={`/app/employees/${emp.id}`}
+                          title="View employee"
+                          aria-label="View employee"
+                          className="inline-flex items-center justify-center p-1 transition-opacity hover:opacity-80"
+                          style={{ color: "var(--text-secondary)" }}
+                        >
+                          <FiEye size={15} />
+                        </Link>
+                        {canCreateOrEdit && (
+                          <Link
+                            to={`/app/employees/${emp.id}/edit`}
+                            title="Edit employee"
+                            aria-label="Edit employee"
+                            className="inline-flex items-center justify-center p-1 transition-opacity hover:opacity-80"
+                            style={{ color: "var(--text-secondary)" }}
                           >
-                            {currentStatus === "active" ? <UserX size={14} /> : <UserCheck size={14} />}
-                            {currentStatus === "active" ? "Deactivate" : "Activate"}
-                          </Button>
+                            <FiEdit2 size={15} />
+                          </Link>
+                        )}
+                        {canShowStatusAction && (
+                          <button
+                            type="button"
+                            onClick={() => setStatusTarget({ employee: emp, nextStatus })}
+                            title={currentStatus === "active" ? "Deactivate employee" : "Activate employee"}
+                            aria-label={currentStatus === "active" ? "Deactivate employee" : "Activate employee"}
+                            className="inline-flex items-center justify-center p-1 transition-opacity hover:opacity-80"
+                            style={{ color: currentStatus === "active" ? "#ef4444" : "var(--text-secondary)" }}
+                          >
+                            {currentStatus === "active" ? <UserX size={15} /> : <UserCheck size={15} />}
+                          </button>
                         )}
                       </div>
                     </div>
@@ -299,6 +316,9 @@ export function EmployeesPage() {
                 {filtered.map((emp) => {
                   const currentStatus = String(emp.status ?? "active").toLowerCase() === "inactive" ? "inactive" : "active";
                   const nextStatus = currentStatus === "active" ? "inactive" : "active";
+                  const employeeRole = String(emp.role ?? "").toUpperCase();
+                  const canDeactivateThisEmployee = !(currentUserRole === "HR" && employeeRole === "HR");
+                  const canShowStatusAction = canManageStatus && (nextStatus === "active" || canDeactivateThisEmployee);
 
                   return (
                     <article
@@ -335,7 +355,7 @@ export function EmployeesPage() {
                       <div className="mt-4 flex flex-wrap gap-2">
                         <Button variant="ghost" size="sm" to={`/app/employees/${emp.id}`}>View</Button>
                         {canCreateOrEdit && <Button variant="outline" size="sm" to={`/app/employees/${emp.id}/edit`}>Edit</Button>}
-                        {canManageStatus && (
+                        {canShowStatusAction && (
                           <Button
                             variant={currentStatus === "active" ? "danger" : "outline"}
                             size="sm"

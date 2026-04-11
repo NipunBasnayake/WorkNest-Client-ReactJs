@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { CalendarDays, Clock3, LogIn, LogOut, UserCheck, Users2 } from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { useAuth } from "@/hooks/useAuth";
+import { PERMISSIONS } from "@/constants/permissions";
+import { usePermission } from "@/hooks/usePermission";
 import { checkIn, checkOut, getAttendanceRecords, getAttendanceSummary } from "@/modules/attendance/services/attendanceService";
 import { AttendanceStatusBadge } from "@/modules/attendance/components/AttendanceStatusBadge";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -24,7 +26,8 @@ function formatMinutes(value?: number): string {
 
 export function AttendancePage() {
   usePageMeta({ title: "Attendance", breadcrumb: ["Workspace", "Attendance"] });
-  const { user, hasRole } = useAuth();
+  const { user, role } = useAuth();
+  const { hasPermission } = usePermission();
 
   const [selectedDate, setSelectedDate] = useState(today());
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
@@ -34,7 +37,8 @@ export function AttendancePage() {
   const [actionLoading, setActionLoading] = useState(false);
   const [summary, setSummary] = useState({ total: 0, present: 0, late: 0, absent: 0, halfDay: 0 });
 
-  const canViewAll = hasRole("ADMIN", "MANAGER", "HR");
+  const canViewAll = hasPermission(PERMISSIONS.ATTENDANCE_MANAGE);
+  const canMarkOwnAttendance = role !== "TENANT_ADMIN";
 
   const fetchAttendance = useCallback(async (date: string) => {
     setLoading(true);
@@ -69,8 +73,8 @@ export function AttendancePage() {
     return records.find((record) => record.employeeId === user.id || record.employeeName === user.name) ?? null;
   }, [records, user]);
 
-  const canCheckIn = Boolean(user) && !actionLoading && !selfRecord?.checkIn;
-  const canCheckOut = Boolean(user) && !actionLoading && Boolean(selfRecord?.checkIn) && !selfRecord?.checkOut;
+  const canCheckIn = canMarkOwnAttendance && Boolean(user) && !actionLoading && !selfRecord?.checkIn;
+  const canCheckOut = canMarkOwnAttendance && Boolean(user) && !actionLoading && Boolean(selfRecord?.checkIn) && !selfRecord?.checkOut;
 
   async function handleCheckIn() {
     if (!user) return;
@@ -116,14 +120,18 @@ export function AttendancePage() {
               className="rounded-xl border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary-500/30"
               style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)", color: "var(--text-primary)" }}
             />
-            <Button variant="outline" onClick={handleCheckIn} disabled={!canCheckIn}>
-              <LogIn size={16} />
-              Check In
-            </Button>
-            <Button variant="primary" onClick={handleCheckOut} disabled={!canCheckOut}>
-              <LogOut size={16} />
-              Check Out
-            </Button>
+            {canMarkOwnAttendance && (
+              <>
+                <Button variant="outline" onClick={handleCheckIn} disabled={!canCheckIn}>
+                  <LogIn size={16} />
+                  Check In
+                </Button>
+                <Button variant="primary" onClick={handleCheckOut} disabled={!canCheckOut}>
+                  <LogOut size={16} />
+                  Check Out
+                </Button>
+              </>
+            )}
           </div>
         )}
       />
@@ -161,19 +169,20 @@ export function AttendancePage() {
       {error && <ErrorBanner message={error} onRetry={() => fetchAttendance(selectedDate)} />}
 
       <SectionCard className="overflow-hidden" contentClassName="p-0" title="Attendance Records" subtitle={canViewAll ? "Workforce-wide view" : "Your attendance records"}>
-        <div
-          className="hidden md:grid grid-cols-[1.4fr_1fr_1fr_1fr_1fr_0.9fr] gap-3 border-b px-5 py-3 text-xs font-semibold uppercase tracking-wider"
-          style={{ color: "var(--text-tertiary)", borderColor: "var(--border-default)", backgroundColor: "var(--bg-muted)" }}
-        >
-          <span>Employee</span>
-          <span>Date</span>
-          <span>Check In</span>
-          <span>Check Out</span>
-          <span>Worked</span>
-          <span>Status</span>
-        </div>
+        <div className="overflow-x-auto">
+          <div
+            className="hidden min-w-[900px] md:grid grid-cols-[1.4fr_1fr_1fr_1fr_1fr_0.9fr] gap-3 border-b px-5 py-3 text-xs font-semibold uppercase tracking-wider"
+            style={{ color: "var(--text-tertiary)", borderColor: "var(--border-default)", backgroundColor: "var(--bg-muted)" }}
+          >
+            <span>Employee</span>
+            <span>Date</span>
+            <span>Check In</span>
+            <span>Check Out</span>
+            <span>Worked</span>
+            <span>Status</span>
+          </div>
 
-        {loading && Array.from({ length: 5 }).map((_, index) => <SkeletonRow key={index} cols={6} />)}
+          {loading && Array.from({ length: 5 }).map((_, index) => <SkeletonRow key={index} cols={6} />)}
 
         {!loading && !error && visibleRecords.length === 0 && (
           <EmptyState
@@ -184,7 +193,7 @@ export function AttendancePage() {
 
         {!loading && visibleRecords.length > 0 && (
           <>
-            <div className="hidden md:block">
+            <div className="hidden min-w-[900px] md:block">
               {visibleRecords.map((record) => (
                 <div
                   key={record.id}
@@ -227,6 +236,7 @@ export function AttendancePage() {
             </div>
           </>
         )}
+        </div>
       </SectionCard>
     </div>
   );
