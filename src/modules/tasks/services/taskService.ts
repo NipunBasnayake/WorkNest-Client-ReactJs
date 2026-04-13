@@ -121,11 +121,38 @@ function normalizeTask(input: unknown): Task {
     status: toUiStatus(firstDefined(value.status, value.taskStatus)),
     priority: toUiPriority(firstDefined(value.priority, value.taskPriority)),
     dueDate: toIsoDate(firstDefined(value.dueDate, value.dueOn)),
+    assignedTeamId: firstDefined(
+      getString(value.assignedTeamId),
+      getString(value.teamId),
+      getString(asRecord(value.assignedTeam).id),
+      getString(asRecord(value.team).id)
+    ),
+    assignedTeamName: firstDefined(
+      getString(value.assignedTeamName),
+      getString(value.teamName),
+      getString(asRecord(value.assignedTeam).name),
+      getString(asRecord(value.team).name)
+    ),
+    assignedEmployeeId: firstDefined(
+      getString(value.assignedEmployeeId),
+      assigneeEmployeeId,
+      getString(value.assigneeId)
+    ),
     assigneeId,
     assigneeEmployeeId,
     assigneeUserId,
     assigneeEmail,
     assigneeName,
+    createdByEmployeeId: firstDefined(
+      getString(value.createdByEmployeeId),
+      getString(asRecord(value.createdBy).id)
+    ),
+    createdByUserId: getString(value.createdByUserId),
+    assignedByEmployeeId: firstDefined(
+      getString(value.assignedByEmployeeId),
+      getString(asRecord(value.assignedBy).id)
+    ),
+    assignedByUserId: getString(value.assignedByUserId),
     projectId: firstDefined(
       getString(value.projectId),
       getString(asRecord(value.project).id)
@@ -141,6 +168,10 @@ function normalizeTask(input: unknown): Task {
     createdAt: toIsoDateTime(firstDefined(value.createdAt, value.createdDate)),
     updatedAt: toIsoDateTime(firstDefined(value.updatedAt, value.updatedDate, value.modifiedAt)),
   };
+}
+
+export function normalizeTaskFromUnknown(input: unknown): Task {
+  return normalizeTask(input);
 }
 
 function normalizedIdentityIds(identity: TaskViewerIdentity | null | undefined): string[] {
@@ -247,12 +278,14 @@ function normalizeTaskComment(input: unknown): TaskComment {
 
 function buildTaskBasePayload(
   payload: TaskPayload
-): Pick<TaskCreateRequest, "title" | "description" | "status" | "priority" | "assigneeId" | "dueDate" | "attachmentUrls"> {
+): Pick<TaskCreateRequest, "title" | "description" | "status" | "priority" | "assignedTeamId" | "assignedEmployeeId" | "assigneeId" | "dueDate" | "attachmentUrls"> {
   return {
     title: payload.title.trim(),
     description: payload.description.trim(),
     status: payload.status,
     priority: payload.priority,
+    assignedTeamId: payload.assignedTeamId || undefined,
+    assignedEmployeeId: payload.assignedEmployeeId || payload.assigneeId || undefined,
     assigneeId: payload.assigneeId || undefined,
     dueDate: payload.dueDate || undefined,
     attachmentUrls: payload.attachments.map((attachment) => attachment.url),
@@ -274,6 +307,16 @@ export async function getTasks(): Promise<Task[]> {
   const { data } = await apiClient.get<ApiResponse<unknown> | unknown>("/api/tenant/tasks/search", {
     params: { page: 0, size: 200, sortBy: "createdAt", sortDir: "desc" },
   });
+  const list = extractList(unwrapApiData<unknown>(data));
+  return list.map(normalizeTask).sort((a, b) => {
+    const left = a.dueDate || "9999-12-31";
+    const right = b.dueDate || "9999-12-31";
+    return left.localeCompare(right);
+  });
+}
+
+export async function getMyTasks(): Promise<Task[]> {
+  const { data } = await apiClient.get<ApiResponse<unknown> | unknown>("/api/tenant/tasks/my");
   const list = extractList(unwrapApiData<unknown>(data));
   return list.map(normalizeTask).sort((a, b) => {
     const left = a.dueDate || "9999-12-31";
@@ -332,7 +375,7 @@ export async function updateTaskDueDate(id: string, dueDate: string): Promise<Ta
 export async function updateTaskAssignee(id: string, assigneeId: string): Promise<Task> {
   const { data } = await apiClient.patch<ApiResponse<unknown> | unknown>(
     `/api/tenant/tasks/${id}/assignee`,
-    { assigneeId: assigneeId || null }
+    { assignedEmployeeId: assigneeId || null, assigneeId: assigneeId || null }
   );
   return normalizeTask(unwrapApiData<unknown>(data));
 }
