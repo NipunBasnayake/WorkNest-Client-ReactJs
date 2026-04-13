@@ -11,6 +11,7 @@ export interface Project {
   endDate?: string;
   progress: number;
   teamIds: string[];
+  teamCount?: number;
   documents: UploadedFileAsset[];
   createdAt: string;
   updatedAt: string;

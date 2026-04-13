@@ -92,10 +92,13 @@ export const ROLE_PERMISSION_MAP: Record<NormalizedAppRole, Permission[]> = {
 };
 
 export const TEAM_ROLE_PERMISSION_MAP: Record<TeamMemberFunctionalRole, Permission[]> = {
+  MEMBER: [],
   PROJECT_MANAGER: [PERMISSIONS.TASKS_ASSIGN, PERMISSIONS.PROJECTS_EDIT],
   TEAM_LEAD: [PERMISSIONS.TASKS_ASSIGN],
+  BUSINESS_ANALYST: [],
+  DEVELOPER: [],
   QA: [],
-  DEV: [],
+  DESIGNER: [],
 };
 
 export function normalizeAppRole(role: AppRole | null | undefined): NormalizedAppRole | null {

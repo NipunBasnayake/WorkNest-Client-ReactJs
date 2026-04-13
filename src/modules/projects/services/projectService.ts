@@ -27,8 +27,9 @@ function normalizeTeamIds(value: unknown): string[] {
   const ids = list
     .map((item) => {
       if (typeof item === "string") return item.trim();
+      if (typeof item === "number" && Number.isFinite(item)) return String(item);
       const team = asRecord(item);
-      return getId(firstDefined(team.id, team.teamId));
+      return getId(firstDefined(team.id, team.teamId, team.team_id, asRecord(team.team).id, asRecord(team.team).teamId));
     })
     .filter(Boolean);
 
@@ -45,6 +46,14 @@ function normalizeProject(input: unknown, teamIds: string[] = []): Project {
   const fallbackTeamIds = normalizeTeamIds(
     firstDefined(value.teamIds, value.teams, value.projectTeams, value.assignedTeams)
   );
+  const normalizedTeamIds = teamIds.length > 0 ? teamIds : fallbackTeamIds;
+  const teamCount = firstDefined(
+    getNumber(value.teamCount),
+    getNumber(value.teamsCount),
+    getNumber(value.totalTeams),
+    getNumber(value.team_count),
+    normalizedTeamIds.length
+  ) ?? normalizedTeamIds.length;
 
   return {
     id: getId(firstDefined(value.id, value.projectId)),
@@ -57,7 +66,8 @@ function normalizeProject(input: unknown, teamIds: string[] = []): Project {
       progress !== undefined
         ? Math.max(0, Math.min(100, progress))
         : (toUiStatus(firstDefined(value.status, value.projectStatus)) === "completed" ? 100 : 0),
-    teamIds: teamIds.length > 0 ? teamIds : fallbackTeamIds,
+    teamIds: normalizedTeamIds,
+    teamCount,
     documents: extractUploadedFileAssets(
       firstDefined(value.documents, value.files, value.attachments),
       firstDefined(value.documentUrls, value.fileUrls, value.attachmentUrls)
@@ -106,6 +116,12 @@ function toProjectPayload(values: ProjectFormValues) {
     endDate: values.endDate || undefined,
     status: toApiStatus(values.status),
     documentUrls: values.documents.map((document) => document.url),
+    documents: values.documents.map((document) => ({
+      url: document.url,
+      name: document.name,
+      mimeType: document.mimeType,
+      size: document.size,
+    })),
   };
 
   return payload;
@@ -117,6 +133,21 @@ export async function getProjects(): Promise<Project[]> {
 
   // Avoid per-project fallback calls (`/projects/:id/teams`) to prevent N+1 list hydration.
   // Team ids are derived from the list payload; single-project fetch still hydrates if needed.
+  const items = list.map((item) => {
+    const record = asRecord(item);
+    const teamIds = normalizeTeamIds(
+      firstDefined(record.teamIds, record.teams, record.projectTeams, record.assignedTeams)
+    );
+    return normalizeProject(record, teamIds);
+  });
+
+  return items.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export async function getMyProjects(): Promise<Project[]> {
+  const { data } = await apiClient.get<ApiResponse<unknown> | unknown>("/api/tenant/projects/my");
+  const list = extractList(unwrapApiData<unknown>(data));
+
   const items = list.map((item) => {
     const record = asRecord(item);
     const teamIds = normalizeTeamIds(

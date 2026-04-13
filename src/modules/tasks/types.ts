@@ -13,11 +13,18 @@ export interface Task {
   status: TaskStatus;
   priority: TaskPriority;
   dueDate: string;
+  assignedTeamId?: string;
+  assignedTeamName?: string;
+  assignedEmployeeId?: string;
   assigneeId?: string;
   assigneeEmployeeId?: string;
   assigneeUserId?: string;
   assigneeEmail?: string;
   assigneeName?: string;
+  createdByEmployeeId?: string;
+  createdByUserId?: string;
+  assignedByEmployeeId?: string;
+  assignedByUserId?: string;
   projectId?: string;
   projectName?: string;
   attachments: UploadedFileAsset[];
@@ -31,6 +38,9 @@ export interface TaskPayload {
   status: TaskStatus;
   priority: TaskPriority;
   dueDate: string;
+  assignedTeamId?: string;
+  assignedTeamName?: string;
+  assignedEmployeeId?: string;
   assigneeId?: string;
   assigneeName?: string;
   projectId?: string;
@@ -40,6 +50,8 @@ export interface TaskPayload {
 
 export interface TaskCreateRequest {
   projectId?: string;
+  assignedTeamId?: string;
+  assignedEmployeeId?: string;
   title: string;
   description: string;
   status: TaskStatus;
@@ -54,6 +66,8 @@ export interface TaskUpdateRequest {
   description: string;
   status: TaskStatus;
   priority: TaskPriority;
+  assignedTeamId?: string;
+  assignedEmployeeId?: string;
   assigneeId?: string;
   dueDate?: string;
   attachmentUrls?: string[];
@@ -74,6 +88,7 @@ export interface TaskFormValues {
   status: TaskStatus;
   priority: TaskPriority;
   dueDate: string;
+  assignedTeamId: string;
   assigneeId: string;
   projectId: string;
   attachments: UploadedFileAsset[];
