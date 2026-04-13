@@ -1,4 +1,5 @@
 import type { TaskStatus } from "@/modules/tasks/types";
+import { getTaskStatusLabel } from "@/modules/tasks/utils/taskWorkflow";
 
 interface TaskStatusBadgeProps {
   status: TaskStatus;
@@ -21,7 +22,7 @@ const STATUS_STYLE: Record<TaskStatus, { bg: string; text: string; dot: string; 
     bg: "rgba(245,158,11,0.12)",
     text: "#d97706",
     dot: "#d97706",
-    label: "In Review",
+    label: "Waiting for Admin Review",
   },
   BLOCKED: {
     bg: "rgba(239,68,68,0.12)",
@@ -46,7 +47,7 @@ export function TaskStatusBadge({ status }: TaskStatusBadgeProps) {
       style={{ background: style.bg, color: style.text }}
     >
       <span className="h-1.5 w-1.5 rounded-full" style={{ background: style.dot }} />
-      {style.label}
+      {getTaskStatusLabel(status)}
     </span>
   );
 }
