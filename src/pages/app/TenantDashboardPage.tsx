@@ -1,8 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import type { ReactNode } from "react";
 import {
-  BarChart3,
   Bell,
   BellRing,
   Briefcase,
@@ -18,11 +17,15 @@ import {
 } from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { useAuth } from "@/hooks/useAuth";
-import { TENANT_COMMUNICATION_ROLES, TENANT_MODULE_ACCESS } from "@/constants/access";
-import { getTenantDashboardSnapshot } from "@/modules/analytics/services/analyticsService";
-import { ErrorBanner, PageSection, QuickNavCard, StatCard } from "@/components/common/AppUI";
+import { type Permission, PERMISSIONS } from "@/constants/permissions";
+import { usePermission } from "@/hooks/usePermission";
+import { useTenantDashboardQuery } from "@/hooks/queries/useDashboardQueries";
+import { PageSection, QuickNavCard, StatCard } from "@/components/common/AppUI";
+import { EmptyState, ErrorState, LoadingSkeleton } from "@/components/common/AsyncStates";
 import { SectionCard } from "@/components/common/SectionCard";
 import { Button } from "@/components/common/Button";
+import { formatDate, formatDateTime, formatMinutes, getDaytimeGreeting, toReadableLabel } from "@/utils/formatting";
+import { getErrorMessage } from "@/utils/errorHandler";
 import type { DashboardTaskStatusSummary, TenantDashboardSnapshot } from "@/modules/analytics/types";
 
 interface QuickAction {
@@ -30,24 +33,24 @@ interface QuickAction {
   description: string;
   icon: ReactNode;
   to: string;
-  roles?: string[];
+  permission?: Permission;
 }
 
 const ADMIN_QUICK_ACTIONS: QuickAction[] = [
-  { label: "Add Employee", description: "Create and onboard employee profile", icon: <UserPlus size={18} />, to: "/app/employees/new", roles: TENANT_MODULE_ACCESS.employees },
-  { label: "Create Team", description: "Set up a new team structure", icon: <Briefcase size={18} />, to: "/app/teams/new", roles: TENANT_MODULE_ACCESS.teams },
-  { label: "Create Project", description: "Initialize a project workspace", icon: <FolderOpen size={18} />, to: "/app/projects/new", roles: TENANT_MODULE_ACCESS.projects },
-  { label: "Create Task", description: "Assign work and due dates", icon: <CheckSquare size={18} />, to: "/app/tasks/new", roles: TENANT_MODULE_ACCESS.tasks },
-  { label: "Publish Announcement", description: "Share company-wide updates", icon: <Megaphone size={18} />, to: "/app/announcements/new", roles: TENANT_COMMUNICATION_ROLES },
+  { label: "Add Employee", description: "Create and onboard employee profile", icon: <UserPlus size={18} />, to: "/app/employees/new", permission: PERMISSIONS.EMPLOYEES_MANAGE },
+  { label: "Create Team", description: "Set up a new team structure", icon: <Briefcase size={18} />, to: "/app/teams/new", permission: PERMISSIONS.TEAMS_MANAGE },
+  { label: "Create Project", description: "Initialize a project workspace", icon: <FolderOpen size={18} />, to: "/app/projects/new", permission: PERMISSIONS.PROJECTS_MANAGE },
+  { label: "Create Task", description: "Assign work and due dates", icon: <CheckSquare size={18} />, to: "/app/tasks/new", permission: PERMISSIONS.TASKS_MANAGE },
+  { label: "Publish Announcement", description: "Share company-wide updates", icon: <Megaphone size={18} />, to: "/app/announcements/new", permission: PERMISSIONS.ANNOUNCEMENTS_MANAGE },
 ];
 
 const USER_QUICK_ACTIONS: QuickAction[] = [
-  { label: "View My Tasks", description: "Review assigned workload", icon: <CheckSquare size={18} />, to: "/app/tasks", roles: TENANT_MODULE_ACCESS.tasks },
-  { label: "Check Attendance", description: "View daily attendance status", icon: <CalendarClock size={18} />, to: "/app/attendance", roles: TENANT_MODULE_ACCESS.attendance },
-  { label: "Request Leave", description: "Submit a leave request", icon: <CalendarClock size={18} />, to: "/app/leave/new", roles: TENANT_MODULE_ACCESS.leave },
-  { label: "Announcements", description: "Read company updates", icon: <Bell size={18} />, to: "/app/announcements", roles: TENANT_MODULE_ACCESS.announcements },
-  { label: "Notifications", description: "Review your alerts", icon: <BellRing size={18} />, to: "/app/notifications", roles: TENANT_MODULE_ACCESS.notifications },
-  { label: "Open Chat", description: "Talk with your team", icon: <MessageSquare size={18} />, to: "/app/chat", roles: TENANT_MODULE_ACCESS.chat },
+  { label: "View My Tasks", description: "Review assigned workload", icon: <CheckSquare size={18} />, to: "/app/tasks", permission: PERMISSIONS.TASKS_VIEW },
+  { label: "Check Attendance", description: "View daily attendance status", icon: <CalendarClock size={18} />, to: "/app/attendance", permission: PERMISSIONS.ATTENDANCE_VIEW },
+  { label: "Request Leave", description: "Submit a leave request", icon: <CalendarClock size={18} />, to: "/app/leave/new", permission: PERMISSIONS.LEAVE_REQUEST },
+  { label: "Announcements", description: "Read company updates", icon: <Bell size={18} />, to: "/app/announcements", permission: PERMISSIONS.ANNOUNCEMENTS_VIEW },
+  { label: "Notifications", description: "Review your alerts", icon: <BellRing size={18} />, to: "/app/notifications", permission: PERMISSIONS.NOTIFICATIONS_VIEW },
+  { label: "Open Chat", description: "Talk with your team", icon: <MessageSquare size={18} />, to: "/app/chat", permission: PERMISSIONS.CHAT_VIEW },
 ];
 
 const TASK_STATUS_META: Array<{ key: keyof DashboardTaskStatusSummary; label: string; color: string }> = [
@@ -60,41 +63,26 @@ const TASK_STATUS_META: Array<{ key: keyof DashboardTaskStatusSummary; label: st
 
 export function TenantDashboardPage() {
   usePageMeta({ title: "Dashboard", breadcrumb: ["Workspace", "Dashboard"] });
-  const { user, tenantKey, hasRole } = useAuth();
-  const isTenantUser = hasRole("EMPLOYEE") && !hasRole("TENANT_ADMIN", "ADMIN", "MANAGER", "HR");
-
-  const [snapshot, setSnapshot] = useState<TenantDashboardSnapshot | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  async function fetchDashboard() {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await getTenantDashboardSnapshot();
-      setSnapshot(data);
-    } catch {
-      setError("Could not load dashboard summary.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    fetchDashboard();
-  }, []);
+  const { role, user, tenantKey } = useAuth();
+  const { hasPermission } = usePermission();
+  const isTenantUser = role === "EMPLOYEE";
+  const { data: snapshot, error, isLoading, refetch } = useTenantDashboardQuery(true);
+  const errorMessage = useMemo(
+    () => (error ? getErrorMessage(error, "Could not load dashboard summary.") : null),
+    [error]
+  );
 
   const adminQuickActions = useMemo(
-    () => ADMIN_QUICK_ACTIONS.filter((item) => !item.roles || hasRole(...item.roles)),
-    [hasRole]
+    () => ADMIN_QUICK_ACTIONS.filter((item) => !item.permission || hasPermission(item.permission)),
+    [hasPermission]
   );
   const userQuickActions = useMemo(
-    () => USER_QUICK_ACTIONS.filter((item) => !item.roles || hasRole(...item.roles)),
-    [hasRole]
+    () => USER_QUICK_ACTIONS.filter((item) => !item.permission || hasPermission(item.permission)),
+    [hasPermission]
   );
 
-  const greeting = getGreeting();
-  const canViewAnalytics = hasRole(...TENANT_MODULE_ACCESS.analytics);
+  const greeting = getDaytimeGreeting();
+  const canViewAnalytics = hasPermission(PERMISSIONS.ANALYTICS_VIEW);
 
   return (
     <div className="space-y-6">
@@ -103,35 +91,32 @@ export function TenantDashboardPage() {
         name={user?.name}
         tenantKey={tenantKey}
         role={user?.role}
-        mode={isTenantUser ? "user" : "admin"}
       />
 
-      {error && <ErrorBanner message={error} onRetry={fetchDashboard} />}
-
-      {loading && (
+      {errorMessage && <ErrorState message={errorMessage} onRetry={() => void refetch()} />}
+      {isLoading && (
         <>
           <SectionCard>
-            <div className="h-40 animate-pulse rounded-xl" style={{ backgroundColor: "var(--bg-muted)" }} />
+            <LoadingSkeleton lines={6} className="h-40" />
           </SectionCard>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {Array.from({ length: 4 }).map((_, index) => (
               <SectionCard key={index}>
-                <div className="h-20 animate-pulse rounded-xl" style={{ backgroundColor: "var(--bg-muted)" }} />
+                <LoadingSkeleton lines={3} className="h-20" />
               </SectionCard>
             ))}
           </div>
         </>
       )}
 
-      {!loading && !snapshot && (
-        <SectionCard>
-          <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-            Dashboard data is currently unavailable.
-          </p>
-        </SectionCard>
+      {!isLoading && !errorMessage && !snapshot && (
+        <EmptyState
+          title="Dashboard unavailable"
+          description="Dashboard data is currently unavailable."
+        />
       )}
 
-      {!loading && snapshot && (
+      {!isLoading && !errorMessage && snapshot && (
         isTenantUser ? (
           <TenantUserDashboard snapshot={snapshot} quickActions={userQuickActions} />
         ) : (
@@ -495,13 +480,11 @@ function DashboardHero({
   name,
   tenantKey,
   role,
-  mode,
 }: {
   greeting: string;
   name?: string;
   tenantKey?: string | null;
   role?: string;
-  mode: "admin" | "user";
 }) {
   return (
     <div
@@ -513,14 +496,8 @@ function DashboardHero({
     >
       <div className="absolute right-0 top-0 h-56 w-56 rounded-full blur-3xl opacity-20" style={{ background: "#9332EA" }} />
       <div className="relative z-10">
-        <div
-          className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold"
-          style={{ background: "rgba(147,50,234,0.14)", color: "var(--color-primary-600)", border: "1px solid rgba(147,50,234,0.2)" }}
-        >
-          {mode === "admin" ? <BarChart3 size={12} /> : <CheckSquare size={12} />}
-          {mode === "admin" ? "Tenant Admin Dashboard" : "Tenant User Dashboard"}
-        </div>
-        <p className="mt-3 text-sm font-medium" style={{ color: "var(--color-primary-600)" }}>
+
+        <p className="text-sm font-medium" style={{ color: "var(--color-primary-600)" }}>
           {greeting}
         </p>
         <h2 className="mt-1 text-2xl font-bold sm:text-3xl" style={{ color: "var(--text-primary)" }}>
@@ -578,38 +555,3 @@ function PreviewItem({
   );
 }
 
-function formatDate(value: string): string {
-  if (!value) return "No date";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString();
-}
-
-function formatDateTime(value: string): string {
-  if (!value) return "-";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString();
-}
-
-function formatMinutes(value: number): string {
-  if (!value) return "0h 0m";
-  const hours = Math.floor(value / 60);
-  const minutes = value % 60;
-  return `${hours}h ${minutes}m`;
-}
-
-function toReadableLabel(value: string): string {
-  return value
-    .toLowerCase()
-    .split("_")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-}
-
-function getGreeting() {
-  const hour = new Date().getHours();
-  if (hour < 12) return "Good morning";
-  if (hour < 17) return "Good afternoon";
-  return "Good evening";
-}
