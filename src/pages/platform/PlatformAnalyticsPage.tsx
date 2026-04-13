@@ -1,37 +1,22 @@
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
 import { Activity, BarChart3, Building2, ShieldAlert, TrendingUp } from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
-import { getPlatformAnalyticsData } from "@/modules/analytics/services/analyticsService";
+import { usePlatformAnalyticsQuery } from "@/hooks/queries/usePlatformQueries";
 import { BarChart } from "@/modules/analytics/components/BarChart";
 import { DonutChart } from "@/modules/analytics/components/DonutChart";
-import { ErrorBanner, StatCard } from "@/components/common/AppUI";
+import { StatCard } from "@/components/common/AppUI";
+import { EmptyState, ErrorState, LoadingSkeleton } from "@/components/common/AsyncStates";
 import { PageHeader } from "@/components/common/PageHeader";
 import { SectionCard } from "@/components/common/SectionCard";
-import type { PlatformAnalyticsData } from "@/modules/analytics/types";
+import { getErrorMessage } from "@/utils/errorHandler";
 
 export function PlatformAnalyticsPage() {
   usePageMeta({ title: "Platform Analytics", breadcrumb: ["Platform", "Analytics"] });
-
-  const [data, setData] = useState<PlatformAnalyticsData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  async function fetchData() {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await getPlatformAnalyticsData();
-      setData(response);
-    } catch {
-      setError("Unable to load platform analytics.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    fetchData();
-  }, []);
+  const { data, error, isLoading, refetch } = usePlatformAnalyticsQuery(true);
+  const errorMessage = useMemo(
+    () => (error ? getErrorMessage(error, "Unable to load platform analytics.") : null),
+    [error]
+  );
 
   return (
     <div className="space-y-6">
@@ -40,15 +25,17 @@ export function PlatformAnalyticsPage() {
         description="Track tenant lifecycle, growth, and workspace status trends."
       />
 
-      {error && <ErrorBanner message={error} onRetry={fetchData} />}
-
-      {loading && (
+      {errorMessage && <ErrorState message={errorMessage} onRetry={() => void refetch()} />}
+      {isLoading && (
         <SectionCard>
-          <div className="h-60 animate-pulse rounded-xl" style={{ backgroundColor: "var(--bg-muted)" }} />
+          <LoadingSkeleton lines={9} className="h-60" />
         </SectionCard>
       )}
 
-      {!loading && data && (
+      {!isLoading && !errorMessage && !data && (
+        <EmptyState title="No analytics available" description="Platform analytics data is unavailable right now." />
+      )}
+      {!isLoading && !errorMessage && data && (
         <>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
             <StatCard label="Total Tenants" value={data.totalTenants} icon={<Building2 size={18} />} accentColor="#9332EA" />

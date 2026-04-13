@@ -3,6 +3,7 @@ import { Shield } from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { useAuth } from "@/hooks/useAuth";
 import { Input } from "@/components/common/Input";
+import { FileUploadField } from "@/components/common/FileUploadField";
 import { Button } from "@/components/common/Button";
 import { SectionCard } from "@/components/common/SectionCard";
 import { ErrorBanner } from "@/components/common/AppUI";
@@ -22,6 +23,8 @@ export function AppSettingsProfilePage() {
     fullName: "",
     email: "",
     title: "",
+    avatarUrl: undefined,
+    avatar: null,
   });
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -43,6 +46,8 @@ export function AppSettingsProfilePage() {
           fullName: settings.profile.fullName || user?.name || "",
           email: settings.profile.email || user?.email || "",
           title: settings.profile.title,
+          avatarUrl: settings.profile.avatarUrl,
+          avatar: settings.profile.avatar ?? null,
         });
 
         if (employee) {
@@ -66,7 +71,7 @@ export function AppSettingsProfilePage() {
       const updated = await updateTenantProfile(values);
       setValues(updated);
       if (user) {
-        setUser({ ...user, name: updated.fullName, email: updated.email });
+        setUser({ ...user, name: updated.fullName, email: updated.email, avatarUrl: updated.avatarUrl });
       }
       setMessage("Profile settings saved.");
     } catch {
@@ -121,6 +126,23 @@ export function AppSettingsProfilePage() {
               <Input id="settings-name" label="Full Name" value={values.fullName} onChange={(e) => setValues((prev) => ({ ...prev, fullName: e.target.value }))} />
               <Input id="settings-title" label="Job Title" value={values.title} onChange={(e) => setValues((prev) => ({ ...prev, title: e.target.value }))} />
             </div>
+            <FileUploadField
+              id="settings-avatar"
+              label="Profile Image"
+              hint="Upload a square profile image for the workspace shell."
+              folder="profiles/images"
+              kind="image"
+              disabled={saving}
+              value={values.avatar ? [values.avatar] : []}
+              onChange={(assets) => {
+                const [avatar] = assets;
+                setValues((prev) => ({
+                  ...prev,
+                  avatar: avatar ?? null,
+                  avatarUrl: avatar?.url,
+                }));
+              }}
+            />
             <Input id="settings-email" label="Email" type="email" value={values.email} disabled hint="Email changes are managed by your authentication account." onChange={() => undefined} />
             <div className="flex justify-end">
               <Button variant="primary" onClick={handleSave} disabled={saving}>

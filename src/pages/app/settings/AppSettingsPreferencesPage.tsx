@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { useTheme } from "@/hooks/useTheme";
 import { Button } from "@/components/common/Button";
+import { AppSelect } from "@/components/common/AppSelect";
 import { SectionCard } from "@/components/common/SectionCard";
 import { ErrorBanner } from "@/components/common/AppUI";
 import { getTenantSettings, updateTenantPreferences } from "@/modules/settings/services/settingsService";
@@ -66,17 +67,15 @@ export function AppSettingsPreferencesPage() {
               <label htmlFor="settings-theme" className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
                 Theme
               </label>
-              <select
+              <AppSelect
                 id="settings-theme"
                 value={values.theme}
                 onChange={(event) => setValues((prev) => ({ ...prev, theme: event.target.value as ThemePreference }))}
-                className="w-full rounded-xl border px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/60"
-                style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)", color: "var(--text-primary)" }}
               >
                 <option value="system">System</option>
                 <option value="light">Light</option>
                 <option value="dark">Dark</option>
-              </select>
+              </AppSelect>
             </div>
 
             <div className="space-y-2">

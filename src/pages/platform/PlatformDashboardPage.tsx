@@ -1,11 +1,12 @@
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
 import { Activity, BarChart3, Building2, Settings, ShieldAlert, TrendingUp } from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { useAuth } from "@/hooks/useAuth";
-import { getPlatformAnalyticsData } from "@/modules/analytics/services/analyticsService";
-import { ErrorBanner, PageSection, QuickNavCard, StatCard } from "@/components/common/AppUI";
+import { usePlatformAnalyticsQuery } from "@/hooks/queries/usePlatformQueries";
+import { EmptyState, ErrorState, LoadingSkeleton } from "@/components/common/AsyncStates";
+import { PageSection, QuickNavCard, StatCard } from "@/components/common/AppUI";
 import { SectionCard } from "@/components/common/SectionCard";
-import type { PlatformAnalyticsData } from "@/modules/analytics/types";
+import { getErrorMessage } from "@/utils/errorHandler";
 
 const PLATFORM_NAV = [
   { label: "Manage Tenants", description: "View and manage workspaces", icon: <Building2 size={18} />, to: "/platform/tenants", disabled: false },
@@ -16,27 +17,11 @@ const PLATFORM_NAV = [
 export function PlatformDashboardPage() {
   usePageMeta({ title: "Platform Dashboard", breadcrumb: ["Platform", "Dashboard"] });
   const { user } = useAuth();
-
-  const [data, setData] = useState<PlatformAnalyticsData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  async function fetchDashboard() {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await getPlatformAnalyticsData();
-      setData(response);
-    } catch {
-      setError("Could not load platform dashboard metrics.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    fetchDashboard();
-  }, []);
+  const { data, error, isLoading, refetch } = usePlatformAnalyticsQuery(true);
+  const errorMessage = useMemo(
+    () => (error ? getErrorMessage(error, "Could not load platform dashboard metrics.") : null),
+    [error]
+  );
 
   return (
     <div className="space-y-6">
@@ -65,15 +50,20 @@ export function PlatformDashboardPage() {
         </div>
       </div>
 
-      {error && <ErrorBanner message={error} onRetry={fetchDashboard} />}
-
-      {loading && (
+      {errorMessage && <ErrorState message={errorMessage} onRetry={() => void refetch()} />}
+      {isLoading && (
         <SectionCard>
-          <div className="h-56 animate-pulse rounded-xl" style={{ backgroundColor: "var(--bg-muted)" }} />
+          <LoadingSkeleton lines={8} className="h-56" />
         </SectionCard>
       )}
 
-      {!loading && data && (
+      {!isLoading && !errorMessage && !data && (
+        <EmptyState
+          title="No dashboard data"
+          description="Platform metrics are unavailable right now."
+        />
+      )}
+      {!isLoading && !errorMessage && data && (
         <>
           <PageSection title="Platform Overview">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
