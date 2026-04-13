@@ -22,9 +22,21 @@ export interface RoleBenefit {
 }
 
 export type PlatformRole = "PLATFORM_ADMIN" | "PLATFORM_USER";
-export type TenantRole = "TENANT_ADMIN" | "ADMIN" | "MANAGER" | "HR" | "EMPLOYEE";
+export type CanonicalTenantRole = "TENANT_ADMIN" | "HR" | "EMPLOYEE";
+export type LegacyTenantRole = "ADMIN" | "MANAGER";
+export type TenantRole = CanonicalTenantRole | LegacyTenantRole;
 export type UserRole = PlatformRole | TenantRole;
 export type SessionType = "platform" | "tenant";
+
+export interface UploadedFileAsset {
+  name: string;
+  url: string;
+  path?: string;
+  mimeType?: string;
+  size?: number;
+  bucket?: string;
+  uploadedAt?: string;
+}
 
 export interface AuthUser {
   id: string;
@@ -33,6 +45,7 @@ export interface AuthUser {
   role: UserRole | string;
   tenantKey?: string | null;
   sessionType?: SessionType;
+  avatarUrl?: string;
 }
 
 export interface LoginPayload {
@@ -108,6 +121,7 @@ export interface Employee {
   status?: "ACTIVE" | "INACTIVE" | "active" | "inactive" | string;
   joinedAt?: string;
   joinedDate?: string;
+  avatarUrl?: string;
   [key: string]: unknown;
 }
 

@@ -105,6 +105,7 @@ function normalizeAuthUser(input: unknown): AuthUser {
     name,
     role,
     tenantKey,
+    avatarUrl: firstDefined(getString(value.avatarUrl), getString(value.profileImageUrl), getString(value.imageUrl)),
   };
 }
 
