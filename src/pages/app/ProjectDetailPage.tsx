@@ -96,27 +96,10 @@ export function ProjectDetailPage() {
     };
   }, [id, isEmployeeOnly, user?.email, user?.id]);
 
-  const visibleTeamIdsForEmployee = useMemo(() => {
-    if (!isEmployeeOnly) return new Set<string>();
-    const visibleTeams = teams.filter((team) => isTeamVisibleToEmployee(team, viewer));
-    return new Set(visibleTeams.map((team) => team.id));
-  }, [isEmployeeOnly, teams, viewer]);
-
   const projectTasks = useMemo(() => {
     if (!project) return [];
     return tasks.filter((task) => task.projectId === project.id);
   }, [project, tasks]);
-
-  const viewerHasTaskInProject = useMemo(() => {
-    if (!project || !viewer.employeeId) return false;
-    return projectTasks.some((task) => task.assigneeId === viewer.employeeId);
-  }, [project, projectTasks, viewer.employeeId]);
-
-  const employeeCanViewProject = useMemo(() => {
-    if (!project || !isEmployeeOnly) return true;
-    const linkedByTeam = project.teamIds.some((teamId) => visibleTeamIdsForEmployee.has(teamId));
-    return linkedByTeam || viewerHasTaskInProject;
-  }, [isEmployeeOnly, project, viewerHasTaskInProject, visibleTeamIdsForEmployee]);
 
   const assignedTeams = useMemo(() => {
     if (!project) return [];
@@ -253,16 +236,7 @@ export function ProjectDetailPage() {
         />
       )}
 
-      {!loading && !resolvedError && project && !employeeCanViewProject && (
-        <EmptyState
-          icon={<ClipboardList size={28} />}
-          title="Access restricted"
-          description="You can only view projects linked to your team or assigned work."
-          action={<Button variant="outline" to="/app/projects">Go to Projects</Button>}
-        />
-      )}
-
-      {!loading && !resolvedError && project && employeeCanViewProject && (
+      {!loading && !resolvedError && project && (
         <>
           <SectionCard>
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -469,15 +443,6 @@ export function ProjectDetailPage() {
         onConfirm={handleRemoveTeam}
       />
     </div>
-  );
-}
-
-function isTeamVisibleToEmployee(team: Team, viewer: ViewerContext): boolean {
-  const email = viewer.email?.toLowerCase();
-  return Boolean(
-    (viewer.employeeId && team.memberIds.includes(viewer.employeeId)) ||
-    (viewer.employeeId && team.managerEmployeeId === viewer.employeeId) ||
-    (email && team.members.some((member) => member.email?.toLowerCase() === email))
   );
 }
 
