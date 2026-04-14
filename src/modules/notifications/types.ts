@@ -4,6 +4,7 @@ export type NotificationType =
   | "TASK_STATUS"
   | "LEAVE_APPROVED"
   | "LEAVE_REJECTED"
+  | "LEAVE_CANCELLED"
   | "LEAVE_UPDATE"
   | "ANNOUNCEMENT"
   | "HR_MESSAGE"
