@@ -4,7 +4,7 @@ import { unwrapApiData } from "@/services/http/response";
 import { asRecord, extractList } from "@/services/http/parsers";
 import type { ApiResponse } from "@/types";
 
-export type EmployeeApiRole = "TENANT_ADMIN" | "ADMIN" | "MANAGER" | "HR" | "EMPLOYEE";
+export type EmployeeApiRole = "TENANT_ADMIN" | "HR" | "EMPLOYEE";
 export type EmployeeApiStatus = "ACTIVE" | "INACTIVE";
 
 interface EmployeeBaseRequest {
@@ -34,6 +34,7 @@ export interface EmployeeProfileUpdateRequest {
   lastName: string;
   designation: string;
   phone?: string;
+  avatarUrl?: string;
   password?: string;
 }
 

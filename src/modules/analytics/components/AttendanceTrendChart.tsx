@@ -13,7 +13,7 @@ export function AttendanceTrendChart({ title, data }: AttendanceTrendChartProps)
           {title}
         </h3>
         <p className="mt-0.5 text-xs" style={{ color: "var(--text-secondary)" }}>
-          Last 7 days trend (present, late, absent)
+          Last 7 days trend (present, late, half day, incomplete, absent)
         </p>
       </div>
 
@@ -24,9 +24,11 @@ export function AttendanceTrendChart({ title, data }: AttendanceTrendChartProps)
           </p>
         )}
         {data.map((day) => {
-          const total = day.present + day.late + day.absent;
+          const total = day.present + day.late + day.halfDay + day.incomplete + day.absent;
           const present = total > 0 ? (day.present / total) * 100 : 0;
           const late = total > 0 ? (day.late / total) * 100 : 0;
+          const halfDay = total > 0 ? (day.halfDay / total) * 100 : 0;
+          const incomplete = total > 0 ? (day.incomplete / total) * 100 : 0;
           const absent = total > 0 ? (day.absent / total) * 100 : 0;
 
           return (
@@ -42,6 +44,8 @@ export function AttendanceTrendChart({ title, data }: AttendanceTrendChartProps)
               <div className="flex h-2 overflow-hidden rounded-full" style={{ backgroundColor: "var(--bg-muted)" }}>
                 <div style={{ width: `${present}%`, backgroundColor: "#10b981" }} />
                 <div style={{ width: `${late}%`, backgroundColor: "#d97706" }} />
+                <div style={{ width: `${halfDay}%`, backgroundColor: "#6366f1" }} />
+                <div style={{ width: `${incomplete}%`, backgroundColor: "#475569" }} />
                 <div style={{ width: `${absent}%`, backgroundColor: "#ef4444" }} />
               </div>
             </div>

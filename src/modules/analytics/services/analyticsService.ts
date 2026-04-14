@@ -212,6 +212,7 @@ function emptyAttendanceSummary(): DashboardAttendanceSummary {
     late: 0,
     absent: 0,
     halfDay: 0,
+    incomplete: 0,
     myTodayStatus: "NOT_MARKED",
     myWorkedMinutes: 0,
   };
@@ -261,9 +262,10 @@ function summarizeAttendance(records: AttendanceRecord[]): DashboardAttendanceSu
   return records.reduce<DashboardAttendanceSummary>((acc, record) => {
     acc.total += 1;
     if (record.status === "PRESENT") acc.present += 1;
-    if (record.status === "LATE") acc.late += 1;
     if (record.status === "ABSENT") acc.absent += 1;
     if (record.status === "HALF_DAY") acc.halfDay += 1;
+    if (record.status === "INCOMPLETE") acc.incomplete += 1;
+    if (record.late || record.status === "LATE") acc.late += 1;
     return acc;
   }, emptyAttendanceSummary());
 }
@@ -432,6 +434,10 @@ export async function getTenantDashboardSnapshot(): Promise<TenantDashboardSnaps
       halfDay: firstDefined(
         getNumber(todayAttendance.halfDayCount),
         dailyAttendanceSummary?.halfDay
+      ) ?? 0,
+      incomplete: firstDefined(
+        getNumber(todayAttendance.incompleteCount),
+        dailyAttendanceSummary?.incomplete
       ) ?? 0,
     };
 

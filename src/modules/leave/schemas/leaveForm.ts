@@ -10,6 +10,7 @@ export const DEFAULT_LEAVE_FORM: LeaveFormValues = {
 
 export function validateLeaveForm(values: LeaveFormValues): LeaveFormErrors {
   const errors: LeaveFormErrors = {};
+  const today = new Date().toISOString().slice(0, 10);
 
   if (!values.startDate) {
     errors.startDate = "Start date is required.";
@@ -21,6 +22,10 @@ export function validateLeaveForm(values: LeaveFormValues): LeaveFormErrors {
 
   if (values.startDate && values.endDate && values.endDate < values.startDate) {
     errors.endDate = "End date must be later than start date.";
+  }
+
+  if (values.endDate && values.endDate < today) {
+    errors.endDate = "Leave cannot be fully in the past.";
   }
 
   if (!values.reason.trim()) {

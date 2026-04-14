@@ -3,6 +3,8 @@ import { useParams } from "react-router-dom";
 import { ArrowLeft, Users, UserCircle2, BriefcaseBusiness } from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { useAuth } from "@/hooks/useAuth";
+import { PERMISSIONS } from "@/constants/permissions";
+import { usePermission } from "@/hooks/usePermission";
 import {
   addTeamMember,
   getTeamById,
@@ -14,8 +16,11 @@ import { getEmployees } from "@/modules/employees/services/employeeService";
 import { getProjects } from "@/modules/projects/services/projectService";
 import { getTasks } from "@/modules/tasks/services/taskService";
 import { getEmployeeDisplayName } from "@/modules/employees/utils/employeeMapper";
+import { TEAM_ROLE_BADGE_STYLES, toTeamRoleLabel } from "@/modules/teams/utils/teamRoles";
+import { getTeamMemberCount } from "@/modules/teams/utils/memberCount";
 import { SectionCard } from "@/components/common/SectionCard";
 import { Button } from "@/components/common/Button";
+import { AppSelect } from "@/components/common/AppSelect";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { AvatarInitials } from "@/components/common/AvatarInitials";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
@@ -27,13 +32,43 @@ import { getErrorMessage } from "@/utils/errorHandler";
 
 type RoleDraftValue = TeamMemberFunctionalRole | "";
 
+function memberRowId(member: TeamMember): string {
+  return member.teamMemberId ?? member.employeeId;
+}
+
+function extractRoleTokens(value: unknown): string[] {
+  if (typeof value === "string") {
+    const token = value.trim().toUpperCase();
+    return token ? [token] : [];
+  }
+
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => extractRoleTokens(item));
+  }
+
+  if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    return [
+      ...extractRoleTokens(record["role"]),
+      ...extractRoleTokens(record["name"]),
+      ...extractRoleTokens(record["code"]),
+      ...extractRoleTokens(record["value"]),
+      ...extractRoleTokens(record["authority"]),
+      ...extractRoleTokens(record["type"]),
+    ];
+  }
+
+  return [];
+}
+
 export function TeamDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { user, hasRole } = useAuth();
+  const { role, user } = useAuth();
+  const { hasPermission } = usePermission();
   usePageMeta({ title: "Team Details", breadcrumb: ["Workspace", "Teams", "Details"] });
 
-  const canManageTeam = hasRole("TENANT_ADMIN", "ADMIN", "MANAGER", "HR");
-  const isEmployeeOnly = hasRole("EMPLOYEE") && !canManageTeam;
+  const canManageTeam = hasPermission(PERMISSIONS.TEAMS_MANAGE);
+  const isEmployeeOnly = role === "EMPLOYEE" && !canManageTeam;
 
   const [team, setTeam] = useState<Team | null>(null);
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -136,7 +171,21 @@ export function TeamDetailPage() {
   const availableMembersToAdd = useMemo(() => {
     if (!team) return [];
     const assigned = new Set(team.memberIds);
-    return employees.filter((employee) => !assigned.has(employee.id));
+    return employees.filter((employee) => {
+      const roleCandidates = [
+        employee.role,
+        employee["userRole"],
+        employee["tenantRole"],
+        employee["roleName"],
+        employee["employeeRole"],
+        employee["user"],
+      ]
+        .flatMap((value) => extractRoleTokens(value))
+        .filter(Boolean);
+
+      const isHrEmployee = roleCandidates.some((value) => value === "HR" || value.endsWith("_HR") || value === "ROLE_HR");
+      return !assigned.has(employee.id) && !isHrEmployee;
+    });
   }, [employees, team]);
 
   const managerProfile = useMemo(() => {
@@ -151,7 +200,12 @@ export function TeamDetailPage() {
   }
 
   async function handleAddMember() {
-    if (!id || !memberToAdd) return;
+    if (!id || !memberToAdd || !canManageTeam) return;
+    if (!availableMembersToAdd.some((employee) => employee.id === memberToAdd)) {
+      setMessage("Selected employee cannot be added to this team.");
+      return;
+    }
+
     setAddLoading(true);
     setMessage(null);
     try {
@@ -167,7 +221,7 @@ export function TeamDetailPage() {
   }
 
   async function handleRemoveMember() {
-    if (!id || !removeTarget) return;
+    if (!id || !removeTarget || !canManageTeam) return;
     if (team?.managerEmployeeId && removeTarget.employeeId === team.managerEmployeeId) {
       setMessage("Reassign the manager before removing this member.");
       setRemoveTarget(null);
@@ -177,7 +231,7 @@ export function TeamDetailPage() {
     setRemoveLoading(true);
     setMessage(null);
     try {
-      await removeTeamMember(id, removeTarget.employeeId);
+      await removeTeamMember(id, removeTarget.employeeId, removeTarget.teamMemberId);
       await refreshTeam();
       setMessage("Team member removed.");
       setRemoveTarget(null);
@@ -189,15 +243,16 @@ export function TeamDetailPage() {
   }
 
   async function handleRoleUpdate(member: TeamMember) {
-    if (!id) return;
-    const nextRole = roleDrafts[member.employeeId] || null;
+    if (!id || !canManageTeam) return;
+    const rowId = memberRowId(member);
+    const nextRole = roleDrafts[rowId] || null;
     const currentRole = member.functionalRole ?? null;
     if (nextRole === currentRole) return;
 
-    setRoleUpdateLoadingId(member.employeeId);
+    setRoleUpdateLoadingId(rowId);
     setMessage(null);
     try {
-      await updateTeamMemberFunctionalRole(id, member.employeeId, nextRole);
+      await updateTeamMemberFunctionalRole(id, member.employeeId, member.teamMemberId, nextRole);
       await refreshTeam();
       setMessage("Member functional role updated.");
     } catch (err: unknown) {
@@ -295,7 +350,7 @@ export function TeamDetailPage() {
             <SectionCard title="Member Count">
               <div className="flex items-center gap-2">
                 <Users size={16} style={{ color: "var(--color-primary-500)" }} />
-                <span className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>{team.memberIds.length}</span>
+                <span className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>{getTeamMemberCount(team)}</span>
               </div>
             </SectionCard>
 
@@ -341,11 +396,9 @@ export function TeamDetailPage() {
             <SectionCard title="Team Members" subtitle="Current members assigned to this team.">
             {canManageTeam && (
               <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto]">
-                <select
+                <AppSelect
                   value={memberToAdd}
                   onChange={(event) => setMemberToAdd(event.target.value)}
-                  className="rounded-xl border px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary-500/30"
-                  style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)", color: "var(--text-primary)" }}
                   disabled={availableMembersToAdd.length === 0}
                 >
                   <option value="">
@@ -356,7 +409,7 @@ export function TeamDetailPage() {
                       {getEmployeeDisplayName(employee)}
                     </option>
                   ))}
-                </select>
+                </AppSelect>
                 <Button variant="primary" onClick={handleAddMember} disabled={!memberToAdd || addLoading}>
                   {addLoading ? "Adding..." : "Add Member"}
                 </Button>
@@ -374,12 +427,15 @@ export function TeamDetailPage() {
             {resolvedMembers.length > 0 && (
               <div className="grid grid-cols-1 gap-3">
                 {resolvedMembers.map((member) => {
-                  const roleDraft = roleDrafts[member.employeeId] ?? "";
-                  const roleLabel = member.functionalRole ? toReadableLabel(member.functionalRole) : "Role not set";
+                  const rowId = memberRowId(member);
+                  const roleDraft = roleDrafts[rowId] ?? "";
+                  const roleLabel = member.functionalRole ? toTeamRoleLabel(member.functionalRole) : "Role not set";
+                  const roleBadgeStyle = member.functionalRole ? TEAM_ROLE_BADGE_STYLES[member.functionalRole] : null;
+                  const isRoleDirty = (roleDraft || null) !== (member.functionalRole ?? null);
 
                   return (
                     <div
-                      key={member.employeeId}
+                      key={rowId}
                       className="rounded-xl border p-3"
                       style={{ backgroundColor: "var(--bg-muted)", borderColor: "var(--border-default)" }}
                     >
@@ -404,7 +460,7 @@ export function TeamDetailPage() {
                               )}
                               <span
                                 className="inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold"
-                                style={{ background: "rgba(99,102,241,0.12)", color: "#6366f1" }}
+                                style={roleBadgeStyle ?? { background: "rgba(99,102,241,0.12)", color: "#6366f1" }}
                               >
                                 {roleLabel}
                               </span>
@@ -414,29 +470,27 @@ export function TeamDetailPage() {
 
                         {canManageTeam && (
                           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                            <select
+                            <AppSelect
                               value={roleDraft}
                               onChange={(event) =>
                                 setRoleDrafts((prev) => ({
                                   ...prev,
-                                  [member.employeeId]: event.target.value as RoleDraftValue,
+                                  [rowId]: event.target.value as RoleDraftValue,
                                 }))
                               }
-                              className="rounded-xl border px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-primary-500/30"
-                              style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)", color: "var(--text-primary)" }}
                             >
                               <option value="">No functional role</option>
                               {TEAM_MEMBER_FUNCTIONAL_ROLES.map((role) => (
-                                <option key={role} value={role}>{toReadableLabel(role)}</option>
+                                <option key={role} value={role}>{toTeamRoleLabel(role)}</option>
                               ))}
-                            </select>
+                            </AppSelect>
                             <Button
                               variant="outline"
                               size="sm"
                               onClick={() => handleRoleUpdate(member)}
-                              disabled={roleUpdateLoadingId === member.employeeId}
+                              disabled={roleUpdateLoadingId === rowId || !isRoleDirty}
                             >
-                              {roleUpdateLoadingId === member.employeeId ? "Saving..." : "Save Role"}
+                              {roleUpdateLoadingId === rowId ? "Saving..." : "Save Role"}
                             </Button>
                             <Button
                               variant="danger"
@@ -484,15 +538,7 @@ function applyTeam(
   setTeam(team);
   const drafts: Record<string, RoleDraftValue> = {};
   for (const member of team.members) {
-    drafts[member.employeeId] = member.functionalRole ?? "";
+    drafts[memberRowId(member)] = member.functionalRole ?? "";
   }
   setRoleDrafts(drafts);
-}
-
-function toReadableLabel(value: string): string {
-  return value
-    .toLowerCase()
-    .split("_")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
 }

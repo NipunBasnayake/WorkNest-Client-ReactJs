@@ -40,6 +40,10 @@ export function LeaveFormPage() {
     getLeaveRequestById(id)
       .then((request) => {
         if (!active) return;
+        if (user && request.employeeId !== user.id) {
+          setFatalError("You can edit only your own leave requests.");
+          return;
+        }
         if (request.status !== "PENDING") {
           setFatalError("Only pending leave requests can be edited.");
           return;
@@ -78,6 +82,9 @@ export function LeaveFormPage() {
     try {
       if (id) {
         const latest = await getLeaveRequestById(id);
+        if (latest.employeeId !== user.id) {
+          throw new Error("You can edit only your own leave requests.");
+        }
         if (latest.status !== "PENDING") {
           throw new Error("This leave request is no longer pending and cannot be edited.");
         }

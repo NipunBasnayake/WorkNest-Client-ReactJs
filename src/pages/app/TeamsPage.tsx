@@ -1,68 +1,55 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Search, Users, UserPlus2 } from "lucide-react";
+import { FiEdit2, FiEye, FiUsers } from "react-icons/fi";
+import { Link } from "react-router-dom";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { useAuth } from "@/hooks/useAuth";
-import { getTeams } from "@/modules/teams/services/teamService";
-import { getProjects } from "@/modules/projects/services/projectService";
-import { getMyEmployeeProfile } from "@/modules/employees/services/employeeService";
+import { PERMISSIONS } from "@/constants/permissions";
+import { usePermission } from "@/hooks/usePermission";
+import { useMyTeamsQuery, useProjectsQuery, useTeamsQuery } from "@/hooks/queries/useCoreQueries";
 import { SectionCard } from "@/components/common/SectionCard";
 import { PageHeader } from "@/components/common/PageHeader";
-import { EmptyState, ErrorBanner, SkeletonRow } from "@/components/common/AppUI";
+import { EmptyState, ErrorState } from "@/components/common/AsyncStates";
+import { SkeletonRow } from "@/components/common/AppUI";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { Button } from "@/components/common/Button";
 import type { Team } from "@/modules/teams/types";
 import type { Project } from "@/modules/projects/types";
+import { getTeamMemberCount } from "@/modules/teams/utils/memberCount";
 import { getErrorMessage } from "@/utils/errorHandler";
 
-interface ViewerContext {
-  employeeId?: string;
-  email?: string;
-}
+const EMPTY_TEAMS: Team[] = [];
+const EMPTY_PROJECTS: Project[] = [];
 
 export function TeamsPage() {
   usePageMeta({ title: "Teams", breadcrumb: ["Workspace", "Teams"] });
-  const { hasRole, user } = useAuth();
+  const { role } = useAuth();
+  const { hasPermission } = usePermission();
 
-  const canManageTeams = hasRole("TENANT_ADMIN", "ADMIN", "MANAGER", "HR");
-  const isEmployeeOnly = hasRole("EMPLOYEE") && !canManageTeams;
+  const canManageTeams = hasPermission(PERMISSIONS.TEAMS_MANAGE);
+  const isEmployeeOnly = role === "EMPLOYEE" && !canManageTeams;
 
-  const [teams, setTeams] = useState<Team[]>([]);
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [viewer, setViewer] = useState<ViewerContext>({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
-  async function fetchTeams() {
-    setLoading(true);
-    setError(null);
-    try {
-      const profilePromise = isEmployeeOnly
-        ? getMyEmployeeProfile().catch(() => null)
-        : Promise.resolve(null);
+  const allTeamsQuery = useTeamsQuery(!isEmployeeOnly);
+  const myTeamsQuery = useMyTeamsQuery(isEmployeeOnly);
+  const teamsQuery = isEmployeeOnly ? myTeamsQuery : allTeamsQuery;
+  const shouldLoadProjects = !isEmployeeOnly;
+  const projectsQuery = useProjectsQuery(shouldLoadProjects);
 
-      const [teamResponse, projectResponse, myProfile] = await Promise.all([
-        getTeams(),
-        getProjects().catch(() => []),
-        profilePromise,
-      ]);
+  const teams = teamsQuery.data ?? EMPTY_TEAMS;
+  const projects = shouldLoadProjects ? (projectsQuery.data ?? EMPTY_PROJECTS) : EMPTY_PROJECTS;
 
-      setTeams(teamResponse);
-      setProjects(projectResponse);
-      setViewer({
-        employeeId: myProfile?.id ?? user?.id,
-        email: myProfile?.email ?? user?.email,
-      });
-    } catch (err: unknown) {
-      setError(getErrorMessage(err, "Failed to load teams."));
-    } finally {
-      setLoading(false);
+  const loading = teamsQuery.isLoading || (shouldLoadProjects && projectsQuery.isLoading);
+  const firstError = teamsQuery.error ?? (shouldLoadProjects ? projectsQuery.error : null);
+  const errorMessage = firstError ? getErrorMessage(firstError, "Failed to load teams.") : null;
+
+  function retryFetch(): void {
+    void teamsQuery.refetch();
+    if (shouldLoadProjects) {
+      void projectsQuery.refetch();
     }
   }
-
-  useEffect(() => {
-    void fetchTeams();
-  }, [isEmployeeOnly, user?.email, user?.id]);
 
   const projectCountByTeam = useMemo(() => {
     const counts = new Map<string, number>();
@@ -74,10 +61,7 @@ export function TeamsPage() {
     return counts;
   }, [projects]);
 
-  const visibleTeams = useMemo(() => {
-    if (!isEmployeeOnly) return teams;
-    return teams.filter((team) => isTeamVisibleToEmployee(team, viewer));
-  }, [isEmployeeOnly, teams, viewer]);
+  const visibleTeams = teams;
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -123,7 +107,7 @@ export function TeamsPage() {
         </div>
       </SectionCard>
 
-      {error && <ErrorBanner message={error} onRetry={fetchTeams} />}
+      {errorMessage && <ErrorState message={errorMessage} onRetry={retryFetch} />}
 
       <SectionCard
         className="overflow-hidden"
@@ -131,21 +115,22 @@ export function TeamsPage() {
         title={isEmployeeOnly ? "Team Visibility" : "Teams"}
         subtitle={isEmployeeOnly ? "Your team structure and manager context." : "Structure your workforce by teams and managers."}
       >
-        <div
-          className="hidden md:grid grid-cols-[2fr_1.3fr_0.8fr_0.8fr_0.8fr_1.7fr] gap-3 border-b px-5 py-3 text-xs font-semibold uppercase tracking-wider"
-          style={{ color: "var(--text-tertiary)", borderColor: "var(--border-default)", backgroundColor: "var(--bg-muted)" }}
-        >
-          <span>Team</span>
-          <span>Manager</span>
-          <span>Members</span>
-          <span>Projects</span>
-          <span>Status</span>
-          <span className="text-right">Actions</span>
-        </div>
+        <div className="overflow-x-auto">
+          <div
+            className="hidden min-w-[980px] md:grid grid-cols-[2fr_1.3fr_0.8fr_0.8fr_0.8fr_1.7fr] gap-3 border-b px-5 py-3 text-xs font-semibold uppercase tracking-wider"
+            style={{ color: "var(--text-tertiary)", borderColor: "var(--border-default)", backgroundColor: "var(--bg-muted)" }}
+          >
+            <span>Team</span>
+            <span>Manager</span>
+            <span>Members</span>
+            <span>Projects</span>
+            <span>Status</span>
+            <span className="text-right">Actions</span>
+          </div>
 
-        {loading && Array.from({ length: 5 }).map((_, idx) => <SkeletonRow key={idx} cols={6} />)}
+          {loading && Array.from({ length: 5 }).map((_, idx) => <SkeletonRow key={idx} cols={6} />)}
 
-        {!loading && !error && filtered.length === 0 && (
+        {!loading && !errorMessage && filtered.length === 0 && (
           <EmptyState
             icon={<Users size={28} />}
             title={search ? "No matching teams" : (isEmployeeOnly ? "No teams assigned" : "No teams yet")}
@@ -160,9 +145,9 @@ export function TeamsPage() {
           />
         )}
 
-        {!loading && filtered.length > 0 && (
+        {!loading && !errorMessage && filtered.length > 0 && (
           <>
-            <div className="hidden md:block">
+            <div className="hidden min-w-[980px] md:block">
               {filtered.map((team) => (
                 <div
                   key={team.id}
@@ -174,13 +159,41 @@ export function TeamsPage() {
                     <div className="truncate text-xs" style={{ color: "var(--text-tertiary)" }}>{team.description || "No description"}</div>
                   </div>
                   <span className="truncate text-sm" style={{ color: "var(--text-secondary)" }}>{team.managerName || "-"}</span>
-                  <span className="text-sm" style={{ color: "var(--text-secondary)" }}>{team.memberIds.length}</span>
+                  <span className="text-sm" style={{ color: "var(--text-secondary)" }}>{getTeamMemberCount(team)}</span>
                   <span className="text-sm" style={{ color: "var(--text-secondary)" }}>{projectCountByTeam.get(team.id) ?? 0}</span>
                   <StatusBadge status={team.status} />
-                  <div className="flex items-center justify-end gap-1.5">
-                    <Button variant="ghost" size="sm" to={`/app/teams/${team.id}`}>View</Button>
-                    {canManageTeams && <Button variant="outline" size="sm" to={`/app/teams/${team.id}/edit`}>Edit</Button>}
-                    {canManageTeams && <Button variant="outline" size="sm" to={`/app/teams/${team.id}#members`}>Manage Members</Button>}
+                  <div className="flex items-center justify-end gap-2">
+                    <Link
+                      to={`/app/teams/${team.id}`}
+                      title="View team"
+                      aria-label="View team"
+                      className="inline-flex items-center justify-center p-1 transition-opacity hover:opacity-80"
+                      style={{ color: "var(--text-secondary)" }}
+                    >
+                      <FiEye size={15} />
+                    </Link>
+                    {canManageTeams && (
+                      <Link
+                        to={`/app/teams/${team.id}/edit`}
+                        title="Edit team"
+                        aria-label="Edit team"
+                        className="inline-flex items-center justify-center p-1 transition-opacity hover:opacity-80"
+                        style={{ color: "var(--text-secondary)" }}
+                      >
+                        <FiEdit2 size={15} />
+                      </Link>
+                    )}
+                    {canManageTeams && (
+                      <Link
+                        to={`/app/teams/${team.id}#members`}
+                        title="Manage team members"
+                        aria-label="Manage team members"
+                        className="inline-flex items-center justify-center p-1 transition-opacity hover:opacity-80"
+                        style={{ color: "var(--text-secondary)" }}
+                      >
+                        <FiUsers size={15} />
+                      </Link>
+                    )}
                   </div>
                 </div>
               ))}
@@ -198,7 +211,7 @@ export function TeamsPage() {
                       <div className="truncate text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{team.name}</div>
                       <div className="mt-0.5 text-xs" style={{ color: "var(--text-secondary)" }}>Manager: {team.managerName || "-"}</div>
                       <div className="mt-1 text-xs" style={{ color: "var(--text-tertiary)" }}>
-                        {team.memberIds.length} member{team.memberIds.length === 1 ? "" : "s"} · {projectCountByTeam.get(team.id) ?? 0} project{(projectCountByTeam.get(team.id) ?? 0) === 1 ? "" : "s"}
+                        {getTeamMemberCount(team)} member{getTeamMemberCount(team) === 1 ? "" : "s"} · {projectCountByTeam.get(team.id) ?? 0} project{(projectCountByTeam.get(team.id) ?? 0) === 1 ? "" : "s"}
                       </div>
                     </div>
                     <StatusBadge status={team.status} />
@@ -212,16 +225,8 @@ export function TeamsPage() {
             </div>
           </>
         )}
+        </div>
       </SectionCard>
     </div>
-  );
-}
-
-function isTeamVisibleToEmployee(team: Team, viewer: ViewerContext): boolean {
-  const email = viewer.email?.toLowerCase();
-  return Boolean(
-    (viewer.employeeId && team.memberIds.includes(viewer.employeeId)) ||
-    (viewer.employeeId && team.managerEmployeeId === viewer.employeeId) ||
-    (email && team.members.some((member) => member.email?.toLowerCase() === email))
   );
 }

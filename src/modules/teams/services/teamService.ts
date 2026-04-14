@@ -1,6 +1,6 @@
 import { apiClient } from "@/services/http/client";
 import { unwrapApiData } from "@/services/http/response";
-import { asRecord, extractList, firstDefined, getBoolean, getId, getString, toIsoDateTime } from "@/services/http/parsers";
+import { asRecord, extractList, firstDefined, getBoolean, getId, getNumber, getString, toIsoDateTime } from "@/services/http/parsers";
 import type {
   Team,
   TeamFormValues,
@@ -20,28 +20,46 @@ function toUiStatus(status: unknown): TeamStatus {
 function normalizeFunctionalRole(role: unknown): TeamMemberFunctionalRole | undefined {
   const normalized = getString(role)?.toUpperCase().replace(/[\s-]+/g, "_");
   if (!normalized) return undefined;
+  if (normalized === "MEMBER") return "MEMBER";
   if (normalized === "TEAM_LEAD") return "TEAM_LEAD";
+  if (normalized === "LEAD") return "TEAM_LEAD";
   if (normalized === "PROJECT_MANAGER") return "PROJECT_MANAGER";
-  if (normalized === "QA_ENGINEER" || normalized === "QA") return "QA";
-  if (normalized === "DEVELOPER" || normalized === "DEV") return "DEV";
+  if (normalized === "PROJECTMANAGER") return "PROJECT_MANAGER";
+  if (normalized === "PROJECT_MGR") return "PROJECT_MANAGER";
+  if (normalized === "PROJECT_LEAD") return "PROJECT_MANAGER";
+  if (normalized === "TEAM_MANAGER") return "PROJECT_MANAGER";
+  if (normalized === "MANAGER") return "PROJECT_MANAGER";
+  if (normalized === "PM") return "PROJECT_MANAGER";
+  if (normalized === "BUSINESS_ANALYST") return "BUSINESS_ANALYST";
+  if (normalized === "DEVELOPER") return "DEVELOPER";
+  if (normalized === "QA") return "QA";
+  if (normalized === "DESIGNER") return "DESIGNER";
   return undefined;
 }
 
 function toApiFunctionalRole(role: TeamMemberFunctionalRole | null): string | null {
-  if (role === "DEV") return "DEVELOPER";
-  if (role === "QA") return "QA_ENGINEER";
   return role;
 }
 
 function normalizeTeamMember(input: unknown): TeamMember | null {
   const value = asRecord(input);
   const employee = asRecord(value.employee);
+  const hasNestedEmployee = Object.keys(employee).length > 0;
+
+  const teamMemberId = getId(
+    firstDefined(
+      value.teamMemberId,
+      value.team_member_id,
+      value.membershipId,
+      hasNestedEmployee ? value.id : undefined
+    )
+  );
 
   const employeeId = getId(
     firstDefined(
       value.employeeId,
+      value.memberEmployeeId,
       value.memberId,
-      value.id,
       employee.id
     )
   );
@@ -49,6 +67,7 @@ function normalizeTeamMember(input: unknown): TeamMember | null {
   if (!employeeId) return null;
 
   return {
+    teamMemberId: teamMemberId || undefined,
     employeeId,
     name: firstDefined(
       getString(value.employeeName),
@@ -79,6 +98,7 @@ function dedupeMembers(members: TeamMember[]): TeamMember[] {
     }
 
     map.set(member.employeeId, {
+      teamMemberId: existing.teamMemberId ?? member.teamMemberId,
       employeeId: member.employeeId,
       name: existing.name ?? member.name,
       email: existing.email ?? member.email,
@@ -119,7 +139,7 @@ function normalizeTeam(input: unknown, members: TeamMember[] = []): Team {
       .map((item) => {
         if (typeof item === "string") return item;
         const memberValue = asRecord(item);
-        return getId(firstDefined(memberValue.employeeId, memberValue.memberId, memberValue.id, asRecord(memberValue.employee).id));
+        return getId(firstDefined(memberValue.employeeId, memberValue.memberId, asRecord(memberValue.employee).id));
       })
       .filter(Boolean);
 
@@ -129,6 +149,22 @@ function normalizeTeam(input: unknown, members: TeamMember[] = []): Team {
     }));
   }
 
+  const memberIds = new Set(normalizedMembers.map((member) => member.employeeId).filter(Boolean));
+  if (managerEmployeeId) {
+    memberIds.add(managerEmployeeId);
+  }
+
+  const memberCount = getNumber(
+    firstDefined(
+      value.memberCount,
+      value.membersCount,
+      value.totalMembers,
+      value.member_count,
+      value.activeMemberCount,
+      value.active_member_count
+    )
+  ) ?? memberIds.size;
+
   return {
     id: getId(firstDefined(value.id, value.teamId)),
     name: firstDefined(getString(value.name), getString(value.teamName)) ?? "Team",
@@ -136,7 +172,8 @@ function normalizeTeam(input: unknown, members: TeamMember[] = []): Team {
     managerName,
     managerEmployeeId,
     members: normalizedMembers,
-    memberIds: normalizedMembers.map((member) => member.employeeId),
+    memberIds: Array.from(memberIds),
+    memberCount,
     status: toUiStatus(firstDefined(value.status, value.teamStatus)),
     createdAt: toIsoDateTime(firstDefined(value.createdAt, value.createdDate)),
     updatedAt: toIsoDateTime(firstDefined(value.updatedAt, value.updatedDate, value.modifiedAt)),
@@ -196,8 +233,10 @@ async function syncTeamMembers(teamId: string, expectedMembers: string[]) {
 
 function toPayload(values: TeamFormValues): Record<string, unknown> {
   const managerId = Number(values.managerEmployeeId);
+  const description = values.description.trim();
   return {
     name: values.name.trim(),
+    description: description.length > 0 ? description : null,
     managerId: values.managerEmployeeId
       ? (Number.isNaN(managerId) ? values.managerEmployeeId : managerId)
       : undefined,
@@ -218,7 +257,7 @@ function extractErrorMessage(err: unknown): string | null {
 export async function addTeamMember(
   teamId: string,
   employeeId: string,
-  functionalRole: TeamMemberFunctionalRole = "DEV"
+  functionalRole: TeamMemberFunctionalRole = "DEVELOPER"
 ): Promise<void> {
   const normalizedEmployeeId = Number(employeeId);
   await apiClient.post(`/api/tenant/teams/${teamId}/members`, {
@@ -227,16 +266,27 @@ export async function addTeamMember(
   });
 }
 
-export async function removeTeamMember(teamId: string, employeeId: string): Promise<void> {
+export async function removeTeamMember(teamId: string, employeeId: string, teamMemberId?: string): Promise<void> {
+  if (teamMemberId) {
+    await apiClient.delete(`/api/tenant/teams/${teamId}/team-members/${teamMemberId}`);
+    return;
+  }
+
   await apiClient.delete(`/api/tenant/teams/${teamId}/members/${employeeId}`);
 }
 
 export async function updateTeamMemberFunctionalRole(
   teamId: string,
   employeeId: string,
+  teamMemberId: string | undefined,
   functionalRole: TeamMemberFunctionalRole | null
 ): Promise<void> {
   const payload = { functionalRole: toApiFunctionalRole(functionalRole) };
+  if (teamMemberId) {
+    await apiClient.patch(`/api/tenant/teams/${teamId}/team-members/${teamMemberId}/functional-role`, payload);
+    return;
+  }
+
   const normalizedEmployeeId = Number(employeeId);
   const employeePathId = Number.isNaN(normalizedEmployeeId) ? employeeId : String(normalizedEmployeeId);
 

@@ -1,8 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { getEmployees, getMyEmployeeProfile } from "@/modules/employees/services/employeeService";
-import { getProjects } from "@/modules/projects/services/projectService";
+import { getMyProjects, getProjects } from "@/modules/projects/services/projectService";
 import { getTasks } from "@/modules/tasks/services/taskService";
-import { getTeams } from "@/modules/teams/services/teamService";
+import { getMyTeams, getTeams } from "@/modules/teams/services/teamService";
 import { queryKeys } from "@/hooks/queries/queryKeys";
 
 export function useEmployeesQuery(enabled = true) {
@@ -23,10 +23,28 @@ export function useProjectsQuery(enabled = true) {
   });
 }
 
+export function useMyProjectsQuery(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.myProjects(),
+    queryFn: getMyProjects,
+    enabled,
+    staleTime: 2 * 60_000,
+  });
+}
+
 export function useTeamsQuery(enabled = true) {
   return useQuery({
     queryKey: queryKeys.teams(),
     queryFn: getTeams,
+    enabled,
+    staleTime: 2 * 60_000,
+  });
+}
+
+export function useMyTeamsQuery(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.myTeams(),
+    queryFn: getMyTeams,
     enabled,
     staleTime: 2 * 60_000,
   });

@@ -13,6 +13,8 @@ export interface AttendanceTrendDatum {
   date: string;
   present: number;
   late: number;
+  halfDay: number;
+  incomplete: number;
   absent: number;
 }
 
@@ -68,7 +70,8 @@ export interface DashboardAttendanceSummary {
   late: number;
   absent: number;
   halfDay: number;
-  myTodayStatus: "PRESENT" | "LATE" | "ABSENT" | "HALF_DAY" | "NOT_MARKED";
+  incomplete: number;
+  myTodayStatus: "PRESENT" | "LATE" | "ABSENT" | "HALF_DAY" | "INCOMPLETE" | "NOT_MARKED";
   myWorkedMinutes: number;
 }
 

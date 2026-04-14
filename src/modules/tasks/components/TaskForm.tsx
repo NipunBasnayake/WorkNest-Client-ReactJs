@@ -12,6 +12,7 @@ interface Option {
 interface TaskFormProps {
   values: TaskFormValues;
   errors: TaskFormErrors;
+  teams: Option[];
   assignees: Option[];
   projects: Option[];
   submitting: boolean;
@@ -33,6 +34,7 @@ function toLabel(value: string): string {
 export function TaskForm({
   values,
   errors,
+  teams,
   assignees,
   projects,
   submitting,
@@ -125,10 +127,30 @@ export function TaskForm({
         />
       </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="task-assigned-team" className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
+            Assigned Team
+          </label>
+          <AppSelect
+            id="task-assigned-team"
+            value={values.assignedTeamId}
+            onChange={(event) => onChange({ ...values, assignedTeamId: event.target.value, assigneeId: "" })}
+            error={Boolean(errors.assignedTeamId)}
+          >
+            <option value="">Select team</option>
+            {teams.map((team) => (
+              <option key={team.id} value={team.id}>
+                {team.label}
+              </option>
+            ))}
+          </AppSelect>
+          {errors.assignedTeamId && <p className="text-xs text-red-500">{errors.assignedTeamId}</p>}
+        </div>
+
         <div className="flex flex-col gap-1.5">
           <label htmlFor="task-assignee" className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
-            Assignee
+            Assignee (Optional)
           </label>
           <AppSelect
             id="task-assignee"
@@ -136,7 +158,7 @@ export function TaskForm({
             onChange={(event) => onChange({ ...values, assigneeId: event.target.value })}
             error={Boolean(errors.assigneeId)}
           >
-            <option value="">Select assignee</option>
+            <option value="">Team-level task (no individual assignee)</option>
             {assignees.map((assignee) => (
               <option key={assignee.id} value={assignee.id}>
                 {assignee.label}
@@ -153,7 +175,7 @@ export function TaskForm({
           <AppSelect
             id="task-project"
             value={values.projectId}
-            onChange={(event) => onChange({ ...values, projectId: event.target.value })}
+            onChange={(event) => onChange({ ...values, projectId: event.target.value, assignedTeamId: "", assigneeId: "" })}
             error={Boolean(errors.projectId)}
           >
             <option value="">Select project</option>

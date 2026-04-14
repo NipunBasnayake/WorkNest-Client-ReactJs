@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CalendarDays, Clock3, LogIn, LogOut, UserCheck, Users2 } from "lucide-react";
+import { CalendarDays, Clock3, LogIn, LogOut, UserCheck, Users2, UserRoundPen, BadgeCheck } from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { useAuth } from "@/hooks/useAuth";
 import { PERMISSIONS } from "@/constants/permissions";
 import { usePermission } from "@/hooks/usePermission";
-import { checkIn, checkOut, getAttendanceRecords, getAttendanceSummary } from "@/modules/attendance/services/attendanceService";
+import { checkIn, checkOut, getAttendanceRecords, getAttendanceSummary, summarizeAttendance } from "@/modules/attendance/services/attendanceService";
 import { AttendanceStatusBadge } from "@/modules/attendance/components/AttendanceStatusBadge";
 import { PageHeader } from "@/components/common/PageHeader";
 import { SectionCard } from "@/components/common/SectionCard";
@@ -12,6 +12,8 @@ import { Button } from "@/components/common/Button";
 import { EmptyState, ErrorBanner, SkeletonRow, StatCard } from "@/components/common/AppUI";
 import type { AttendanceRecord } from "@/modules/attendance/types";
 import { getErrorMessage } from "@/utils/errorHandler";
+import { getEmployees, getMyEmployeeProfile } from "@/modules/employees/services/employeeService";
+import type { Employee } from "@/types";
 
 function today() {
   return new Date().toISOString().slice(0, 10);
@@ -31,23 +33,78 @@ export function AttendancePage() {
 
   const [selectedDate, setSelectedDate] = useState(today());
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
+  const [myEmployee, setMyEmployee] = useState<Employee | null>(null);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [manualEmployeeId, setManualEmployeeId] = useState("");
+  const [manualNote, setManualNote] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
-  const [summary, setSummary] = useState({ total: 0, present: 0, late: 0, absent: 0, halfDay: 0 });
+  const [summary, setSummary] = useState({ total: 0, present: 0, late: 0, absent: 0, halfDay: 0, incomplete: 0 });
 
   const canViewAll = hasPermission(PERMISSIONS.ATTENDANCE_MANAGE);
-  const canMarkOwnAttendance = role !== "TENANT_ADMIN";
+  const canMarkOwnAttendance = role === "EMPLOYEE" || role === "HR";
+  const canManageManualAttendance = role === "HR";
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadIdentity() {
+      try {
+        const profile = await getMyEmployeeProfile();
+        if (!active) return;
+        setMyEmployee(profile);
+        setManualEmployeeId((current) => current || profile.id);
+      } catch {
+        if (active) {
+          setMyEmployee(null);
+        }
+      }
+    }
+
+    loadIdentity();
+
+    return () => {
+      active = false;
+    };
+  }, [canViewAll]);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadEmployees() {
+      if (!canManageManualAttendance) {
+        if (active) setEmployees([]);
+        return;
+      }
+
+      try {
+        const list = await getEmployees();
+        if (active) {
+          setEmployees(list);
+          setManualEmployeeId((current) => current || list[0]?.id || "");
+        }
+      } catch (loadError: unknown) {
+        if (active) {
+          setFeedback(getErrorMessage(loadError, "Unable to load employee list for manual attendance."));
+        }
+      }
+    }
+
+    loadEmployees();
+
+    return () => {
+      active = false;
+    };
+  }, [canManageManualAttendance]);
 
   const fetchAttendance = useCallback(async (date: string) => {
     setLoading(true);
     setError(null);
     try {
-      const [recordRes, summaryRes] = await Promise.all([
-        getAttendanceRecords(date),
-        getAttendanceSummary(date),
-      ]);
+      const recordRes = await getAttendanceRecords(date, canViewAll ? "all" : "mine");
+      const summaryRes = canViewAll ? await getAttendanceSummary(date) : summarizeAttendance(recordRes);
       setRecords(recordRes);
       setSummary(summaryRes);
     } catch {
@@ -55,33 +112,38 @@ export function AttendancePage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [canViewAll]);
 
   useEffect(() => {
     fetchAttendance(selectedDate);
   }, [fetchAttendance, selectedDate]);
 
   const visibleRecords = useMemo(() => {
-    if (canViewAll) return records;
-    if (!user) return [];
-
-    return records.filter((record) => record.employeeId === user.id || record.employeeName === user.name);
-  }, [canViewAll, records, user]);
+    return records;
+  }, [records]);
 
   const selfRecord = useMemo(() => {
-    if (!user) return null;
-    return records.find((record) => record.employeeId === user.id || record.employeeName === user.name) ?? null;
-  }, [records, user]);
+    if (!myEmployee) return null;
+    return records.find((record) => record.employeeId === myEmployee.id) ?? null;
+  }, [records, myEmployee]);
 
-  const canCheckIn = canMarkOwnAttendance && Boolean(user) && !actionLoading && !selfRecord?.checkIn;
-  const canCheckOut = canMarkOwnAttendance && Boolean(user) && !actionLoading && Boolean(selfRecord?.checkIn) && !selfRecord?.checkOut;
+  const selectedManualEmployee = useMemo(
+    () => employees.find((employee) => employee.id === manualEmployeeId) ?? null,
+    [employees, manualEmployeeId]
+  );
+
+  const canCheckIn = canMarkOwnAttendance && Boolean(myEmployee) && !actionLoading && !selfRecord?.checkIn;
+  const canCheckOut = canMarkOwnAttendance && Boolean(myEmployee) && !actionLoading && Boolean(selfRecord?.checkIn) && !selfRecord?.checkOut;
+
+  const canManualCheckIn = canManageManualAttendance && Boolean(manualEmployeeId) && !actionLoading;
+  const canManualCheckOut = canManageManualAttendance && Boolean(manualEmployeeId) && !actionLoading;
 
   async function handleCheckIn() {
-    if (!user) return;
+    if (!myEmployee) return;
     setActionLoading(true);
     setFeedback(null);
     try {
-      await checkIn({ employeeId: user.id, employeeName: user.name });
+      await checkIn({ employeeId: myEmployee.id });
       setFeedback("Checked in successfully.");
       await fetchAttendance(selectedDate);
     } catch (actionError: unknown) {
@@ -92,15 +154,47 @@ export function AttendancePage() {
   }
 
   async function handleCheckOut() {
-    if (!user) return;
+    if (!myEmployee) return;
     setActionLoading(true);
     setFeedback(null);
     try {
-      await checkOut({ employeeId: user.id, employeeName: user.name });
+      await checkOut({ employeeId: myEmployee.id });
       setFeedback("Checked out successfully.");
       await fetchAttendance(selectedDate);
     } catch (actionError: unknown) {
       setFeedback(getErrorMessage(actionError, "Unable to check out right now."));
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  async function handleManualCheckIn() {
+    if (!manualEmployeeId) return;
+    setActionLoading(true);
+    setFeedback(null);
+    try {
+      await checkIn({ employeeId: manualEmployeeId, manualEntry: true, note: manualNote || undefined });
+      setFeedback("Manual check-in recorded.");
+      setManualNote("");
+      await fetchAttendance(selectedDate);
+    } catch (actionError: unknown) {
+      setFeedback(getErrorMessage(actionError, "Unable to record manual check-in right now."));
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  async function handleManualCheckOut() {
+    if (!manualEmployeeId) return;
+    setActionLoading(true);
+    setFeedback(null);
+    try {
+      await checkOut({ employeeId: manualEmployeeId, manualEntry: true, note: manualNote || undefined });
+      setFeedback("Manual check-out recorded.");
+      setManualNote("");
+      await fetchAttendance(selectedDate);
+    } catch (actionError: unknown) {
+      setFeedback(getErrorMessage(actionError, "Unable to record manual check-out right now."));
     } finally {
       setActionLoading(false);
     }
@@ -151,20 +245,96 @@ export function AttendancePage() {
 
       {selfRecord && (
         <SectionCard title="My Attendance Snapshot" subtitle={`For ${new Date(selectedDate).toLocaleDateString()}`}>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <InfoTile icon={<Clock3 size={16} />} label="Check In" value={selfRecord.checkIn || "-"} />
             <InfoTile icon={<Clock3 size={16} />} label="Check Out" value={selfRecord.checkOut || "-"} />
             <InfoTile icon={<CalendarDays size={16} />} label="Worked Time" value={formatMinutes(selfRecord.workedMinutes)} />
+            <InfoTile
+              icon={<BadgeCheck size={16} />}
+              label="Status"
+              value={selfRecord.status === "INCOMPLETE" ? "Incomplete" : selfRecord.status.replaceAll("_", " ")}
+            />
           </div>
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <AttendanceStatusBadge status={selfRecord.status} />
+            {selfRecord.late && <span className="rounded-full bg-amber-500/10 px-2.5 py-1 text-xs font-semibold text-amber-600">Late</span>}
+            {selfRecord.manualEntry && <span className="rounded-full bg-slate-500/10 px-2.5 py-1 text-xs font-semibold text-slate-600">Manual entry</span>}
+          </div>
+          {selfRecord.note && (
+            <p className="mt-3 text-sm" style={{ color: "var(--text-secondary)" }}>
+              Note: {selfRecord.note}
+            </p>
+          )}
+          {selfRecord.markedByEmployee && (
+            <p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>
+              Marked by: {selfRecord.markedByEmployee.name}
+            </p>
+          )}
         </SectionCard>
       )}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <StatCard label="Total Records" value={summary.total} icon={<Users2 size={18} />} accentColor="#9332EA" />
         <StatCard label="Present" value={summary.present} icon={<UserCheck size={18} />} accentColor="#10b981" />
         <StatCard label="Late" value={summary.late} icon={<Clock3 size={18} />} accentColor="#d97706" />
+        <StatCard label="Half Day" value={summary.halfDay} icon={<CalendarDays size={18} />} accentColor="#6366f1" />
+        <StatCard label="Incomplete" value={summary.incomplete} icon={<LogOut size={18} />} accentColor="#475569" />
         <StatCard label="Absent" value={summary.absent} icon={<CalendarDays size={18} />} accentColor="#ef4444" />
       </div>
+
+      {canManageManualAttendance && (
+        <SectionCard
+          title="HR Manual Attendance"
+          subtitle="Record attendance on behalf of an employee without using the self-service flow."
+        >
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1.5fr)_minmax(0,2fr)]">
+            <label className="space-y-2 text-sm">
+              <span className="font-medium" style={{ color: "var(--text-primary)" }}>Employee</span>
+              <select
+                value={manualEmployeeId}
+                onChange={(event) => setManualEmployeeId(event.target.value)}
+                className="w-full rounded-xl border px-3 py-2 outline-none focus:ring-2 focus:ring-primary-500/30"
+                style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)", color: "var(--text-primary)" }}
+              >
+                <option value="">Select employee</option>
+                {employees.map((employee) => (
+                  <option key={employee.id} value={employee.id}>
+                    {employee.name}
+                  </option>
+                ))}
+              </select>
+              {selectedManualEmployee && (
+                <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>
+                  {selectedManualEmployee.email}
+                </p>
+              )}
+            </label>
+
+            <label className="space-y-2 text-sm">
+              <span className="font-medium" style={{ color: "var(--text-primary)" }}>Note</span>
+              <textarea
+                value={manualNote}
+                onChange={(event) => setManualNote(event.target.value)}
+                rows={3}
+                className="w-full rounded-xl border px-3 py-2 outline-none focus:ring-2 focus:ring-primary-500/30"
+                style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)", color: "var(--text-primary)" }}
+                placeholder="Optional note for the record"
+              />
+            </label>
+          </div>
+
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <Button variant="outline" onClick={handleManualCheckIn} disabled={!canManualCheckIn}>
+              <UserRoundPen size={16} />
+              Manual Check In
+            </Button>
+            <Button variant="primary" onClick={handleManualCheckOut} disabled={!canManualCheckOut}>
+              <BadgeCheck size={16} />
+              Manual Check Out
+            </Button>
+          </div>
+        </SectionCard>
+      )}
 
       {error && <ErrorBanner message={error} onRetry={() => fetchAttendance(selectedDate)} />}
 

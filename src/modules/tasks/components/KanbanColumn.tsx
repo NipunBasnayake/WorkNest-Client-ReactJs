@@ -1,133 +1,70 @@
-import { useState } from "react";
-import { CalendarClock, FolderKanban, User } from "lucide-react";
-import { Link } from "react-router-dom";
-import { TaskPriorityBadge } from "@/modules/tasks/components/TaskPriorityBadge";
-import { TaskStatusBadge } from "@/modules/tasks/components/TaskStatusBadge";
+import { memo } from "react";
+import { useDroppable } from "@dnd-kit/core";
+import { getTaskStatusLabel } from "@/modules/tasks/utils/taskWorkflow";
+import { KanbanTaskCard } from "@/modules/tasks/components/KanbanTaskCard";
 import type { Task, TaskStatus } from "@/modules/tasks/types";
 
 interface KanbanColumnProps {
   status: TaskStatus;
   title: string;
   tasks: Task[];
-  onMoveTask?: (taskId: string, nextStatus: TaskStatus) => void;
-  canDragTask?: (task: Task) => boolean;
-  movingTaskId?: string | null;
+  draggableTaskIds?: ReadonlySet<string>;
 }
 
-export function KanbanColumn({ status, title, tasks, onMoveTask, canDragTask, movingTaskId }: KanbanColumnProps) {
-  const [isDragOver, setIsDragOver] = useState(false);
-
-  function handleDrop(taskId: string) {
-    if (!onMoveTask) return;
-    onMoveTask(taskId, status);
-    setIsDragOver(false);
-  }
+function KanbanColumnComponent({ status, title, tasks, draggableTaskIds }: KanbanColumnProps) {
+  const { isOver, setNodeRef } = useDroppable({ id: status, data: { status } });
+  const statusLabel = getTaskStatusLabel(status);
 
   return (
     <section
-      className="w-[300px] shrink-0 rounded-2xl border"
+      ref={setNodeRef}
+      className="w-[325px] shrink-0 rounded-2xl border-2"
       style={{
         backgroundColor: "var(--bg-surface)",
-        borderColor: isDragOver ? "rgba(147,50,234,0.45)" : "var(--border-default)",
-        boxShadow: isDragOver ? "0 0 0 2px rgba(147,50,234,0.18) inset" : undefined,
+        borderColor: isOver ? "var(--color-primary-500)" : "var(--border-default)"
       }}
     >
       <div
-        className="flex items-center justify-between border-b px-4 py-3"
-        style={{ borderColor: "var(--border-default)", backgroundColor: "var(--bg-muted)" }}
+        className="flex items-center justify-between border-b rounded-t-2xl px-4 py-3.5"
+        style={{ borderColor: "var(--border-default)", backgroundColor: "rgba(255,255,255,0.75)" }}
       >
-        <div className="flex items-center gap-2">
-          <TaskStatusBadge status={status} />
-          <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--text-tertiary)" }}>
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
             {title}
-          </span>
+          </p>
+          <p className="text-[11px]" style={{ color: "var(--text-tertiary)" }}>
+            {statusLabel}
+          </p>
         </div>
-        <span className="text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>
+        <div
+          className="inline-flex min-w-7 items-center justify-center rounded-md px-2 py-1 text-xs font-semibold"
+          style={{ backgroundColor: "var(--bg-surface)", border: "1px solid var(--border-default)", color: "var(--text-secondary)" }}
+        >
           {tasks.length}
-        </span>
+        </div>
       </div>
 
-      <div
-        className="space-y-3 p-3"
-        onDragOver={(event) => {
-          if (!onMoveTask) return;
-          event.preventDefault();
-          setIsDragOver(true);
-        }}
-        onDragLeave={() => setIsDragOver(false)}
-        onDrop={(event) => {
-          if (!onMoveTask) return;
-          event.preventDefault();
-          const taskId = event.dataTransfer.getData("application/worknest-task-id");
-          if (taskId) handleDrop(taskId);
-        }}
-      >
+      <div className="space-y-3 p-3.5">
         {tasks.length === 0 && (
           <div
-            className="rounded-xl border border-dashed px-3 py-8 text-center text-xs"
-            style={{ borderColor: "var(--border-default)", color: "var(--text-tertiary)" }}
+            className="rounded-xl border border-dashed px-3 py-9 text-center"
+            style={{ borderColor: "var(--border-default)", color: "var(--text-tertiary)", backgroundColor: "var(--bg-muted)" }}
           >
-            No tasks in this stage.
+            <p className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
+              No tasks in this stage
+            </p>
+            <p className="mt-1 text-xs" style={{ color: "var(--text-tertiary)" }}>
+              Drag a card here to update workflow.
+            </p>
           </div>
         )}
 
         {tasks.map((task) => (
-          (() => {
-            const canDrag = Boolean(onMoveTask && (!canDragTask || canDragTask(task)));
-            return (
-              <Link
-                key={task.id}
-                to={`/app/tasks/${task.id}`}
-                draggable={canDrag}
-                onDragStart={(event) => {
-                  if (!canDrag) {
-                    event.preventDefault();
-                    return;
-                  }
-                  event.dataTransfer.effectAllowed = "move";
-                  event.dataTransfer.setData("application/worknest-task-id", task.id);
-                }}
-                className="block rounded-xl border p-3 no-underline transition-colors hover:bg-primary-50/30 dark:hover:bg-primary-950/10"
-                style={{
-                  backgroundColor: "var(--bg-surface)",
-                  borderColor: movingTaskId === task.id ? "rgba(147,50,234,0.5)" : "var(--border-default)",
-                  opacity: movingTaskId === task.id ? 0.6 : 1,
-                  cursor: canDrag ? "grab" : "pointer",
-                }}
-              >
-                <p className="line-clamp-2 text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-                  {task.title}
-                </p>
-
-                <div className="mt-2 flex items-center gap-2">
-                  <TaskPriorityBadge priority={task.priority} />
-                </div>
-
-                <div className="mt-3 space-y-1.5 text-xs" style={{ color: "var(--text-secondary)" }}>
-                  <div className="inline-flex items-center gap-1.5">
-                    <User size={12} />
-                    {task.assigneeName || "Unassigned"}
-                  </div>
-                  <div className="inline-flex items-center gap-1.5">
-                    <CalendarClock size={12} />
-                    Due {formatDate(task.dueDate)}
-                  </div>
-                  <div className="inline-flex items-center gap-1.5">
-                    <FolderKanban size={12} />
-                    {task.projectName || "No project"}
-                  </div>
-                </div>
-              </Link>
-            );
-          })()
+          <KanbanTaskCard key={task.id} task={task} draggable={Boolean(draggableTaskIds?.has(task.id))} />
         ))}
       </div>
     </section>
   );
 }
 
-function formatDate(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value || "Not set";
-  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-}
+export const KanbanColumn = memo(KanbanColumnComponent);

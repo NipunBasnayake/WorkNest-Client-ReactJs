@@ -6,6 +6,7 @@ export const DEFAULT_TASK_FORM: TaskFormValues = {
   status: "TODO",
   priority: "MEDIUM",
   dueDate: "",
+  assignedTeamId: "",
   assigneeId: "",
   projectId: "",
   attachments: [],
@@ -26,8 +27,8 @@ export function validateTaskForm(values: TaskFormValues): TaskFormErrors {
     errors.dueDate = "Due date is required.";
   }
 
-  if (!values.assigneeId.trim()) {
-    errors.assigneeId = "Assignee is required.";
+  if (!values.assignedTeamId.trim()) {
+    errors.assignedTeamId = "Assigned team is required.";
   }
 
   if (!values.projectId.trim()) {

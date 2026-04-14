@@ -1,18 +1,24 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
+import { DEFAULT_PERMISSION_DENIED_MESSAGE, PERMISSIONS } from "@/constants/permissions";
+import { useAuth } from "@/hooks/useAuth";
+import { usePermission } from "@/hooks/usePermission";
+import { getMyEmployeeProfile } from "@/modules/employees/services/employeeService";
 import { createTask, getTaskById, updateTask } from "@/modules/tasks/services/taskService";
 import { DEFAULT_TASK_FORM, validateTaskForm } from "@/modules/tasks/schemas/taskForm";
 import { TaskForm } from "@/modules/tasks/components/TaskForm";
-import { getEmployees } from "@/modules/employees/services/employeeService";
-import { getEmployeeDisplayName } from "@/modules/employees/utils/employeeMapper";
 import { getProjects } from "@/modules/projects/services/projectService";
+import { getTeams } from "@/modules/teams/services/teamService";
+import { resolveViewerTeamRoles } from "@/modules/teams/utils/teamRoles";
 import { SectionCard } from "@/components/common/SectionCard";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/common/Button";
 import { ErrorBanner } from "@/components/common/AppUI";
+import type { Project } from "@/modules/projects/types";
 import type { TaskFormErrors, TaskFormValues } from "@/modules/tasks/types";
+import type { Team } from "@/modules/teams/types";
 import { getErrorMessage } from "@/utils/errorHandler";
 
 interface Option {
@@ -23,7 +29,12 @@ interface Option {
 export function TaskFormPage() {
   const navigate = useNavigate();
   const { id } = useParams<{ id?: string }>();
+  const [searchParams] = useSearchParams();
   const isEdit = Boolean(id);
+  const requestedProjectId = searchParams.get("projectId")?.trim() ?? "";
+  const { user } = useAuth();
+  const { hasPermission } = usePermission();
+  const canManageTasks = hasPermission(PERMISSIONS.TASKS_MANAGE);
 
   usePageMeta({
     title: isEdit ? "Edit Task" : "Create Task",
@@ -32,8 +43,9 @@ export function TaskFormPage() {
 
   const [form, setForm] = useState<TaskFormValues>(DEFAULT_TASK_FORM);
   const [errors, setErrors] = useState<TaskFormErrors>({});
-  const [assignees, setAssignees] = useState<Option[]>([]);
-  const [projects, setProjects] = useState<Option[]>([]);
+  const [projectCatalog, setProjectCatalog] = useState<Project[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [viewerEmployeeId, setViewerEmployeeId] = useState<string | undefined>(undefined);
   const [dependencyLoadError, setDependencyLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(isEdit);
   const [submitting, setSubmitting] = useState(false);
@@ -42,17 +54,33 @@ export function TaskFormPage() {
 
   useEffect(() => {
     setDependencyLoadError(null);
-    Promise.all([getEmployees().catch(() => []), getProjects().catch(() => [])]).then(([employeeRes, projectRes]) => {
-      setAssignees(employeeRes.map((employee) => ({ id: employee.id, label: getEmployeeDisplayName(employee) })));
-      setProjects(projectRes.map((project) => ({ id: project.id, label: project.name })));
+    Promise.all([
+      getProjects().catch(() => []),
+      getTeams().catch(() => []),
+      getMyEmployeeProfile().catch(() => null),
+    ])
+      .then(([projectRes, teamRes, profile]) => {
+        setProjectCatalog(projectRes);
+        setTeams(teamRes);
+        setViewerEmployeeId(profile?.id);
 
-      if (employeeRes.length === 0 || projectRes.length === 0) {
-        setDependencyLoadError("Assignee and project lists are required to create or edit tasks.");
-      }
-    }).catch((err: unknown) => {
-      setDependencyLoadError(getErrorMessage(err, "Unable to load task dependencies."));
-    });
-  }, []);
+        if (!isEdit && requestedProjectId && projectRes.some((project) => project.id === requestedProjectId)) {
+          setForm((current) => (current.projectId ? current : { ...current, projectId: requestedProjectId }));
+        }
+
+        if (projectRes.length === 0) {
+          setDependencyLoadError("Projects are required to create or edit tasks.");
+          return;
+        }
+
+        if (teamRes.length === 0) {
+          setDependencyLoadError("Team and project lists are required to create or edit tasks.");
+        }
+      })
+      .catch((err: unknown) => {
+        setDependencyLoadError(getErrorMessage(err, "Unable to load task dependencies."));
+      });
+  }, [isEdit, requestedProjectId]);
 
   useEffect(() => {
     if (!id) return;
@@ -69,8 +97,10 @@ export function TaskFormPage() {
           status: task.status,
           priority: task.priority,
           dueDate: task.dueDate,
+          assignedTeamId: task.assignedTeamId || "",
           assigneeId: task.assigneeId || "",
           projectId: task.projectId || "",
+          attachments: task.attachments,
         });
       })
       .catch(() => {
@@ -86,8 +116,74 @@ export function TaskFormPage() {
   }, [id]);
 
   const title = useMemo(() => (isEdit ? "Update Task" : "Create Task"), [isEdit]);
+  const projects = useMemo<Option[]>(
+    () => projectCatalog.map((project) => ({ id: project.id, label: project.name })),
+    [projectCatalog]
+  );
+  const selectedProject = useMemo(
+    () => projectCatalog.find((project) => project.id === form.projectId) ?? null,
+    [form.projectId, projectCatalog]
+  );
+  const scopedTeamRoles = useMemo(
+    () =>
+      resolveViewerTeamRoles(
+        teams,
+        { employeeId: viewerEmployeeId ?? user?.id, email: user?.email },
+        selectedProject?.teamIds
+      ),
+    [selectedProject?.teamIds, teams, user?.email, user?.id, viewerEmployeeId]
+  );
+  const scopedAssignees = useMemo<Option[]>(() => {
+    if (!selectedProject || !form.assignedTeamId) return [];
+
+    const scopedTeamIds = new Set(selectedProject.teamIds);
+    if (!scopedTeamIds.has(form.assignedTeamId)) {
+      return [];
+    }
+
+    const optionMap = new Map<string, Option>();
+
+    teams
+      .filter((team) => team.id === form.assignedTeamId)
+      .forEach((team) => {
+        team.members.forEach((member) => {
+          if (!member.employeeId || optionMap.has(member.employeeId)) return;
+          optionMap.set(member.employeeId, {
+            id: member.employeeId,
+            label: member.name?.trim() || member.email?.trim() || member.employeeId,
+          });
+        });
+      });
+
+    return Array.from(optionMap.values()).sort((left, right) => left.label.localeCompare(right.label));
+  }, [form.assignedTeamId, selectedProject, teams]);
+
+  const teamOptions = useMemo<Option[]>(() => {
+    if (!selectedProject) return [];
+    const allowedTeamIds = new Set(selectedProject.teamIds);
+    return teams
+      .filter((team) => allowedTeamIds.has(team.id))
+      .map((team) => ({ id: team.id, label: team.name }))
+      .sort((left, right) => left.label.localeCompare(right.label));
+  }, [selectedProject, teams]);
+
+  const assignees = scopedAssignees;
+  const canAssignTask = hasPermission(PERMISSIONS.TASKS_ASSIGN, { teamRoles: scopedTeamRoles });
+  const canSubmitTask = isEdit ? canManageTasks : canManageTasks || canAssignTask;
+  const permissionHint = useMemo(() => {
+    if (isEdit || canManageTasks) return null;
+    if (!form.projectId) return "Select a project where you are a project manager or team lead to assign a task.";
+    if (!canAssignTask) return DEFAULT_PERMISSION_DENIED_MESSAGE;
+    if (assignees.length === 0) return "No team members are available for assignment on the selected project.";
+    return null;
+  }, [assignees.length, canAssignTask, canManageTasks, form.projectId, isEdit]);
 
   async function handleSubmit() {
+    if (!canSubmitTask) {
+      setMessage(DEFAULT_PERMISSION_DENIED_MESSAGE);
+      return;
+    }
+
     setMessage(null);
     const validation = validateTaskForm(form);
     setErrors(validation);
@@ -101,6 +197,8 @@ export function TaskFormPage() {
       if (id) {
         await updateTask(id, {
           ...form,
+          assignedTeamId: form.assignedTeamId || undefined,
+          assignedEmployeeId: form.assigneeId || undefined,
           assigneeId: form.assigneeId || undefined,
           assigneeName: assignee?.label,
           projectId: form.projectId || undefined,
@@ -110,6 +208,8 @@ export function TaskFormPage() {
       } else {
         await createTask({
           ...form,
+          assignedTeamId: form.assignedTeamId || undefined,
+          assignedEmployeeId: form.assigneeId || undefined,
           assigneeId: form.assigneeId || undefined,
           assigneeName: assignee?.label,
           projectId: form.projectId || undefined,
@@ -150,6 +250,7 @@ export function TaskFormPage() {
       {!loading && !fatalError && (
         <SectionCard title={isEdit ? "Edit Task Details" : "New Task"} subtitle="Use clear ownership and due dates to keep execution predictable.">
           {dependencyLoadError && <ErrorBanner message={dependencyLoadError} />}
+          {permissionHint && !dependencyLoadError && <ErrorBanner message={permissionHint} />}
 
           {message && (
             <div
@@ -167,9 +268,11 @@ export function TaskFormPage() {
           <TaskForm
             values={form}
             errors={errors}
+            teams={teamOptions}
             assignees={assignees}
             projects={projects}
             submitting={submitting}
+            submitDisabled={!canSubmitTask}
             submitLabel={isEdit ? "Save Task" : "Create Task"}
             onChange={(next) => {
               setForm(next);

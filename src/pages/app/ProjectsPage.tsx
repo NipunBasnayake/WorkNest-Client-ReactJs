@@ -1,27 +1,25 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Calendar, FolderKanban, Search } from "lucide-react";
+import { FiEdit2, FiEye } from "react-icons/fi";
+import { Link } from "react-router-dom";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { useAuth } from "@/hooks/useAuth";
-import { getProjects } from "@/modules/projects/services/projectService";
-import { getTeams } from "@/modules/teams/services/teamService";
-import { getTasks } from "@/modules/tasks/services/taskService";
-import { getMyEmployeeProfile } from "@/modules/employees/services/employeeService";
+import { PERMISSIONS } from "@/constants/permissions";
+import { usePermission } from "@/hooks/usePermission";
+import { useMyProjectsQuery, useProjectsQuery, useTasksQuery } from "@/hooks/queries/useCoreQueries";
 import { PageHeader } from "@/components/common/PageHeader";
 import { SectionCard } from "@/components/common/SectionCard";
-import { EmptyState, ErrorBanner, SkeletonRow } from "@/components/common/AppUI";
+import { EmptyState, ErrorState } from "@/components/common/AsyncStates";
+import { SkeletonRow } from "@/components/common/AppUI";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { Button } from "@/components/common/Button";
+import { AppSelect } from "@/components/common/AppSelect";
 import type { Project, ProjectStatus } from "@/modules/projects/types";
-import type { Team } from "@/modules/teams/types";
 import type { Task } from "@/modules/tasks/types";
 import { getErrorMessage } from "@/utils/errorHandler";
+import { formatDate } from "@/utils/formatting";
 
 type ProjectStatusFilter = "all" | ProjectStatus;
-
-interface ViewerContext {
-  employeeId?: string;
-  email?: string;
-}
 
 interface ProjectTaskSummary {
   total: number;
@@ -30,84 +28,38 @@ interface ProjectTaskSummary {
   progress: number;
 }
 
+const EMPTY_PROJECTS: Project[] = [];
+const EMPTY_TASKS: Task[] = [];
+
 export function ProjectsPage() {
   usePageMeta({ title: "Projects", breadcrumb: ["Workspace", "Projects"] });
-  const { hasRole, user } = useAuth();
+  const { role } = useAuth();
+  const { hasPermission } = usePermission();
 
-  const canManageProjects = hasRole("TENANT_ADMIN", "ADMIN", "MANAGER");
-  const isEmployeeOnly = hasRole("EMPLOYEE") && !canManageProjects;
+  const canManageProjects = hasPermission(PERMISSIONS.PROJECTS_MANAGE);
+  const isEmployeeOnly = role === "EMPLOYEE" && !canManageProjects;
   const isReadOnly = !canManageProjects;
 
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [teams, setTeams] = useState<Team[]>([]);
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [viewer, setViewer] = useState<ViewerContext>({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<ProjectStatusFilter>("all");
 
-  async function fetchData() {
-    setLoading(true);
-    setError(null);
-    try {
-      const profilePromise = isEmployeeOnly
-        ? getMyEmployeeProfile().catch(() => null)
-        : Promise.resolve(null);
+  const projectsQuery = isEmployeeOnly ? useMyProjectsQuery(true) : useProjectsQuery(true);
+  const tasksQuery = useTasksQuery(true);
 
-      const [projectRes, teamRes, taskRes, profile] = await Promise.all([
-        getProjects(),
-        getTeams().catch(() => []),
-        getTasks().catch(() => []),
-        profilePromise,
-      ]);
+  const projects = projectsQuery.data ?? EMPTY_PROJECTS;
+  const tasks = tasksQuery.data ?? EMPTY_TASKS;
 
-      setProjects(projectRes);
-      setTeams(teamRes);
-      setTasks(taskRes);
-      setViewer({
-        employeeId: profile?.id ?? user?.id,
-        email: profile?.email ?? user?.email,
-      });
-    } catch (err: unknown) {
-      setError(getErrorMessage(err, "Failed to load projects."));
-    } finally {
-      setLoading(false);
-    }
+  const loading = projectsQuery.isLoading || tasksQuery.isLoading;
+
+  const firstError = projectsQuery.error ?? tasksQuery.error;
+  const errorMessage = firstError ? getErrorMessage(firstError, "Failed to load projects.") : null;
+
+  function retryFetch(): void {
+    void projectsQuery.refetch();
+    void tasksQuery.refetch();
   }
 
-  useEffect(() => {
-    void fetchData();
-  }, [isEmployeeOnly, user?.email, user?.id]);
-
-  const teamNameMap = useMemo(() => {
-    const map = new Map<string, string>();
-    teams.forEach((team) => map.set(team.id, team.name));
-    return map;
-  }, [teams]);
-
-  const visibleTeamIdsForEmployee = useMemo(() => {
-    if (!isEmployeeOnly) return new Set<string>();
-    const visibleTeams = teams.filter((team) => isTeamVisibleToEmployee(team, viewer));
-    return new Set(visibleTeams.map((team) => team.id));
-  }, [isEmployeeOnly, teams, viewer]);
-
-  const myTaskProjectIds = useMemo(() => {
-    if (!isEmployeeOnly || !viewer.employeeId) return new Set<string>();
-    const ids = tasks
-      .filter((task) => task.assigneeId === viewer.employeeId && task.projectId)
-      .map((task) => task.projectId as string);
-    return new Set(ids);
-  }, [isEmployeeOnly, tasks, viewer.employeeId]);
-
-  const visibleProjects = useMemo(() => {
-    if (!isEmployeeOnly) return projects;
-    return projects.filter((project) => {
-      const teamLinked = project.teamIds.some((teamId) => visibleTeamIdsForEmployee.has(teamId));
-      const taskLinked = myTaskProjectIds.has(project.id);
-      return teamLinked || taskLinked;
-    });
-  }, [isEmployeeOnly, myTaskProjectIds, projects, visibleTeamIdsForEmployee]);
+  const visibleProjects = projects;
 
   const projectTaskSummary = useMemo(() => {
     const map = new Map<string, ProjectTaskSummary>();
@@ -127,17 +79,16 @@ export function ProjectsPage() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return visibleProjects.filter((project) => {
-      const teamPreview = project.teamIds.map((teamId) => teamNameMap.get(teamId) ?? "").join(" ");
       const matchesSearch = !q || [
         project.name,
         project.description,
         project.status,
-        teamPreview,
+        project.teamIds.join(" "),
       ].some((value) => value?.toLowerCase().includes(q));
       const matchesStatus = statusFilter === "all" || project.status === statusFilter;
       return matchesSearch && matchesStatus;
     });
-  }, [search, statusFilter, teamNameMap, visibleProjects]);
+  }, [search, statusFilter, visibleProjects]);
 
   return (
     <div className="space-y-6">
@@ -170,11 +121,9 @@ export function ProjectsPage() {
             />
           </div>
 
-          <select
+          <AppSelect
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as ProjectStatusFilter)}
-            className="w-full rounded-xl border px-3 py-2.5 text-sm outline-none transition-all focus:ring-2 focus:ring-primary-500/30"
-            style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)", color: "var(--text-primary)" }}
           >
             <option value="all">All Statuses</option>
             <option value="planned">Planned</option>
@@ -182,29 +131,30 @@ export function ProjectsPage() {
             <option value="on_hold">On Hold</option>
             <option value="completed">Completed</option>
             <option value="cancelled">Cancelled</option>
-          </select>
+          </AppSelect>
         </div>
       </SectionCard>
 
-      {error && <ErrorBanner message={error} onRetry={fetchData} />}
+      {errorMessage && <ErrorState message={errorMessage} onRetry={retryFetch} />}
 
       <SectionCard className="overflow-hidden" contentClassName="p-0" title="Projects" subtitle="Track scope, timeline, teams, and execution health.">
-        <div
-          className="hidden md:grid grid-cols-[1.9fr_0.9fr_0.9fr_0.8fr_1fr_1.2fr_1.4fr] gap-3 border-b px-5 py-3 text-xs font-semibold uppercase tracking-wider"
-          style={{ color: "var(--text-tertiary)", borderColor: "var(--border-default)", backgroundColor: "var(--bg-muted)" }}
-        >
-          <span>Project</span>
-          <span>Status</span>
-          <span>Progress</span>
-          <span>Teams</span>
-          <span>Tasks</span>
-          <span>Timeline</span>
-          <span className="text-right">Actions</span>
-        </div>
+        <div className="overflow-x-auto">
+          <div
+            className="hidden min-w-[1020px] md:grid grid-cols-[1.9fr_0.9fr_0.9fr_0.8fr_1fr_1.2fr_1.4fr] gap-3 border-b px-5 py-3 text-xs font-semibold uppercase tracking-wider"
+            style={{ color: "var(--text-tertiary)", borderColor: "var(--border-default)", backgroundColor: "var(--bg-muted)" }}
+          >
+            <span>Project</span>
+            <span>Status</span>
+            <span>Progress</span>
+            <span>Teams</span>
+            <span>Tasks</span>
+            <span>Timeline</span>
+            <span className="text-right">Actions</span>
+          </div>
 
-        {loading && Array.from({ length: 5 }).map((_, idx) => <SkeletonRow key={idx} cols={7} />)}
+          {loading && Array.from({ length: 5 }).map((_, idx) => <SkeletonRow key={idx} cols={7} />)}
 
-        {!loading && !error && filtered.length === 0 && (
+        {!loading && !errorMessage && filtered.length === 0 && (
           <EmptyState
             icon={<FolderKanban size={28} />}
             title={search || statusFilter !== "all" ? "No matching projects" : (isEmployeeOnly ? "No relevant projects" : "No projects yet")}
@@ -219,9 +169,9 @@ export function ProjectsPage() {
           />
         )}
 
-        {!loading && filtered.length > 0 && (
+        {!loading && !errorMessage && filtered.length > 0 && (
           <>
-            <div className="hidden md:block">
+            <div className="hidden min-w-[1020px] md:block">
               {filtered.map((project) => {
                 const summary = projectTaskSummary.get(project.id);
                 const progress = summary?.progress ?? project.progress;
@@ -238,14 +188,32 @@ export function ProjectsPage() {
                     </div>
                     <StatusBadge status={project.status} />
                     <span className="text-sm font-semibold" style={{ color: "var(--text-secondary)" }}>{progress}%</span>
-                    <span className="text-sm" style={{ color: "var(--text-secondary)" }}>{project.teamIds.length}</span>
+                    <span className="text-sm" style={{ color: "var(--text-secondary)" }}>{getProjectTeamCount(project)}</span>
                     <span className="text-xs" style={{ color: "var(--text-secondary)" }}>{taskLabel}</span>
                     <span className="text-xs" style={{ color: "var(--text-secondary)" }}>
                       {formatDate(project.startDate)} {project.endDate ? `to ${formatDate(project.endDate)}` : ""}
                     </span>
-                    <div className="flex items-center justify-end gap-1.5">
-                      <Button variant="ghost" size="sm" to={`/app/projects/${project.id}`}>View</Button>
-                      {canManageProjects && <Button variant="outline" size="sm" to={`/app/projects/${project.id}/edit`}>Edit</Button>}
+                    <div className="flex items-center justify-end gap-2">
+                      <Link
+                        to={`/app/projects/${project.id}`}
+                        title="View project"
+                        aria-label="View project"
+                        className="inline-flex items-center justify-center p-1 transition-opacity hover:opacity-80"
+                        style={{ color: "var(--text-secondary)" }}
+                      >
+                        <FiEye size={15} />
+                      </Link>
+                      {canManageProjects && (
+                        <Link
+                          to={`/app/projects/${project.id}/edit`}
+                          title="Edit project"
+                          aria-label="Edit project"
+                          className="inline-flex items-center justify-center p-1 transition-opacity hover:opacity-80"
+                          style={{ color: "var(--text-secondary)" }}
+                        >
+                          <FiEdit2 size={15} />
+                        </Link>
+                      )}
                     </div>
                   </div>
                 );
@@ -256,7 +224,6 @@ export function ProjectsPage() {
               {filtered.map((project) => {
                 const summary = projectTaskSummary.get(project.id);
                 const progress = summary?.progress ?? project.progress;
-                const teamPreview = project.teamIds.map((teamId) => teamNameMap.get(teamId) ?? teamId).join(", ") || "None";
 
                 return (
                   <article
@@ -268,7 +235,7 @@ export function ProjectsPage() {
                       <div className="min-w-0">
                         <div className="truncate text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{project.name}</div>
                         <div className="mt-1 text-xs" style={{ color: "var(--text-secondary)" }}>{progress}% complete</div>
-                        <div className="mt-1 text-xs" style={{ color: "var(--text-tertiary)" }}>Teams: {teamPreview}</div>
+                        <div className="mt-1 text-xs" style={{ color: "var(--text-tertiary)" }}>Teams: {getProjectTeamCount(project)}</div>
                         <div className="mt-1 text-xs" style={{ color: "var(--text-tertiary)" }}>
                           Tasks: {summary ? `${summary.open}/${summary.total} open` : "No task data"}
                         </div>
@@ -289,23 +256,12 @@ export function ProjectsPage() {
             </div>
           </>
         )}
+        </div>
       </SectionCard>
     </div>
   );
 }
 
-function isTeamVisibleToEmployee(team: Team, viewer: ViewerContext): boolean {
-  const email = viewer.email?.toLowerCase();
-  return Boolean(
-    (viewer.employeeId && team.memberIds.includes(viewer.employeeId)) ||
-    (viewer.employeeId && team.managerEmployeeId === viewer.employeeId) ||
-    (email && team.members.some((member) => member.email?.toLowerCase() === email))
-  );
-}
-
-function formatDate(value?: string): string {
-  if (!value) return "-";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString();
+function getProjectTeamCount(project: Project): number {
+  return project.teamCount ?? project.teamIds.length;
 }

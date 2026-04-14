@@ -20,6 +20,46 @@ interface EmployeeOption {
   name: string;
 }
 
+function extractRoleTokens(value: unknown): string[] {
+  if (typeof value === "string") {
+    const token = value.trim().toUpperCase();
+    return token ? [token] : [];
+  }
+
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => extractRoleTokens(item));
+  }
+
+  if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    return [
+      ...extractRoleTokens(record["role"]),
+      ...extractRoleTokens(record["name"]),
+      ...extractRoleTokens(record["code"]),
+      ...extractRoleTokens(record["value"]),
+      ...extractRoleTokens(record["authority"]),
+      ...extractRoleTokens(record["type"]),
+    ];
+  }
+
+  return [];
+}
+
+function isHrEmployee(employee: Employee): boolean {
+  const roleCandidates = [
+    employee.role,
+    employee["userRole"],
+    employee["tenantRole"],
+    employee["roleName"],
+    employee["employeeRole"],
+    employee["user"],
+  ]
+    .flatMap((value) => extractRoleTokens(value))
+    .filter(Boolean);
+
+  return roleCandidates.some((value) => value === "HR" || value.endsWith("_HR") || value === "ROLE_HR");
+}
+
 export function TeamFormPage() {
   const navigate = useNavigate();
   const { id } = useParams<{ id?: string }>();
@@ -44,7 +84,9 @@ export function TeamFormPage() {
     setEmployeeLoadError(null);
     getEmployees()
       .then((employees) => {
-        const options = employees.map((emp: Employee) => ({
+        const options = employees
+          .filter((emp: Employee) => !isHrEmployee(emp))
+          .map((emp: Employee) => ({
           id: emp.id,
           name: getEmployeeDisplayName(emp),
         }));
@@ -68,11 +110,19 @@ export function TeamFormPage() {
     getTeamById(id)
       .then((team) => {
         if (!active) return;
+        const nonHrEmployeeIds = new Set(employeeOptions.map((option) => option.id));
+        const sanitizedMemberIds = team.memberIds.filter((memberId) => nonHrEmployeeIds.has(memberId));
+        const sanitizedManagerId = team.managerEmployeeId && nonHrEmployeeIds.has(team.managerEmployeeId)
+          ? team.managerEmployeeId
+          : "";
+
         setForm({
           name: team.name,
           description: team.description ?? "",
-          managerEmployeeId: team.managerEmployeeId ?? "",
-          memberIds: team.managerEmployeeId ? Array.from(new Set([...team.memberIds, team.managerEmployeeId])) : team.memberIds,
+          managerEmployeeId: sanitizedManagerId,
+          memberIds: sanitizedManagerId
+            ? Array.from(new Set([...sanitizedMemberIds, sanitizedManagerId]))
+            : sanitizedMemberIds,
           status: team.status,
         });
         setManagerNameHint(team.managerName);
@@ -87,7 +137,7 @@ export function TeamFormPage() {
     return () => {
       active = false;
     };
-  }, [id]);
+  }, [employeeOptions, id]);
 
   useEffect(() => {
     if (!managerNameHint || form.managerEmployeeId || employeeOptions.length === 0) return;
@@ -114,13 +164,11 @@ export function TeamFormPage() {
     try {
       if (id) {
         await updateTeam(id, form);
-        setMessage("Team updated successfully.");
       } else {
         await createTeam(form);
-        setMessage("Team created successfully.");
       }
-
-      setTimeout(() => navigate("/app/teams", { replace: true }), 500);
+      navigate("/app/teams", { replace: true });
+      return;
     } catch (err: unknown) {
       setMessage(getErrorMessage(err, "Unable to save team right now."));
     } finally {

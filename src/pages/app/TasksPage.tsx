@@ -1,16 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { LayoutGrid, PlusCircle, Search, Trash2 } from "lucide-react";
+import { FiEdit2, FiEye, FiTrash2 } from "react-icons/fi";
+import { Link } from "react-router-dom";
 import { usePageMeta } from "@/hooks/usePageMeta";
+import { PERMISSIONS } from "@/constants/permissions";
+import { usePermission } from "@/hooks/usePermission";
 import { useAuth } from "@/hooks/useAuth";
+import { useMyEmployeeProfileQuery, useMyTeamsQuery } from "@/hooks/queries/useCoreQueries";
 import {
   deleteTask,
-  filterTasksForViewer,
+  getMyTasks,
   getTasks,
-  hasTaskViewerIdentity,
   isTaskAssignedToViewer,
-  resolveTaskViewerIdentity,
   updateTaskStatus,
-  type TaskViewerIdentity,
 } from "@/modules/tasks/services/taskService";
 import { TaskPriorityBadge } from "@/modules/tasks/components/TaskPriorityBadge";
 import { TaskStatusBadge } from "@/modules/tasks/components/TaskStatusBadge";
@@ -18,9 +20,12 @@ import { TASK_PRIORITY_OPTIONS, TASK_STATUS_OPTIONS, type Task, type TaskStatus 
 import { getEmployees } from "@/modules/employees/services/employeeService";
 import { getEmployeeDisplayName } from "@/modules/employees/utils/employeeMapper";
 import { getProjects } from "@/modules/projects/services/projectService";
+import { resolveViewerTeamRoles } from "@/modules/teams/utils/teamRoles";
+import { getTaskAllowedStatuses, hasTeamWorkflowAccess } from "@/modules/tasks/utils/taskWorkflow";
 import { PageHeader } from "@/components/common/PageHeader";
 import { SectionCard } from "@/components/common/SectionCard";
 import { Button } from "@/components/common/Button";
+import { AppSelect } from "@/components/common/AppSelect";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { EmptyState, ErrorBanner, SkeletonRow } from "@/components/common/AppUI";
 import { getErrorMessage } from "@/utils/errorHandler";
@@ -29,9 +34,6 @@ interface Option {
   id: string;
   label: string;
 }
-
-type EmployeeStatusFlow = Extract<TaskStatus, "TODO" | "IN_PROGRESS" | "IN_REVIEW" | "DONE">;
-const EMPLOYEE_STATUS_OPTIONS: EmployeeStatusFlow[] = ["TODO", "IN_PROGRESS", "IN_REVIEW", "DONE"];
 
 function toLabel(value: string): string {
   return value
@@ -43,12 +45,14 @@ function toLabel(value: string): string {
 
 export function TasksPage() {
   usePageMeta({ title: "Tasks", breadcrumb: ["Workspace", "Tasks"] });
-  const { hasRole, user } = useAuth();
+  const { role, user } = useAuth();
+  const { hasPermission } = usePermission();
 
-  const canManageTasks = hasRole("TENANT_ADMIN", "ADMIN", "MANAGER");
-  const isEmployeeOnly = hasRole("EMPLOYEE") && !canManageTasks;
+  const canManageTasks = hasPermission(PERMISSIONS.TASKS_MANAGE);
+  const isEmployeeOnly = role === "EMPLOYEE" && !canManageTasks;
+  const viewerProfileQuery = useMyEmployeeProfileQuery(isEmployeeOnly);
+  const myTeamsQuery = useMyTeamsQuery(isEmployeeOnly);
 
-  const [viewerIdentity, setViewerIdentity] = useState<TaskViewerIdentity | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [assignees, setAssignees] = useState<Option[]>([]);
   const [projects, setProjects] = useState<Option[]>([]);
@@ -69,18 +73,15 @@ export function TasksPage() {
 
     try {
       const employeePromise = canManageTasks ? getEmployees().catch(() => []) : Promise.resolve([]);
-      const identityPromise = isEmployeeOnly ? resolveTaskViewerIdentity() : Promise.resolve(null);
-      const [taskRes, employeeRes, projectRes, identity] = await Promise.all([
-        getTasks(),
+      const [taskRes, employeeRes, projectRes] = await Promise.all([
+        isEmployeeOnly ? getMyTasks() : getTasks(),
         employeePromise,
         getProjects().catch(() => []),
-        identityPromise,
       ]);
 
       setTasks(taskRes);
       setAssignees(employeeRes.map((employee) => ({ id: employee.id, label: getEmployeeDisplayName(employee) })));
       setProjects(projectRes.map((project) => ({ id: project.id, label: project.name })));
-      setViewerIdentity(identity);
     } catch (err: unknown) {
       setError(getErrorMessage(err, "Failed to load tasks."));
     } finally {
@@ -90,14 +91,33 @@ export function TasksPage() {
 
   useEffect(() => {
     void fetchData();
-  }, [canManageTasks, isEmployeeOnly, user?.id]);
+  }, [canManageTasks, isEmployeeOnly, role, user?.id]);
 
-  const scopedTasks = useMemo(() => {
-    if (!isEmployeeOnly) return tasks;
-    return filterTasksForViewer(tasks, viewerIdentity);
-  }, [isEmployeeOnly, tasks, viewerIdentity]);
+  const viewerIdentity = useMemo(
+    () => ({
+      employeeId: viewerProfileQuery.data?.id ?? user?.id,
+      email: viewerProfileQuery.data?.email ?? user?.email,
+    }),
+    [user?.email, user?.id, viewerProfileQuery.data?.email, viewerProfileQuery.data?.id]
+  );
 
-  const identityResolved = !isEmployeeOnly || hasTaskViewerIdentity(viewerIdentity);
+  const employeeTeams = myTeamsQuery.data ?? [];
+
+  const hasTeamLeadAccess = (task: Task): boolean => {
+    if (!isEmployeeOnly || !task.assignedTeamId) return false;
+    const teamRoles = resolveViewerTeamRoles(employeeTeams, viewerIdentity, [task.assignedTeamId]);
+    return hasTeamWorkflowAccess(teamRoles);
+  };
+
+  const canEmployeeUpdateStatus = (task: Task): boolean => {
+    if (!isEmployeeOnly) return false;
+    if (task.assignedTeamId) {
+      return hasTeamLeadAccess(task);
+    }
+    return isTaskAssignedToViewer(task, viewerIdentity);
+  };
+
+  const scopedTasks = tasks;
 
   const filtered = useMemo(() => {
     const effectiveAssigneeFilter = isEmployeeOnly ? "ALL" : assigneeFilter;
@@ -106,7 +126,7 @@ export function TasksPage() {
     return scopedTasks.filter((task) => {
       const matchesQuery =
         !query ||
-        [task.title, task.description || "", task.assigneeName || "", task.projectName || ""]
+        [task.title, task.description || "", task.assigneeName || "", task.assignedTeamName || "", task.projectName || ""]
           .some((value) => value.toLowerCase().includes(query));
       const matchesStatus = statusFilter === "ALL" || task.status === statusFilter;
       const matchesPriority = priorityFilter === "ALL" || task.priority === priorityFilter;
@@ -148,7 +168,7 @@ export function TasksPage() {
     const target = tasks.find((task) => task.id === taskId);
     if (!target) return;
 
-    const canUpdate = canManageTasks || (isEmployeeOnly && isTaskAssignedToViewer(target, viewerIdentity));
+    const canUpdate = canManageTasks || canEmployeeUpdateStatus(target);
     if (!canUpdate) return;
 
     try {
@@ -195,11 +215,9 @@ export function TasksPage() {
             />
           </div>
 
-          <select
+          <AppSelect
             value={statusFilter}
             onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)}
-            className="rounded-xl border px-3 py-2.5 text-sm outline-none transition-all focus:ring-2 focus:ring-primary-500/30"
-            style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)", color: "var(--text-primary)" }}
           >
             <option value="ALL">All Statuses</option>
             {TASK_STATUS_OPTIONS.map((status) => (
@@ -207,13 +225,11 @@ export function TasksPage() {
                 {toLabel(status)}
               </option>
             ))}
-          </select>
+          </AppSelect>
 
-          <select
+          <AppSelect
             value={priorityFilter}
             onChange={(event) => setPriorityFilter(event.target.value as typeof priorityFilter)}
-            className="rounded-xl border px-3 py-2.5 text-sm outline-none transition-all focus:ring-2 focus:ring-primary-500/30"
-            style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)", color: "var(--text-primary)" }}
           >
             <option value="ALL">All Priorities</option>
             {TASK_PRIORITY_OPTIONS.map((priority) => (
@@ -221,14 +237,12 @@ export function TasksPage() {
                 {toLabel(priority)}
               </option>
             ))}
-          </select>
+          </AppSelect>
 
-          <select
+          <AppSelect
             value={assigneeFilter}
             onChange={(event) => setAssigneeFilter(event.target.value)}
             disabled={isEmployeeOnly}
-            className="rounded-xl border px-3 py-2.5 text-sm outline-none transition-all focus:ring-2 focus:ring-primary-500/30"
-            style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)", color: "var(--text-primary)" }}
           >
             {isEmployeeOnly && <option value="ALL">My Assigned Tasks</option>}
             {!isEmployeeOnly && <option value="ALL">All Assignees</option>}
@@ -237,13 +251,11 @@ export function TasksPage() {
                 {assignee.label}
               </option>
             ))}
-          </select>
+          </AppSelect>
 
-          <select
+          <AppSelect
             value={projectFilter}
             onChange={(event) => setProjectFilter(event.target.value)}
-            className="rounded-xl border px-3 py-2.5 text-sm outline-none transition-all focus:ring-2 focus:ring-primary-500/30"
-            style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)", color: "var(--text-primary)" }}
           >
             <option value="ALL">All Projects</option>
             {projects.map((project) => (
@@ -251,7 +263,7 @@ export function TasksPage() {
                 {project.label}
               </option>
             ))}
-          </select>
+          </AppSelect>
         </div>
       </SectionCard>
 
@@ -269,146 +281,174 @@ export function TasksPage() {
       )}
 
       {error && <ErrorBanner message={error} onRetry={fetchData} />}
-      {!error && isEmployeeOnly && !identityResolved && (
-        <ErrorBanner
-          message="Unable to resolve your employee identity for task scoping. Please refresh or contact your workspace admin."
-          onRetry={fetchData}
-        />
-      )}
-
       <SectionCard className="overflow-hidden" contentClassName="p-0" title="Task Backlog" subtitle="Track delivery ownership, status, and deadlines.">
-        <div
-          className="hidden md:grid grid-cols-[2fr_1fr_1fr_1.2fr_1.2fr_1fr_1.5fr] gap-3 border-b px-5 py-3 text-xs font-semibold uppercase tracking-wider"
-          style={{ color: "var(--text-tertiary)", borderColor: "var(--border-default)", backgroundColor: "var(--bg-muted)" }}
-        >
-          <span>Task</span>
-          <span>Status</span>
-          <span>Priority</span>
-          <span>Assignee</span>
-          <span>Project</span>
-          <span>Due</span>
-          <span className="text-right">Actions</span>
-        </div>
+        <div className="overflow-x-auto">
+          <div
+            className="hidden min-w-[1080px] md:grid grid-cols-[2fr_1fr_1fr_1.2fr_1.2fr_1fr_1.5fr] gap-3 border-b px-5 py-3 text-xs font-semibold uppercase tracking-wider"
+            style={{ color: "var(--text-tertiary)", borderColor: "var(--border-default)", backgroundColor: "var(--bg-muted)" }}
+          >
+            <span>Task</span>
+            <span>Status</span>
+            <span>Priority</span>
+            <span>Assignee</span>
+            <span>Project</span>
+            <span>Due</span>
+            <span className="text-right">Actions</span>
+          </div>
 
-        {loading && Array.from({ length: 6 }).map((_, index) => <SkeletonRow key={index} cols={7} />)}
+          {loading && Array.from({ length: 6 }).map((_, index) => <SkeletonRow key={index} cols={7} />)}
 
-        {!loading && !error && filtered.length === 0 && (
-          <EmptyState
-            title={search || statusFilter !== "ALL" || priorityFilter !== "ALL" || assigneeFilter !== "ALL" || projectFilter !== "ALL" ? "No matching tasks" : "No tasks yet"}
-            description={
-              search || statusFilter !== "ALL" || priorityFilter !== "ALL" || assigneeFilter !== "ALL" || projectFilter !== "ALL"
-                ? "Adjust filters to find tasks."
-                : isEmployeeOnly
-                  ? "No tasks are currently assigned to you."
-                  : "Create your first task to start tracking workflow."
-            }
-            action={canManageTasks ? <Button variant="outline" to="/app/tasks/new">Create Task</Button> : undefined}
-          />
-        )}
+          {!loading && !error && filtered.length === 0 && (
+            <EmptyState
+              title={search || statusFilter !== "ALL" || priorityFilter !== "ALL" || assigneeFilter !== "ALL" || projectFilter !== "ALL" ? "No matching tasks" : "No tasks yet"}
+              description={
+                search || statusFilter !== "ALL" || priorityFilter !== "ALL" || assigneeFilter !== "ALL" || projectFilter !== "ALL"
+                  ? "Adjust filters to find tasks."
+                  : isEmployeeOnly
+                    ? "No tasks are currently assigned to you."
+                    : "Create your first task to start tracking workflow."
+              }
+              action={canManageTasks ? <Button variant="outline" to="/app/tasks/new">Create Task</Button> : undefined}
+            />
+          )}
 
-        {!loading && filtered.length > 0 && (
-          <>
-            <div className="hidden md:block">
-              {filtered.map((task) => {
-                const canUpdateStatus = canManageTasks || (isEmployeeOnly && isTaskAssignedToViewer(task, viewerIdentity));
-                const statusOptions = resolveStatusOptions(canManageTasks, task.status);
+          {!loading && filtered.length > 0 && (
+            <>
+              <div className="hidden min-w-[1080px] md:block">
+                {filtered.map((task) => {
+                  const canUpdateStatus = canManageTasks || canEmployeeUpdateStatus(task);
+                  const teamRoles = task.assignedTeamId
+                    ? resolveViewerTeamRoles(employeeTeams, viewerIdentity, [task.assignedTeamId])
+                    : [];
+                  const statusOptions = getTaskAllowedStatuses(
+                    task,
+                    canManageTasks ? "TENANT_ADMIN" : role,
+                    teamRoles,
+                    isTaskAssignedToViewer(task, viewerIdentity)
+                  );
 
-                return (
-                  <div
-                    key={task.id}
-                    className="grid grid-cols-[2fr_1fr_1fr_1.2fr_1.2fr_1fr_1.5fr] items-center gap-3 border-b px-5 py-4"
-                    style={{ borderColor: "var(--border-default)" }}
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-                        {task.title}
-                      </p>
-                      <p className="truncate text-xs" style={{ color: "var(--text-tertiary)" }}>
-                        {task.description || "No description"}
-                      </p>
+                  return (
+                    <div
+                      key={task.id}
+                      className="grid grid-cols-[2fr_1fr_1fr_1.2fr_1.2fr_1fr_1.5fr] items-center gap-3 border-b px-5 py-4"
+                      style={{ borderColor: "var(--border-default)" }}
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+                          {task.title}
+                        </p>
+                        <p className="truncate text-xs" style={{ color: "var(--text-tertiary)" }}>
+                          {task.description || "No description"}
+                        </p>
+                        <p className="truncate text-[11px]" style={{ color: "var(--text-tertiary)" }}>
+                          {task.assignedTeamName ? `Team: ${task.assignedTeamName}` : "Team: Unscoped"} | {task.assigneeId ? "Assigned to member" : "Team Task"}
+                        </p>
+                      </div>
+                      <TaskStatusBadge status={task.status} />
+                      <TaskPriorityBadge priority={task.priority} />
+                      <span className="truncate text-sm" style={{ color: "var(--text-secondary)" }}>
+                        {task.assignedTeamName || task.assigneeName || "Unassigned"}
+                      </span>
+                      <span className="truncate text-sm" style={{ color: "var(--text-secondary)" }}>
+                        {task.projectName || "No project"}
+                      </span>
+                      <span className="text-sm" style={{ color: "var(--text-secondary)" }}>
+                        {formatDate(task.dueDate)}
+                      </span>
+                      <div className="flex items-center justify-end gap-2">
+                        <AppSelect
+                          value={task.status}
+                          disabled={!canUpdateStatus}
+                          onChange={(event) => handleStatusChange(task.id, event.target.value as TaskStatus)}
+                        >
+                          {statusOptions.map((status) => (
+                            <option key={status} value={status}>
+                              {toLabel(status)}
+                            </option>
+                          ))}
+                        </AppSelect>
+                        <Link
+                          to={`/app/tasks/${task.id}`}
+                          title="View task"
+                          aria-label="View task"
+                          className="inline-flex items-center justify-center p-1 transition-opacity hover:opacity-80"
+                          style={{ color: "var(--text-secondary)" }}
+                        >
+                          <FiEye size={15} />
+                        </Link>
+                        {canManageTasks && (
+                          <>
+                            <Link
+                              to={`/app/tasks/${task.id}/edit`}
+                              title="Edit task"
+                              aria-label="Edit task"
+                              className="inline-flex items-center justify-center p-1 transition-opacity hover:opacity-80"
+                              style={{ color: "var(--text-secondary)" }}
+                            >
+                              <FiEdit2 size={15} />
+                            </Link>
+                            <button
+                              type="button"
+                              onClick={() => setDeleteTarget(task)}
+                              title="Delete task"
+                              aria-label="Delete task"
+                              className="inline-flex items-center justify-center p-1 transition-opacity hover:opacity-80"
+                              style={{ color: "#ef4444" }}
+                            >
+                              <FiTrash2 size={15} />
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </div>
-                    <TaskStatusBadge status={task.status} />
-                    <TaskPriorityBadge priority={task.priority} />
-                    <span className="truncate text-sm" style={{ color: "var(--text-secondary)" }}>
-                      {task.assigneeName || "Unassigned"}
-                    </span>
-                    <span className="truncate text-sm" style={{ color: "var(--text-secondary)" }}>
-                      {task.projectName || "No project"}
-                    </span>
-                    <span className="text-sm" style={{ color: "var(--text-secondary)" }}>
-                      {formatDate(task.dueDate)}
-                    </span>
-                    <div className="flex items-center justify-end gap-1.5">
-                      <select
-                        value={task.status}
-                        disabled={!canUpdateStatus}
-                        onChange={(event) => handleStatusChange(task.id, event.target.value as TaskStatus)}
-                        className="rounded-lg border px-2 py-1 text-xs outline-none focus:ring-2 focus:ring-primary-500/30 disabled:opacity-60"
-                        style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)", color: "var(--text-secondary)" }}
-                      >
-                        {statusOptions.map((status) => (
-                          <option key={status} value={status}>
-                            {toLabel(status)}
-                          </option>
-                        ))}
-                      </select>
+                  );
+                })}
+              </div>
+
+              <div className="space-y-3 p-4 md:hidden">
+                {filtered.map((task) => (
+                  <article
+                    className="rounded-xl border p-4"
+                    style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)" }}
+                  >
+                    <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+                      {task.title}
+                    </p>
+                    <p className="mt-1 text-xs" style={{ color: "var(--text-secondary)" }}>
+                      {task.description || "No description"}
+                    </p>
+
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <TaskStatusBadge status={task.status} />
+                      <TaskPriorityBadge priority={task.priority} />
+                    </div>
+
+                    <div className="mt-3 space-y-1 text-xs" style={{ color: "var(--text-tertiary)" }}>
+                      <p>Assignee: {task.assignedTeamName || task.assigneeName || "Unassigned"}</p>
+                      <p>Team: {task.assignedTeamName || "Unscoped"}</p>
+                      <p>Type: {task.assignedTeamName ? "Team Task" : task.assigneeId ? "Assigned to Me/Member" : "Task"}</p>
+                      <p>Project: {task.projectName || "No project"}</p>
+                      <p>Due: {formatDate(task.dueDate)}</p>
+                    </div>
+
+                    <div className="mt-4 flex flex-wrap gap-2">
                       <Button variant="ghost" size="sm" to={`/app/tasks/${task.id}`}>View</Button>
                       {canManageTasks && (
                         <>
                           <Button variant="outline" size="sm" to={`/app/tasks/${task.id}/edit`}>Edit</Button>
                           <Button variant="danger" size="sm" onClick={() => setDeleteTarget(task)}>
-                            <Trash2 size={14} />
+                            <Trash2 size={14} color="#ef4444" />
+                            Delete
                           </Button>
                         </>
                       )}
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="space-y-3 p-4 md:hidden">
-              {filtered.map((task) => (
-                <article
-                  key={task.id}
-                  className="rounded-xl border p-4"
-                  style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)" }}
-                >
-                  <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-                    {task.title}
-                  </p>
-                  <p className="mt-1 text-xs" style={{ color: "var(--text-secondary)" }}>
-                    {task.description || "No description"}
-                  </p>
-
-                  <div className="mt-3 flex flex-wrap items-center gap-2">
-                    <TaskStatusBadge status={task.status} />
-                    <TaskPriorityBadge priority={task.priority} />
-                  </div>
-
-                  <div className="mt-3 space-y-1 text-xs" style={{ color: "var(--text-tertiary)" }}>
-                    <p>Assignee: {task.assigneeName || "Unassigned"}</p>
-                    <p>Project: {task.projectName || "No project"}</p>
-                    <p>Due: {formatDate(task.dueDate)}</p>
-                  </div>
-
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    <Button variant="ghost" size="sm" to={`/app/tasks/${task.id}`}>View</Button>
-                    {canManageTasks && (
-                      <>
-                        <Button variant="outline" size="sm" to={`/app/tasks/${task.id}/edit`}>Edit</Button>
-                        <Button variant="danger" size="sm" onClick={() => setDeleteTarget(task)}>
-                          <Trash2 size={14} />
-                          Delete
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                </article>
-              ))}
-            </div>
-          </>
-        )}
+                  </article>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
       </SectionCard>
 
       <ConfirmDialog
@@ -422,12 +462,6 @@ export function TasksPage() {
       />
     </div>
   );
-}
-
-function resolveStatusOptions(canManageTasks: boolean, currentStatus: TaskStatus): TaskStatus[] {
-  if (canManageTasks) return TASK_STATUS_OPTIONS;
-  const options = new Set<TaskStatus>([...EMPLOYEE_STATUS_OPTIONS, currentStatus]);
-  return Array.from(options);
 }
 
 function formatDate(value: string): string {

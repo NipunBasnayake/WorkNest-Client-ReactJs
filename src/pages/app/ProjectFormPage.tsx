@@ -44,17 +44,21 @@ export function ProjectFormPage() {
 
   useEffect(() => {
     setTeamLoadError(null);
+    const viewerProfilePromise = canManageProjects
+      ? Promise.resolve(null)
+      : getMyEmployeeProfile().catch(() => null);
+
     Promise.all([
       getTeams().catch((err: unknown) => {
         setTeamLoadError(getErrorMessage(err, "Unable to load teams for assignment."));
         return [];
       }),
-      getMyEmployeeProfile().catch(() => null),
+      viewerProfilePromise,
     ]).then(([teamResult, profile]) => {
       setTeams(teamResult);
       setViewerEmployeeId(profile?.id);
     });
-  }, []);
+  }, [canManageProjects]);
 
   useEffect(() => {
     if (!id) return;
