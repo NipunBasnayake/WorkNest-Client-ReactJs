@@ -3,8 +3,6 @@ import { useParams } from "react-router-dom";
 import { ArrowLeft, CalendarDays, MessageSquareText, UserCircle2 } from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { useAuth } from "@/hooks/useAuth";
-import { PERMISSIONS } from "@/constants/permissions";
-import { usePermission } from "@/hooks/usePermission";
 import { getLeaveRequestById } from "@/modules/leave/services/leaveService";
 import { LeaveStatusBadge } from "@/modules/leave/components/LeaveStatusBadge";
 import { FileAssetList } from "@/components/common/FileAssetList";
@@ -21,7 +19,6 @@ export function LeaveDetailPage() {
   const { id } = useParams<{ id: string }>();
   usePageMeta({ title: "Leave Details", breadcrumb: ["Workspace", "Leave", "Details"] });
   const { user } = useAuth();
-  const { hasPermission } = usePermission();
 
   const [leaveRequest, setLeaveRequest] = useState<LeaveRequest | null>(null);
   const [loading, setLoading] = useState(Boolean(id));
@@ -52,7 +49,7 @@ export function LeaveDetailPage() {
     leaveRequest &&
     leaveRequest.status === "PENDING" &&
     user &&
-    (leaveRequest.employeeId === user.id || leaveRequest.employeeName === user.name || hasPermission(PERMISSIONS.LEAVE_REVIEW));
+    leaveRequest.employeeId === user.id;
 
   return (
     <div className="space-y-6">
@@ -96,8 +93,9 @@ export function LeaveDetailPage() {
             </div>
           </SectionCard>
 
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
             <InfoCard icon={<UserCircle2 size={16} />} label="Employee" value={leaveRequest.employeeName} />
+            <InfoCard icon={<UserCircle2 size={16} />} label="Requester Role" value={leaveRequest.employeeRole ?? "EMPLOYEE"} />
             <InfoCard icon={<CalendarDays size={16} />} label="Start Date" value={leaveRequest.startDate} />
             <InfoCard icon={<CalendarDays size={16} />} label="End Date" value={leaveRequest.endDate} />
           </div>
@@ -109,11 +107,11 @@ export function LeaveDetailPage() {
           </SectionCard>
 
           <SectionCard title="Approval Info">
-            {leaveRequest.reviewerName ? (
+            {leaveRequest.approverName || leaveRequest.reviewerName ? (
               <div className="space-y-2 text-sm" style={{ color: "var(--text-secondary)" }}>
-                <p>Reviewed by: {leaveRequest.reviewerName}</p>
-                <p>Last updated: {new Date(leaveRequest.updatedAt).toLocaleString()}</p>
-                <p>Comment: {leaveRequest.reviewComment || "No review comment provided."}</p>
+                <p>Decided by: {leaveRequest.approverName ?? leaveRequest.reviewerName}</p>
+                <p>Decision time: {leaveRequest.decidedAt ? new Date(leaveRequest.decidedAt).toLocaleString() : "Not decided yet"}</p>
+                <p>Comment: {leaveRequest.decisionComment ?? leaveRequest.reviewComment ?? "No decision comment provided."}</p>
               </div>
             ) : (
               <div className="rounded-xl border border-dashed p-6 text-center text-sm" style={{ borderColor: "var(--border-default)", color: "var(--text-tertiary)" }}>

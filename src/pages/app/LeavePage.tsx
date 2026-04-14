@@ -43,6 +43,21 @@ export function LeavePage() {
   const canReview = hasPermission(PERMISSIONS.LEAVE_REVIEW);
   const canApplyLeave = hasPermission(PERMISSIONS.LEAVE_REQUEST) && role !== "TENANT_ADMIN";
 
+  function canReviewLeave(item: LeaveRequest): boolean {
+    if (!canReview || item.status !== "PENDING" || !user) return false;
+    if (item.employeeId === user.id) return false;
+
+    if (role === "HR") {
+      return item.employeeRole === "EMPLOYEE";
+    }
+
+    if (role === "TENANT_ADMIN") {
+      return item.employeeRole === "EMPLOYEE" || item.employeeRole === "HR";
+    }
+
+    return false;
+  }
+
   async function fetchLeaves() {
     setLoading(true);
     setError(null);
@@ -75,7 +90,7 @@ export function LeavePage() {
 
   function isOwner(item: LeaveRequest): boolean {
     if (!user) return false;
-    return item.employeeId === user.id || item.employeeName === user.name;
+    return item.employeeId === user.id;
   }
 
   async function handleCancel() {
@@ -208,7 +223,7 @@ export function LeavePage() {
                 const owner = isOwner(item);
                 const canEdit = canApplyLeave && owner && item.status === "PENDING";
                 const canCancel = canApplyLeave && owner && item.status === "PENDING";
-                const canApprove = canReview && item.status === "PENDING";
+                const canApprove = canReviewLeave(item);
 
                 return (
                   <div
@@ -290,7 +305,7 @@ export function LeavePage() {
                 const owner = isOwner(item);
                 const canEdit = canApplyLeave && owner && item.status === "PENDING";
                 const canCancel = canApplyLeave && owner && item.status === "PENDING";
-                const canApprove = canReview && item.status === "PENDING";
+                const canApprove = canReviewLeave(item);
 
                 return (
                   <article
