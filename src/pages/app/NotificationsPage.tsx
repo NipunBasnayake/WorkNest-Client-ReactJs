@@ -12,7 +12,7 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { SectionCard } from "@/components/common/SectionCard";
 import { Button } from "@/components/common/Button";
 import { EmptyState, ErrorBanner } from "@/components/common/AppUI";
-import type { AppNotification } from "@/modules/notifications/types";
+import { isAnnouncementLinkedNotification, type AppNotification } from "@/modules/notifications/types";
 import { getErrorMessage } from "@/utils/errorHandler";
 
 type NotificationFilter = "all" | "unread";
@@ -101,6 +101,18 @@ export function NotificationsPage() {
     }
   }
 
+  async function handleOpenNotification(item: AppNotification) {
+    if (item.read) return;
+    if (!isAnnouncementLinkedNotification(item)) return;
+
+    setNotifications((prev) => prev.map((entry) => (entry.id === item.id ? { ...entry, read: true } : entry)));
+    try {
+      await markNotificationAsRead(item.id);
+    } catch {
+      void fetchNotifications(true);
+    }
+  }
+
   const unreadCount = notifications.filter((item) => !item.read).length;
 
   return (
@@ -162,7 +174,7 @@ export function NotificationsPage() {
       {!loading && filtered.length > 0 && (
         <div className="space-y-3">
           {filtered.map((item) => (
-            <NotificationItem key={item.id} item={item} onMarkRead={handleMarkRead} />
+            <NotificationItem key={item.id} item={item} onMarkRead={handleMarkRead} onOpen={handleOpenNotification} />
           ))}
         </div>
       )}
