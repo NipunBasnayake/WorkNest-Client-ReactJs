@@ -38,10 +38,19 @@ export function AnnouncementCard({ announcement }: AnnouncementCardProps) {
           <UserCircle2 size={12} />
           {announcement.authorName}
         </span>
+        {announcement.authorRole && <span>{toReadableRole(announcement.authorRole)}</span>}
         <span>{formatDate(announcement.createdAt)}</span>
       </div>
     </Link>
   );
+}
+
+function toReadableRole(value: string): string {
+  return value
+    .toLowerCase()
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
 }
 
 function formatDate(value: string): string {

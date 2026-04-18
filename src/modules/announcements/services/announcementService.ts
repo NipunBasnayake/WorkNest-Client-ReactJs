@@ -23,6 +23,12 @@ function normalizeAnnouncement(input: unknown): Announcement {
       getString(asRecord(value.author).fullName),
       getString(asRecord(value.author).name)
     ) ?? "Workspace",
+    authorRole: firstDefined(
+      getString(value.createdByRole),
+      getString(value.authorRole),
+      getString(asRecord(value.createdBy).role),
+      getString(asRecord(value.author).role)
+    ),
     createdAt: toIsoDateTime(firstDefined(value.createdAt, value.createdDate)),
     updatedAt: toIsoDateTime(firstDefined(value.updatedAt, value.updatedDate, value.modifiedAt)),
   };
