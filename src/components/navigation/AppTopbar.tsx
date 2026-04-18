@@ -12,7 +12,7 @@ import {
   markNotificationAsRead,
   subscribeNotifications,
 } from "@/modules/notifications/services/notificationService";
-import type { AppNotification } from "@/modules/notifications/types";
+import { isAnnouncementLinkedNotification, type AppNotification } from "@/modules/notifications/types";
 
 interface AppTopbarProps {
   area: "tenant" | "platform";
@@ -83,6 +83,22 @@ export function AppTopbar({ area, pageTitle, breadcrumb, onMobileMenuToggle }: A
     const [list, unread] = await Promise.all([getNotifications(), getUnreadNotificationCount()]);
     setItems(list);
     setUnreadCount(unread);
+  }
+
+  async function handleOpenNotification(item: AppNotification) {
+    if (item.read) return;
+    if (!isAnnouncementLinkedNotification(item)) return;
+
+    setItems((prev) => prev.map((entry) => (entry.id === item.id ? { ...entry, read: true } : entry)));
+    setUnreadCount((prev) => Math.max(0, prev - 1));
+
+    try {
+      await markNotificationAsRead(item.id);
+    } catch {
+      const [list, unread] = await Promise.all([getNotifications(), getUnreadNotificationCount()]);
+      setItems(list);
+      setUnreadCount(unread);
+    }
   }
 
   return (
@@ -191,6 +207,7 @@ export function AppTopbar({ area, pageTitle, breadcrumb, onMobileMenuToggle }: A
                     <NotificationItem
                       key={item.id}
                       item={item}
+                      onOpen={handleOpenNotification}
                       compact
                       onMarkRead={async (itemId) => {
                         await handleMarkRead(itemId);

@@ -5,6 +5,7 @@ export interface Announcement {
   pinned: boolean;
   authorId: string;
   authorName: string;
+  authorRole?: string;
   createdAt: string;
   updatedAt: string;
 }
