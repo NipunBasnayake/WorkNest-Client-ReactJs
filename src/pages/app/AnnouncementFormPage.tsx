@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { useAuth } from "@/hooks/useAuth";
+import { canCreateAnnouncements } from "@/modules/announcements/access";
 import { createAnnouncement, getAnnouncementById, updateAnnouncement } from "@/modules/announcements/services/announcementService";
 import { DEFAULT_ANNOUNCEMENT_FORM, validateAnnouncementForm } from "@/modules/announcements/schemas/announcementForm";
 import { AnnouncementForm } from "@/modules/announcements/components/AnnouncementForm";
@@ -17,6 +18,7 @@ export function AnnouncementFormPage() {
   const { id } = useParams<{ id?: string }>();
   const isEdit = Boolean(id);
   const { user } = useAuth();
+  const canCreate = canCreateAnnouncements(user?.role);
 
   usePageMeta({
     title: isEdit ? "Edit Announcement" : "Create Announcement",
@@ -31,13 +33,22 @@ export function AnnouncementFormPage() {
   const [fatalError, setFatalError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!id) return;
+    if (!id) {
+      setLoading(false);
+      setFatalError(canCreate ? null : "You are not allowed to manage announcements.");
+      return;
+    }
 
     let active = true;
     setLoading(true);
+    setFatalError(null);
     getAnnouncementById(id)
       .then((item) => {
         if (!active) return;
+        if (!item.canEdit) {
+          setFatalError("You can edit only announcements you are allowed to manage.");
+          return;
+        }
         setForm({
           title: item.title,
           content: item.content,
@@ -54,12 +65,15 @@ export function AnnouncementFormPage() {
     return () => {
       active = false;
     };
-  }, [id]);
+  }, [canCreate, id]);
 
   const title = useMemo(() => (isEdit ? "Update Announcement" : "Create Announcement"), [isEdit]);
 
   async function handleSubmit() {
-    if (!user) return;
+    if (!user || !canCreate) {
+      setMessage("You are not allowed to manage announcements.");
+      return;
+    }
 
     setMessage(null);
     const validation = validateAnnouncementForm(form);
@@ -72,11 +86,7 @@ export function AnnouncementFormPage() {
         await updateAnnouncement(id, form);
         setMessage("Announcement updated successfully.");
       } else {
-        await createAnnouncement({
-          ...form,
-          authorId: user.id,
-          authorName: user.name,
-        });
+        await createAnnouncement(form);
         setMessage("Announcement published successfully.");
       }
       setTimeout(() => navigate("/app/announcements", { replace: true }), 500);

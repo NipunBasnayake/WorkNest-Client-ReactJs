@@ -2,8 +2,6 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { ArrowLeft, Pin, UserCircle2 } from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
-import { PERMISSIONS } from "@/constants/permissions";
-import { usePermission } from "@/hooks/usePermission";
 import { getAnnouncementById } from "@/modules/announcements/services/announcementService";
 import { SectionCard } from "@/components/common/SectionCard";
 import { Button } from "@/components/common/Button";
@@ -13,14 +11,11 @@ import type { Announcement } from "@/modules/announcements/types";
 export function AnnouncementDetailPage() {
   const { id } = useParams<{ id: string }>();
   usePageMeta({ title: "Announcement Details", breadcrumb: ["Workspace", "Announcements", "Details"] });
-  const { hasPermission } = usePermission();
 
   const [announcement, setAnnouncement] = useState<Announcement | null>(null);
   const [loading, setLoading] = useState(Boolean(id));
   const [error, setError] = useState<string | null>(null);
   const resolvedError = !id ? "Invalid announcement id." : error;
-
-  const canManage = hasPermission(PERMISSIONS.ANNOUNCEMENTS_MANAGE);
 
   useEffect(() => {
     if (!id) return;
@@ -49,7 +44,7 @@ export function AnnouncementDetailPage() {
           <ArrowLeft size={16} />
           Back
         </Button>
-        {canManage && announcement && <Button variant="outline" to={`/app/announcements/${announcement.id}/edit`}>Edit</Button>}
+        {announcement?.canEdit && <Button variant="outline" to={`/app/announcements/${announcement.id}/edit`}>Edit</Button>}
       </div>
 
       {loading && (
