@@ -104,6 +104,26 @@ describe("AnnouncementsPage", () => {
     expect(screen.getByText("Delete")).toBeInTheDocument();
   });
 
+  it("hides HR edit and delete buttons for announcements owned by someone else", async () => {
+    vi.mocked(getAnnouncements).mockResolvedValueOnce([
+      makeAnnouncement({
+        authorName: "Another HR",
+        ownedByCurrentUser: false,
+        canEdit: false,
+        canDelete: false,
+      }),
+    ]);
+
+    renderPage();
+
+    await waitFor(() => expect(getAnnouncements).toHaveBeenCalledTimes(1));
+
+    expect(screen.getByText("Workspace Update")).toBeInTheDocument();
+    expect(screen.getByText("New Announcement")).toBeInTheDocument();
+    expect(screen.queryByText("Edit")).not.toBeInTheDocument();
+    expect(screen.queryByText("Delete")).not.toBeInTheDocument();
+  });
+
   it("shows announcements to employees in read-only mode", async () => {
     useAuthStore.setState({
       user: { id: "30", name: "Employee User", email: "employee@worknest.test", role: "EMPLOYEE", tenantKey: "acme" },

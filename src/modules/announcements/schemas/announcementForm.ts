@@ -15,8 +15,6 @@ export function validateAnnouncementForm(values: AnnouncementFormValues): Announ
 
   if (!values.content.trim()) {
     errors.content = "Announcement content is required.";
-  } else if (values.content.trim().length < 20) {
-    errors.content = "Provide at least 20 characters to make the announcement meaningful.";
   }
 
   return errors;

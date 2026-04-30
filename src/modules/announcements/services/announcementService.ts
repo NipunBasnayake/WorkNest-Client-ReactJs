@@ -47,7 +47,10 @@ export async function getAnnouncements(): Promise<Announcement[]> {
   const unwrapped = unwrapApiData<unknown>(data);
   return extractList(unwrapped)
     .map(normalizeAnnouncement)
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    .sort((a, b) => {
+      if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+      return b.createdAt.localeCompare(a.createdAt);
+    });
 }
 
 export async function getAnnouncementById(id: string): Promise<Announcement> {
@@ -59,7 +62,8 @@ export async function createAnnouncement(payload: AnnouncementPayload): Promise<
   const teamId = payload.teamId ? Number(payload.teamId) : undefined;
   const { data } = await apiClient.post<ApiResponse<unknown> | unknown>("/api/tenant/announcements", {
     title: payload.title.trim(),
-    message: payload.content.trim(),
+    content: payload.content.trim(),
+    pinned: Boolean(payload.pinned),
     ...(Number.isFinite(teamId) ? { teamId } : {}),
   });
   return normalizeAnnouncement(unwrapApiData<unknown>(data));
@@ -68,10 +72,10 @@ export async function createAnnouncement(payload: AnnouncementPayload): Promise<
 export async function updateAnnouncement(id: string, payload: Pick<AnnouncementPayload, "title" | "content" | "pinned">): Promise<Announcement> {
   const { data } = await apiClient.put<ApiResponse<unknown> | unknown>(`/api/tenant/announcements/${id}`, {
     title: payload.title.trim(),
-    message: payload.content.trim(),
+    content: payload.content.trim(),
+    pinned: Boolean(payload.pinned),
   });
-  const updated = normalizeAnnouncement(unwrapApiData<unknown>(data));
-  return { ...updated, pinned: payload.pinned ?? updated.pinned };
+  return normalizeAnnouncement(unwrapApiData<unknown>(data));
 }
 
 export async function deleteAnnouncement(id: string): Promise<void> {

@@ -1,20 +1,27 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
-import { ArrowLeft, Pin, UserCircle2 } from "lucide-react";
+import { useNavigate, useParams } from "react-router-dom";
+import { ArrowLeft, Pin, Trash2, UserCircle2, Users } from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
-import { getAnnouncementById } from "@/modules/announcements/services/announcementService";
+import { deleteAnnouncement, getAnnouncementById } from "@/modules/announcements/services/announcementService";
 import { SectionCard } from "@/components/common/SectionCard";
 import { Button } from "@/components/common/Button";
+import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { EmptyState, ErrorBanner } from "@/components/common/AppUI";
 import type { Announcement } from "@/modules/announcements/types";
+import { canDeleteAnnouncement, canEditAnnouncement } from "@/modules/announcements/access";
+import { getErrorMessage } from "@/utils/errorHandler";
 
 export function AnnouncementDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   usePageMeta({ title: "Announcement Details", breadcrumb: ["Workspace", "Announcements", "Details"] });
 
   const [announcement, setAnnouncement] = useState<Announcement | null>(null);
   const [loading, setLoading] = useState(Boolean(id));
   const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const resolvedError = !id ? "Invalid announcement id." : error;
 
   useEffect(() => {
@@ -25,8 +32,8 @@ export function AnnouncementDetailPage() {
       .then((response) => {
         if (active) setAnnouncement(response);
       })
-      .catch(() => {
-        if (active) setError("Unable to load announcement.");
+      .catch((err: unknown) => {
+        if (active) setError(getErrorMessage(err, "Unable to load announcement."));
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -37,6 +44,21 @@ export function AnnouncementDetailPage() {
     };
   }, [id]);
 
+  async function handleDelete() {
+    if (!announcement) return;
+    setDeleting(true);
+    setActionError(null);
+    try {
+      await deleteAnnouncement(announcement.id);
+      navigate("/app/announcements", { replace: true });
+    } catch (err: unknown) {
+      setActionError(getErrorMessage(err, "Unable to delete announcement."));
+    } finally {
+      setDeleting(false);
+      setConfirmDelete(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-2">
@@ -44,7 +66,15 @@ export function AnnouncementDetailPage() {
           <ArrowLeft size={16} />
           Back
         </Button>
-        {announcement?.canEdit && <Button variant="outline" to={`/app/announcements/${announcement.id}/edit`}>Edit</Button>}
+        {announcement && canEditAnnouncement(announcement) && (
+          <Button variant="outline" to={`/app/announcements/${announcement.id}/edit`}>Edit</Button>
+        )}
+        {announcement && canDeleteAnnouncement(announcement) && (
+          <Button variant="danger" onClick={() => setConfirmDelete(true)}>
+            <Trash2 size={16} color="#ef4444" />
+            Delete
+          </Button>
+        )}
       </div>
 
       {loading && (
@@ -54,6 +84,7 @@ export function AnnouncementDetailPage() {
       )}
 
       {!loading && resolvedError && <ErrorBanner message={resolvedError} />}
+      {actionError && <ErrorBanner message={actionError} />}
 
       {!loading && !resolvedError && !announcement && (
         <EmptyState
@@ -76,6 +107,13 @@ export function AnnouncementDetailPage() {
                     <UserCircle2 size={14} />
                     {announcement.authorName}
                   </span>
+                  {announcement.authorRole && <span>{toReadableRole(announcement.authorRole)}</span>}
+                  {announcement.teamName && (
+                    <span className="inline-flex items-center gap-1.5">
+                      <Users size={14} />
+                      {announcement.teamName}
+                    </span>
+                  )}
                   <span>{new Date(announcement.createdAt).toLocaleString()}</span>
                 </div>
               </div>
@@ -98,6 +136,24 @@ export function AnnouncementDetailPage() {
           </SectionCard>
         </>
       )}
+
+      <ConfirmDialog
+        open={confirmDelete}
+        title="Delete announcement?"
+        description={`This will remove "${announcement?.title ?? "this announcement"}" from the feed.`}
+        confirmLabel="Delete Announcement"
+        loading={deleting}
+        onCancel={() => setConfirmDelete(false)}
+        onConfirm={handleDelete}
+      />
     </div>
   );
+}
+
+function toReadableRole(value: string): string {
+  return value
+    .toLowerCase()
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
 }

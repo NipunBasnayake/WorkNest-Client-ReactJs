@@ -12,6 +12,7 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/common/Button";
 import { ErrorBanner } from "@/components/common/AppUI";
 import type { AnnouncementFormErrors, AnnouncementFormValues } from "@/modules/announcements/types";
+import { getErrorMessage } from "@/utils/errorHandler";
 
 export function AnnouncementFormPage() {
   const navigate = useNavigate();
@@ -55,8 +56,8 @@ export function AnnouncementFormPage() {
           pinned: item.pinned,
         });
       })
-      .catch(() => {
-        if (active) setFatalError("Unable to load announcement.");
+      .catch((err: unknown) => {
+        if (active) setFatalError(getErrorMessage(err, "Unable to load announcement."));
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -90,8 +91,8 @@ export function AnnouncementFormPage() {
         setMessage("Announcement published successfully.");
       }
       setTimeout(() => navigate("/app/announcements", { replace: true }), 500);
-    } catch {
-      setMessage("Unable to save announcement right now.");
+    } catch (err: unknown) {
+      setMessage(getErrorMessage(err, "Unable to save announcement right now."));
     } finally {
       setSubmitting(false);
     }

@@ -1,4 +1,4 @@
-import { Pin, UserCircle2 } from "lucide-react";
+import { Pin, Users, UserCircle2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { Announcement } from "@/modules/announcements/types";
 
@@ -39,6 +39,12 @@ export function AnnouncementCard({ announcement }: AnnouncementCardProps) {
           {announcement.authorName}
         </span>
         {announcement.authorRole && <span>{toReadableRole(announcement.authorRole)}</span>}
+        {announcement.teamName && (
+          <span className="inline-flex items-center gap-1">
+            <Users size={12} />
+            {announcement.teamName}
+          </span>
+        )}
         <span>{formatDate(announcement.createdAt)}</span>
       </div>
     </Link>

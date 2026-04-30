@@ -11,6 +11,7 @@ import { Button } from "@/components/common/Button";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { EmptyState, ErrorBanner } from "@/components/common/AppUI";
 import type { Announcement } from "@/modules/announcements/types";
+import { getErrorMessage } from "@/utils/errorHandler";
 
 export function AnnouncementsPage() {
   usePageMeta({ title: "Announcements", breadcrumb: ["Workspace", "Announcements"] });
@@ -32,8 +33,8 @@ export function AnnouncementsPage() {
     try {
       const data = await getAnnouncements();
       setAnnouncements(data);
-    } catch {
-      setError("Failed to load announcements.");
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, "Failed to load announcements."));
     } finally {
       setLoading(false);
     }
@@ -61,8 +62,8 @@ export function AnnouncementsPage() {
       setAnnouncements((prev) => prev.filter((item) => item.id !== deleteTarget.id));
       setDeleteTarget(null);
       setFeedback("Announcement deleted successfully.");
-    } catch {
-      setFeedback("Unable to delete announcement right now.");
+    } catch (err: unknown) {
+      setFeedback(getErrorMessage(err, "Unable to delete announcement right now."));
     } finally {
       setDeleting(false);
     }
