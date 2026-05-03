@@ -1,36 +1,68 @@
-import { Pin, UserCircle2 } from "lucide-react";
+import { Pin, Users, UserCircle2, Edit2, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { Announcement } from "@/modules/announcements/types";
 
 interface AnnouncementCardProps {
   announcement: Announcement;
+  onEdit?: (announcement: Announcement) => void;
+  onDelete?: (announcement: Announcement) => void;
 }
 
-export function AnnouncementCard({ announcement }: AnnouncementCardProps) {
+export function AnnouncementCard({ announcement, onEdit, onDelete }: AnnouncementCardProps) {
   return (
-    <Link
-      to={`/app/announcements/${announcement.id}`}
-      className="block rounded-2xl border p-5 no-underline transition-colors hover:bg-primary-50/30 dark:hover:bg-primary-950/10"
+    <div
+      className="block rounded-2xl border p-5 transition-colors"
       style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)" }}
     >
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
+        <Link
+          to={`/app/announcements/${announcement.id}`}
+          className="min-w-0 flex-1 no-underline hover:opacity-80 transition-opacity"
+        >
           <h3 className="truncate text-base font-semibold" style={{ color: "var(--text-primary)" }}>
             {announcement.title}
           </h3>
           <p className="mt-2 line-clamp-3 text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>
             {announcement.content}
           </p>
+        </Link>
+        <div className="flex items-center gap-2">
+          {announcement.pinned && (
+            <span
+              className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold"
+              style={{ background: "rgba(147,50,234,0.12)", color: "var(--color-primary-600)" }}
+            >
+              <Pin size={12} />
+              Pinned
+            </span>
+          )}
+          {onEdit && (
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                onEdit(announcement);
+              }}
+              className="p-2 rounded-lg hover:bg-primary-100 dark:hover:bg-primary-950/20 transition-colors"
+              title="Edit announcement"
+              style={{ color: "var(--text-secondary)" }}
+            >
+              <Edit2 size={16} />
+            </button>
+          )}
+          {onDelete && (
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                onDelete(announcement);
+              }}
+              className="p-2 rounded-lg hover:bg-red-100 dark:hover:bg-red-950/20 transition-colors"
+              title="Delete announcement"
+              style={{ color: "var(--color-error-600)" }}
+            >
+              <Trash2 size={16} />
+            </button>
+          )}
         </div>
-        {announcement.pinned && (
-          <span
-            className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold"
-            style={{ background: "rgba(147,50,234,0.12)", color: "var(--color-primary-600)" }}
-          >
-            <Pin size={12} />
-            Pinned
-          </span>
-        )}
       </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-3 text-xs" style={{ color: "var(--text-tertiary)" }}>
@@ -38,10 +70,25 @@ export function AnnouncementCard({ announcement }: AnnouncementCardProps) {
           <UserCircle2 size={12} />
           {announcement.authorName}
         </span>
+        {announcement.authorRole && <span>{toReadableRole(announcement.authorRole)}</span>}
+        {announcement.teamName && (
+          <span className="inline-flex items-center gap-1">
+            <Users size={12} />
+            {announcement.teamName}
+          </span>
+        )}
         <span>{formatDate(announcement.createdAt)}</span>
       </div>
-    </Link>
+    </div>
   );
+}
+
+function toReadableRole(value: string): string {
+  return value
+    .toLowerCase()
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
 }
 
 function formatDate(value: string): string {

@@ -1,6 +1,6 @@
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { render, screen } from "@testing-library/react";
-import { PlatformGuard, TenantGuard, PermissionGuard } from "@/app/guards/RouteGuards";
+import { AnnouncementManageGuard, PermissionGuard, PlatformGuard, TenantGuard } from "@/app/guards/RouteGuards";
 import { PERMISSIONS } from "@/constants/permissions";
 import { useAuthStore } from "@/store/authStore";
 
@@ -55,6 +55,28 @@ describe("Route guards", () => {
     });
 
     renderWithRoutes(<PermissionGuard permission={PERMISSIONS.EMPLOYEES_MANAGE} />);
+    expect(screen.getByText("Protected Content")).toBeInTheDocument();
+  });
+
+  it("blocks legacy managers from announcement management routes", () => {
+    useAuthStore.setState({
+      isAuthenticated: true,
+      sessionType: "tenant",
+      user: { id: "4", name: "Manager User", email: "manager@worknest.test", role: "MANAGER", tenantKey: "acme" },
+    });
+
+    renderWithRoutes(<AnnouncementManageGuard />);
+    expect(screen.getByText("Unauthorized Page")).toBeInTheDocument();
+  });
+
+  it("allows HR users through announcement management routes", () => {
+    useAuthStore.setState({
+      isAuthenticated: true,
+      sessionType: "tenant",
+      user: { id: "5", name: "HR User", email: "hr@worknest.test", role: "HR", tenantKey: "acme" },
+    });
+
+    renderWithRoutes(<AnnouncementManageGuard />);
     expect(screen.getByText("Protected Content")).toBeInTheDocument();
   });
 

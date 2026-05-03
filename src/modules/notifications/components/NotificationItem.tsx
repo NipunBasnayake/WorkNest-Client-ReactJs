@@ -6,9 +6,10 @@ interface NotificationItemProps {
   item: AppNotification;
   compact?: boolean;
   onMarkRead?: (id: string) => void;
+  onOpen?: (item: AppNotification) => void;
 }
 
-export function NotificationItem({ item, compact = false, onMarkRead }: NotificationItemProps) {
+export function NotificationItem({ item, compact = false, onMarkRead, onOpen }: NotificationItemProps) {
   const content = (
     <div
       className={`rounded-xl border p-3 transition-colors ${item.read ? "" : "shadow-sm"} ${
@@ -65,7 +66,13 @@ export function NotificationItem({ item, compact = false, onMarkRead }: Notifica
 
   if (item.link) {
     return (
-      <Link to={item.link} className="block no-underline">
+      <Link
+        to={item.link}
+        className="block no-underline"
+        onClick={() => {
+          onOpen?.(item);
+        }}
+      >
         {content}
       </Link>
     );

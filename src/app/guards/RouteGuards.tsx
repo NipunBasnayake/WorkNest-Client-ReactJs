@@ -1,9 +1,9 @@
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import type { Permission } from "@/constants/permissions";
+import { canCreateAnnouncements } from "@/modules/announcements/access";
 import { usePermission } from "@/hooks/usePermission";
 import { useAuthStore } from "@/store/authStore";
 
-/* ─── Spinner shown while bootstrapping ─── */
 function BootstrapLoader() {
   return (
     <div
@@ -14,22 +14,18 @@ function BootstrapLoader() {
         <div
           className="w-10 h-10 rounded-full border-4 border-transparent animate-spin"
           style={{
-            borderTopColor:  "#9332EA",
+            borderTopColor: "#9332EA",
             borderLeftColor: "rgba(147,50,234,0.3)",
           }}
         />
         <p className="text-sm" style={{ color: "var(--text-tertiary)" }}>
-          Starting WorkNest…
+          Starting WorkNest...
         </p>
       </div>
     </div>
   );
 }
 
-/* ─────────────────────────────────────────────────────────────
-   AuthGuard — protects routes that require any authenticated user
-   Redirects to /login if not authenticated.
-   ───────────────────────────────────────────────────────────── */
 export function AuthGuard() {
   const { isAuthenticated, isBootstrapping, passwordChangeRequired } = useAuthStore();
   const location = useLocation();
@@ -45,10 +41,6 @@ export function AuthGuard() {
   return <Outlet />;
 }
 
-/* ─────────────────────────────────────────────────────────────
-   PlatformGuard — protects /platform/* routes
-   Only Platform sessions may access.
-   ───────────────────────────────────────────────────────────── */
 export function PlatformGuard() {
   const { isAuthenticated, isBootstrapping, sessionType, passwordChangeRequired } = useAuthStore();
   const location = useLocation();
@@ -67,10 +59,6 @@ export function PlatformGuard() {
   return <Outlet />;
 }
 
-/* ─────────────────────────────────────────────────────────────
-   TenantGuard — protects /app/* routes
-   Only Tenant sessions may access.
-   ───────────────────────────────────────────────────────────── */
 export function TenantGuard() {
   const { isAuthenticated, isBootstrapping, sessionType, passwordChangeRequired } = useAuthStore();
   const location = useLocation();
@@ -115,9 +103,27 @@ export function PermissionGuard({ permission }: PermissionGuardProps) {
   return <Outlet />;
 }
 
-/* ─────────────────────────────────────────────────────────────
-   GuestGuard — redirects already-logged-in users away from /login
-   ───────────────────────────────────────────────────────────── */
+export function AnnouncementManageGuard() {
+  const { isAuthenticated, isBootstrapping, sessionType, user, passwordChangeRequired } = useAuthStore();
+  const location = useLocation();
+
+  if (isBootstrapping) return <BootstrapLoader />;
+  if (passwordChangeRequired) {
+    return <Navigate to="/force-password-change" state={{ from: location }} replace />;
+  }
+  if (!isAuthenticated) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+  if (sessionType !== "tenant") {
+    return <Navigate to="/unauthorized" replace />;
+  }
+  if (!user || !canCreateAnnouncements(user.role)) {
+    return <Navigate to="/unauthorized" replace />;
+  }
+
+  return <Outlet />;
+}
+
 export function GuestGuard() {
   const { isAuthenticated, isBootstrapping, sessionType, passwordChangeRequired } = useAuthStore();
 

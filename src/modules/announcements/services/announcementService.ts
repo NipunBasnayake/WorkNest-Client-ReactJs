@@ -6,6 +6,7 @@ import type { ApiResponse } from "@/types";
 
 function normalizeAnnouncement(input: unknown): Announcement {
   const value = asRecord(input);
+  const createdBy = asRecord(value.createdBy);
 
   return {
     id: getId(firstDefined(value.id, value.announcementId)),
@@ -14,15 +15,28 @@ function normalizeAnnouncement(input: unknown): Announcement {
     pinned: getBoolean(firstDefined(value.pinned, value.isPinned)) ?? false,
     authorId: firstDefined(
       getString(value.authorId),
+      getString(createdBy.id),
       getString(value.createdByEmployeeId),
       getString(asRecord(value.author).id)
     ) ?? "",
     authorName: firstDefined(
       getString(value.authorName),
+      getString(createdBy.fullName),
       getString(value.createdByName),
       getString(asRecord(value.author).fullName),
       getString(asRecord(value.author).name)
     ) ?? "Workspace",
+    authorRole: firstDefined(
+      getString(value.createdByRole),
+      getString(value.authorRole),
+      getString(createdBy.role),
+      getString(asRecord(value.author).role)
+    ),
+    teamId: getString(value.teamId),
+    teamName: getString(value.teamName),
+    ownedByCurrentUser: getBoolean(value.ownedByCurrentUser) ?? false,
+    canEdit: getBoolean(value.canEdit) ?? false,
+    canDelete: getBoolean(value.canDelete) ?? false,
     createdAt: toIsoDateTime(firstDefined(value.createdAt, value.createdDate)),
     updatedAt: toIsoDateTime(firstDefined(value.updatedAt, value.updatedDate, value.modifiedAt)),
   };
@@ -30,9 +44,13 @@ function normalizeAnnouncement(input: unknown): Announcement {
 
 export async function getAnnouncements(): Promise<Announcement[]> {
   const { data } = await apiClient.get<ApiResponse<unknown> | unknown>("/api/tenant/announcements");
-  return extractList(unwrapApiData<unknown>(data))
+  const unwrapped = unwrapApiData<unknown>(data);
+  return extractList(unwrapped)
     .map(normalizeAnnouncement)
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    .sort((a, b) => {
+      if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+      return b.createdAt.localeCompare(a.createdAt);
+    });
 }
 
 export async function getAnnouncementById(id: string): Promise<Announcement> {
@@ -41,9 +59,12 @@ export async function getAnnouncementById(id: string): Promise<Announcement> {
 }
 
 export async function createAnnouncement(payload: AnnouncementPayload): Promise<Announcement> {
+  const teamId = payload.teamId ? Number(payload.teamId) : undefined;
   const { data } = await apiClient.post<ApiResponse<unknown> | unknown>("/api/tenant/announcements", {
     title: payload.title.trim(),
-    message: payload.content.trim(),
+    content: payload.content.trim(),
+    pinned: Boolean(payload.pinned),
+    ...(Number.isFinite(teamId) ? { teamId } : {}),
   });
   return normalizeAnnouncement(unwrapApiData<unknown>(data));
 }
@@ -51,10 +72,10 @@ export async function createAnnouncement(payload: AnnouncementPayload): Promise<
 export async function updateAnnouncement(id: string, payload: Pick<AnnouncementPayload, "title" | "content" | "pinned">): Promise<Announcement> {
   const { data } = await apiClient.put<ApiResponse<unknown> | unknown>(`/api/tenant/announcements/${id}`, {
     title: payload.title.trim(),
-    message: payload.content.trim(),
+    content: payload.content.trim(),
+    pinned: Boolean(payload.pinned),
   });
-  const updated = normalizeAnnouncement(unwrapApiData<unknown>(data));
-  return { ...updated, pinned: payload.pinned };
+  return normalizeAnnouncement(unwrapApiData<unknown>(data));
 }
 
 export async function deleteAnnouncement(id: string): Promise<void> {

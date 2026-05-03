@@ -37,18 +37,59 @@ function buildReferenceLink(referenceType?: string, referenceId?: string): strin
   return undefined;
 }
 
+function normalizeEntityType(value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed.toUpperCase() : undefined;
+}
+
+function resolveAnnouncementId(
+  type: string,
+  relatedEntityType?: string,
+  relatedEntityId?: string,
+  referenceType?: string,
+  referenceId?: string,
+  announcementId?: string
+): string | undefined {
+  if (announcementId) return announcementId;
+  if (relatedEntityType === "ANNOUNCEMENT" && relatedEntityId) return relatedEntityId;
+  if (referenceType === "ANNOUNCEMENT" && referenceId) return referenceId;
+  if (type === "ANNOUNCEMENT") return relatedEntityId ?? referenceId;
+  return undefined;
+}
+
 function normalizeNotification(input: unknown): AppNotification {
   const value = asRecord(input);
-  const referenceType = getString(firstDefined(value.referenceType, value.entityType));
+  const referenceType = normalizeEntityType(getString(firstDefined(value.referenceType, value.entityType)));
   const referenceId = getString(firstDefined(value.referenceId, value.entityId));
+  const relatedEntityType = normalizeEntityType(getString(firstDefined(value.relatedEntityType, value.entityType)));
+  const relatedEntityId = getString(firstDefined(value.relatedEntityId, value.entityId));
   const type = (getString(value.type)?.toUpperCase() ?? "SYSTEM") as AppNotification["type"];
+  const announcementId = getString(value.announcementId);
+  const resolvedAnnouncementId = resolveAnnouncementId(
+    type,
+    relatedEntityType,
+    relatedEntityId,
+    referenceType,
+    referenceId,
+    announcementId
+  );
+  const link = firstDefined(
+    getString(value.link),
+    resolvedAnnouncementId ? `/app/announcements/${resolvedAnnouncementId}` : undefined,
+    buildReferenceLink(relatedEntityType ?? referenceType, relatedEntityId ?? referenceId)
+  );
 
   return {
     id: getId(firstDefined(value.id, value.notificationId)),
     type,
     title: firstDefined(getString(value.title), getString(value.subject), toReadableType(type)) ?? "Notification",
     message: getString(value.message) ?? "",
-    link: firstDefined(getString(value.link), buildReferenceLink(referenceType, referenceId)),
+    link,
+    referenceType,
+    referenceId,
+    relatedEntityType,
+    relatedEntityId,
+    announcementId: resolvedAnnouncementId,
     read: getBoolean(firstDefined(value.read, value.isRead)) ?? false,
     createdAt: toIsoDateTime(firstDefined(value.createdAt, value.createdDate)),
   };

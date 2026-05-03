@@ -3,7 +3,7 @@ import { createBrowserRouter, Navigate, RouterProvider } from "react-router-dom"
 import { AuthLayout } from "@/app/layouts/AuthLayout";
 import { PublicLayout } from "@/app/layouts/PublicLayout";
 import { PlatformLayout, TenantLayout } from "@/app/layouts/AppLayout";
-import { GuestGuard, PermissionGuard, PlatformGuard, TenantGuard } from "@/app/guards/RouteGuards";
+import { AnnouncementManageGuard, GuestGuard, PermissionGuard, PlatformGuard, TenantGuard } from "@/app/guards/RouteGuards";
 import { PERMISSIONS } from "@/constants/permissions";
 
 function RouteLoader() {
@@ -223,7 +223,7 @@ const router = createBrowserRouter([
           },
 
           {
-            element: <PermissionGuard permission={PERMISSIONS.ANNOUNCEMENTS_MANAGE} />,
+            element: <AnnouncementManageGuard />,
             children: [
               { path: "app/announcements/new", element: announcementFormPage },
               { path: "app/announcements/:id/edit", element: announcementFormPage },

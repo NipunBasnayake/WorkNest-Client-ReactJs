@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { Megaphone, PlusCircle, Search, Trash2 } from "lucide-react";
+import { Megaphone, PlusCircle, Search } from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
-import { PERMISSIONS } from "@/constants/permissions";
-import { usePermission } from "@/hooks/usePermission";
+import { useAuth } from "@/hooks/useAuth";
+import { canCreateAnnouncements, canDeleteAnnouncement, canEditAnnouncement } from "@/modules/announcements/access";
 import { deleteAnnouncement, getAnnouncements } from "@/modules/announcements/services/announcementService";
 import { AnnouncementCard } from "@/modules/announcements/components/AnnouncementCard";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -11,10 +11,11 @@ import { Button } from "@/components/common/Button";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { EmptyState, ErrorBanner } from "@/components/common/AppUI";
 import type { Announcement } from "@/modules/announcements/types";
+import { getErrorMessage } from "@/utils/errorHandler";
 
 export function AnnouncementsPage() {
   usePageMeta({ title: "Announcements", breadcrumb: ["Workspace", "Announcements"] });
-  const { hasPermission } = usePermission();
+  const { user } = useAuth();
 
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
@@ -24,7 +25,7 @@ export function AnnouncementsPage() {
   const [deleteTarget, setDeleteTarget] = useState<Announcement | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const canManage = hasPermission(PERMISSIONS.ANNOUNCEMENTS_MANAGE);
+  const canCreate = canCreateAnnouncements(user?.role);
 
   async function fetchAnnouncements() {
     setLoading(true);
@@ -32,8 +33,8 @@ export function AnnouncementsPage() {
     try {
       const data = await getAnnouncements();
       setAnnouncements(data);
-    } catch {
-      setError("Failed to load announcements.");
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, "Failed to load announcements."));
     } finally {
       setLoading(false);
     }
@@ -61,8 +62,8 @@ export function AnnouncementsPage() {
       setAnnouncements((prev) => prev.filter((item) => item.id !== deleteTarget.id));
       setDeleteTarget(null);
       setFeedback("Announcement deleted successfully.");
-    } catch {
-      setFeedback("Unable to delete announcement right now.");
+    } catch (err: unknown) {
+      setFeedback(getErrorMessage(err, "Unable to delete announcement right now."));
     } finally {
       setDeleting(false);
     }
@@ -73,7 +74,7 @@ export function AnnouncementsPage() {
       <PageHeader
         title="Announcements"
         description={loading ? "Loading announcements..." : `${announcements.length} announcement${announcements.length === 1 ? "" : "s"} published.`}
-        actions={canManage ? (
+        actions={canCreate ? (
           <Button variant="primary" to="/app/announcements/new">
             <PlusCircle size={16} />
             New Announcement
@@ -121,25 +122,19 @@ export function AnnouncementsPage() {
           icon={<Megaphone size={28} />}
           title={search ? "No matching announcements" : "No announcements yet"}
           description={search ? "Try another search term." : "Share updates and policy changes with your workspace."}
-          action={canManage ? <Button variant="outline" to="/app/announcements/new">Create Announcement</Button> : undefined}
+          action={canCreate ? <Button variant="outline" to="/app/announcements/new">Create Announcement</Button> : undefined}
         />
       )}
 
       {!loading && filtered.length > 0 && (
         <div className="space-y-4">
           {filtered.map((announcement) => (
-            <div key={announcement.id} className="space-y-2">
-              <AnnouncementCard announcement={announcement} />
-              {canManage && (
-                <div className="flex justify-end gap-2">
-                  <Button variant="outline" size="sm" to={`/app/announcements/${announcement.id}/edit`}>Edit</Button>
-                  <Button variant="danger" size="sm" onClick={() => setDeleteTarget(announcement)}>
-                    <Trash2 size={14} color="#ef4444" />
-                    Delete
-                  </Button>
-                </div>
-              )}
-            </div>
+            <AnnouncementCard
+              key={announcement.id}
+              announcement={announcement}
+              onEdit={canEditAnnouncement(announcement) ? (ann) => window.location.href = `/app/announcements/${ann.id}/edit` : undefined}
+              onDelete={canDeleteAnnouncement(announcement) ? setDeleteTarget : undefined}
+            />
           ))}
         </div>
       )}
