@@ -1,391 +1,231 @@
-# WorkNest Client (React + TypeScript)
+# WorkNest Client
 
-WorkNest is a multi-tenant SaaS workspace platform UI built with React, TypeScript, Vite, Tailwind CSS v4, Zustand, Axios, and STOMP realtime messaging.
+WorkNest is a production-grade, multi-tenant ERP frontend built with React, Vite, TypeScript, and Tailwind CSS. It provides the tenant workspace for day-to-day operations and a separate platform console for internal administration.
 
-This client serves two major product areas:
+The application is designed for SaaS teams that need a single frontend for employees, managers, HR, and tenant administrators without leaking platform-level capabilities into the tenant experience.
 
-- Public experience (landing, authentication, account recovery flow)
-- Tenant workspace (employees, teams, projects, tasks, attendance, leave, announcements, chat, notifications, analytics, settings)
-- Platform console (tenant management, analytics, platform settings)
+## 1. Project Overview
 
-The design system is token-driven with light/dark theme support and a unified purple brand language.
+WorkNest solves the problem of fragmented workplace operations by combining core business workflows into one tenant-aware interface.
 
-## Table of Contents
+Each company is isolated as a tenant. The frontend communicates with tenant-scoped APIs, renders features according to the active user permissions, and keeps platform administration separate from tenant usage.
 
-- Project Highlights
-- Tech Stack
-- Architecture Overview
-- Module Coverage
-- Authentication and Session Lifecycle
-- Realtime Messaging
-- Project Structure
-- Environment Variables
-- Getting Started
-- Available Scripts
-- Routing Map
-- UI and Design System
-- Testing
-- Build and Deployment
-- Troubleshooting
-- Contribution Guide
-- License
+The current client covers authentication, dashboards, employees, teams, projects, tasks, attendance, leave, announcements, notifications, chat, analytics, and settings.
 
-## Project Highlights
+## 2. Features
 
-- React 19 + TypeScript strict mode
-- Vite build pipeline with vendor chunk splitting
-- Tailwind CSS v4 and custom design tokens
-- Stateful auth/session management via Zustand
-- API client with refresh-token retry flow and session-expiration fallback
-- Role-based route guards for tenant and platform boundaries
-- STOMP realtime subscriptions for chat and notifications
-- Theme-aware, responsive UI from public landing through app dashboards
+- Tenant-aware authentication and session bootstrap
+- Permission-based route guards and UI rendering
+- Employee, team, project, and task management
+- Attendance and leave workflows
+- Announcements with pinned content and CRUD support
+- System notifications shown in the topbar
+- Team and HR chat messaging
+- Dashboard and analytics views
+- File uploads for profile images, task attachments, leave documents, and project files
+- Separate public, tenant, and platform route shells
 
-## Tech Stack
+## 3. Tech Stack
 
-### Core
+| Layer | Tools |
+| --- | --- |
+| Framework | React 19, Vite |
+| Language | TypeScript |
+| Routing | React Router |
+| Data Fetching | TanStack Query |
+| HTTP | Axios |
+| Styling | Tailwind CSS v4, token-driven CSS variables |
+| State | Zustand |
+| Realtime | STOMP over WebSocket |
+| Storage | Supabase-backed file storage contract |
+| Icons | Lucide React |
+| Testing | Vitest, Testing Library, jsdom |
 
-- React 19
-- TypeScript 5
-- Vite 8
-- React Router 7
+## 4. Project Structure
 
-### Styling and UX
+### `src/app`
 
-- Tailwind CSS v4
-- Token-based CSS variables in src/index.css
-- Lucide icons
+Application composition lives here: providers, layouts, route guards, and the router entry point. This is where the app shell is assembled and where tenant, platform, and public boundaries are enforced.
 
-### Data, Networking, and State
+### `src/modules`
 
-- Axios
-- Zustand
-- STOMP over WebSocket using @stomp/stompjs
+Feature logic is grouped by domain. Each module owns its types, services, access rules, components, and page-level workflows. This keeps announcements, chat, tasks, leave, and other business domains isolated from each other.
 
-### Quality and Tooling
+### `src/components`
 
-- ESLint 9
-- Vitest
-- Testing Library
-- jsdom test environment
+Shared UI components live here. These are reusable primitives and composite components used across modules, such as buttons, dialogs, inputs, headers, nav surfaces, and section cards.
 
-## Architecture Overview
+### `src/services`
 
-WorkNest client follows a modular, domain-first architecture.
+Infrastructure code lives here: HTTP clients, response parsers, auth/token handling, realtime subscriptions, and file upload helpers. Shared API concerns are centralized so modules stay focused on business behavior.
 
-- App shell and providers are initialized in src/App.tsx
-- Routing is centralized in src/app/router/index.tsx
-- Feature logic is split by business domain under src/modules
-- Shared API, HTTP and realtime infrastructure lives under src/services
-- Auth and network state are managed by centralized Zustand stores
+### `src/hooks`
 
-High-level flow:
+Reusable hooks expose cross-cutting behavior such as auth state, permissions, theme, page metadata, toast state, and queries.
 
-1. ThemeProvider applies initial and persisted theme
-2. NetworkProvider tracks browser connectivity state
-3. AuthProvider bootstraps session using stored tokens
-4. Router enforces guest, tenant, platform, and role guards
+## 5. Authentication & Authorization
 
-## Module Coverage
+WorkNest uses JWT-based authentication with access and refresh token handling. The frontend boots the session on load, restores the authenticated user when tokens are available, and refreshes expired access tokens through the shared Axios client.
 
-Current client modules include:
+The current client persists session state client-side and sends bearer tokens on API requests. The auth layer is structured so it can evolve toward HttpOnly cookie refresh handling when the backend contract is finalized.
 
-- Analytics
-- Announcements
-- Attendance
-- Auth
-- Chat
-- Employees
-- Leave
-- Notifications
-- Platform
-- Projects
-- Settings
-- Tasks
-- Teams
+Authorization is permission-based, not role-only.
 
-## Authentication and Session Lifecycle
+- `PLATFORM_ADMIN` belongs to the platform console, not the tenant workspace
+- `TENANT_ADMIN` can manage tenant-wide workspace content and admin workflows
+- `HR` can manage HR-related areas such as announcements and people workflows where permitted
+- `EMPLOYEE` receives only the permissions granted by the tenant policy
 
-The auth system supports both platform and tenant sessions.
+The UI checks permissions through the `usePermission` hook, and protected routes use `PermissionGuard` to block access before the page renders. This same model is used for module entry points and management flows.
 
-Key behavior:
+For announcements, the backend also returns item-level flags such as `canEdit` and `canDelete`, allowing the UI to render action controls only when the current user is allowed to act on a specific record.
 
-- Access and refresh tokens are stored in local storage
-- Tenant context and session type are persisted
-- Access token expiration is handled by automatic refresh
-- Refresh failure triggers hard logout to session-expired route
-- Password-change-required flow is handled at login boundary
-- Route guards block unauthorized role or area access
+API communication is handled by a shared Axios client that:
 
-## Realtime Messaging
+- Sets the API base URL from environment configuration
+- Attaches the bearer access token automatically
+- Adds tenant-scoped headers for tenant endpoints
+- Retries failed requests after token refresh
+- Normalizes API errors into user-friendly messages
 
-Realtime functionality is implemented via STOMP over WebSocket.
+## 6. Announcements System
 
-Capabilities:
+Announcements are workspace content, not system alerts.
 
-- Auto broker URL resolution from API base URL
-- Optional explicit WS URL via env variable
-- Reconnect with heartbeats
-- Destination subscription management with cleanup
-- Tenant and auth headers attached when available
-- Config-driven destination lists for chat and notifications
+They are authored by authorized tenant users, currently TENANT_ADMIN and HR, and are visible in `/app/announcements`. Announcements support a title, rich text content, pinned status, and record-level actions such as edit and delete when the backend allows them.
 
-## Project Structure
+Notifications are different.
 
-~~~text
-src/
-  app/
-    guards/
-    layouts/
-    providers/
-    router/
-  components/
-    auth/
-    common/
-    navigation/
-    sections/
-  constants/
-  hooks/
-  modules/
-    analytics/
-    announcements/
-    attendance/
-    auth/
-    chat/
-    employees/
-    leave/
-    notifications/
-    platform/
-    projects/
-    settings/
-    tasks/
-    teams/
-  pages/
-    app/
-    platform/
-    public/
-  services/
-    api/
-    http/
-    realtime/
-  store/
-  test/
-  types/
-  utils/
-~~~
+- Announcements are deliberate content created by users with permission
+- Notifications are system-generated events tied to entities such as tasks, leave requests, or announcements
+- Announcements appear as browsable content in the announcements module
+- Notifications appear in the topbar and notification center as operational updates
 
-## Environment Variables
+The routing model reflects that split:
 
-Create a local env file in project root.
+- `/app/announcements` for the announcements list
+- `/app/announcements/new` for creation
+- `/app/announcements/:id` for details
+- `/app/announcements/:id/edit` for editing
 
-Suggested file:
+Management routes are protected by announcement management guards, and the card component renders edit/delete controls inline when the current announcement can be modified.
 
-~~~bash
+## 7. File Uploads (Supabase)
+
+WorkNest supports file uploads for profile images, task attachments, leave documents, and project files.
+
+The frontend upload flow is multipart-based:
+
+1. The UI collects a file from the user
+2. The upload service validates type and size on the client
+3. The file is sent to the backend upload endpoint as `multipart/form-data`
+4. The backend persists the file in storage, typically Supabase Storage in production
+5. The backend returns a public or resolved URL plus metadata
+6. The frontend stores that returned URL in the relevant domain record
+
+This keeps the browser free from storage secrets and lets the backend control bucket structure, access rules, and URL normalization.
+
+Example usage:
+
+```ts
+import { uploadImageFiles, uploadDocumentFiles } from "@/services/uploads/fileUploadService";
+
+const images = await uploadImageFiles(files, { folder: "profiles" });
+const documents = await uploadDocumentFiles(files, { folder: "leave-documents" });
+```
+
+Recommended environment variables for storage integration:
+
+```env
+VITE_SUPABASE_URL=
+VITE_SUPABASE_ANON_KEY=
+```
+
+If your deployment uses backend-mediated uploads only, these values can remain unused by the browser bundle, but they are still useful to document the storage contract and deployment environment.
+
+## 8. Environment Variables
+
+Create a local environment file at the project root.
+
+```bash
 .env.local
-~~~
+```
 
-Recommended variables:
+Required variables:
 
-~~~env
+```env
 VITE_API_BASE_URL=http://localhost:8080
-VITE_WS_URL=ws://localhost:8080/ws
+```
 
-# Optional
+Storage-related variables:
+
+```env
+VITE_SUPABASE_URL=
+VITE_SUPABASE_ANON_KEY=
+```
+
+Optional realtime variables:
+
+```env
+VITE_WS_URL=ws://localhost:8080/ws
 VITE_REALTIME_DISABLED=false
 VITE_CHAT_TOPICS=/topic/chat.global,/user/queue/chat
 VITE_NOTIFICATIONS_TOPICS=/topic/notifications.global,/user/queue/notifications
-~~~
+```
 
 Notes:
 
-- If VITE_WS_URL is not provided, WS URL is derived from VITE_API_BASE_URL
-- If VITE_REALTIME_DISABLED is true, websocket client remains inactive
+- If `VITE_WS_URL` is not set, the websocket URL can be derived from the API base URL in the realtime layer
+- If `VITE_REALTIME_DISABLED` is `true`, STOMP subscriptions stay inactive
 - Topic variables accept comma-separated destination strings
 
-## Getting Started
+## 9. Running the Project
 
-### Prerequisites
-
-- Node.js 20+ (recommended)
-- npm 10+
-
-### Install
-
-~~~bash
+```bash
 npm install
-~~~
-
-### Run Development Server
-
-~~~bash
 npm run dev
-~~~
-
-### Build Production
-
-~~~bash
 npm run build
-~~~
+```
 
-### Preview Production Build
+Useful local checks:
 
-~~~bash
-npm run preview
-~~~
+```bash
+npm run lint
+npm run test:run
+```
 
-## Available Scripts
+## 10. Production Notes
 
-- npm run dev: Start Vite dev server
-- npm run build: Type-check and build production bundle
-- npm run lint: Run ESLint
-- npm run preview: Preview production build locally
-- npm run test: Run Vitest in watch mode
-- npm run test:run: Run Vitest once
+- The app uses lazy-loaded routes and manual chunking, which helps keep initial load cost under control
+- Watch Vite bundle warnings during builds, especially when shared UI or icon imports expand vendor chunks
+- API availability is a hard dependency for authenticated workspace pages, because most modules fetch data from tenant-scoped endpoints
+- The Axios client handles token refresh and error normalization centrally, so most modules should not implement their own network retry logic
+- File uploads should remain backend-mediated so storage credentials stay out of the browser bundle
 
-## Routing Map
+## 11. Known Limitations
 
-Public area:
+- Chat delete or removal synchronization is not fully exposed in the current client, so delete-related changes may still require a refresh until realtime coverage is extended
+- The browser currently relies on the backend API for uploads rather than talking directly to Supabase from the UI
+- Some permission checks are still driven by backend-provided flags on a per-record basis, so UI action visibility depends on API responses
 
-- /
-- /login
-- /register and /register-company
-- /force-password-change
-- /session-expired
-- /unauthorized
+## 12. Future Improvements
 
-Tenant area:
-
-- /app/dashboard
-- /app/employees, /app/teams, /app/projects, /app/tasks
-- /app/attendance, /app/leave
-- /app/announcements, /app/notifications, /app/chat
-- /app/analytics, /app/profile, /app/settings
-
-Platform area:
-
-- /platform/dashboard
-- /platform/tenants
-- /platform/analytics
-- /platform/settings
-- /platform/profile
-
-Guarding model:
-
-- GuestGuard for auth routes
-- TenantGuard for tenant workspace
-- PlatformGuard for platform console
-- TenantRoleGuard for role-specific module access
-
-## UI and Design System
-
-Design is driven by tokenized CSS variables in src/index.css.
-
-System characteristics:
-
-- Light and dark palettes
-- Brand primary and accent scales
-- Surface, text, border, and glow tokens
-- Reusable shadow scale
-- Shared motion utilities (fade-up, pulse-glow, float)
-- Consistent spacing and typography across public and app shells
+- Move refresh handling fully to HttpOnly cookie sessions when the backend contract is ready
+- Expand realtime coverage for chat state changes and delete events
+- Add optimistic updates where mutation safety is well defined
+- Introduce stronger upload metadata validation and file scanning on the backend
+- Add more granular analytics caching and prefetching with TanStack Query
+- Extend auditability for high-impact tenant actions such as announcements and approvals
 
 ## Testing
 
-Testing stack:
+The project uses Vitest and Testing Library with a jsdom test environment.
 
-- Vitest
-- @testing-library/react
-- @testing-library/jest-dom
-- jsdom environment
-
-Current setup file:
-
-- src/test/setup.ts
-
-Run tests:
-
-~~~bash
+```bash
 npm run test
-~~~
-
-Run once:
-
-~~~bash
 npm run test:run
-~~~
-
-## Build and Deployment
-
-Production build command:
-
-~~~bash
-npm run build
-~~~
-
-Build output:
-
-- dist directory
-
-Vite config includes manual chunk grouping for:
-
-- react
-- router
-- network
-- state
-- icons
-
-## Troubleshooting
-
-### Dev server exits with code 1
-
-Try:
-
-1. Ensure dependencies are installed: npm install
-2. Validate env values in .env.local
-3. Ensure API endpoint is reachable if app relies on live backend
-4. Run lint and build to isolate compile vs runtime issues
-
-Helpful checks:
-
-~~~bash
-npm run lint
-npm run build
-~~~
-
-### Realtime not connecting
-
-Checklist:
-
-1. Confirm WS endpoint is correct
-2. Verify backend websocket endpoint is enabled
-3. Confirm VITE_REALTIME_DISABLED is not true
-4. Check auth token and tenant context availability
-
-### Session keeps expiring
-
-Checklist:
-
-1. Ensure refresh endpoint is implemented and reachable
-2. Verify refresh token is returned and stored
-3. Validate backend CORS and token validity settings
-
-## Contribution Guide
-
-Recommended workflow:
-
-1. Create feature branch
-2. Implement and keep module boundaries clean
-3. Run lint, tests, and build
-4. Submit PR with clear summary and screenshots for UI changes
-
-Quality gate before merge:
-
-- npm run lint passes
-- npm run test:run passes
-- npm run build passes
+```
 
 ## License
 
-This project is licensed under the MIT License.
-
-- See LICENSE for full text.
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for the full text.

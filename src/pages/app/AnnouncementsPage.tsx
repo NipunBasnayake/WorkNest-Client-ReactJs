@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Megaphone, PlusCircle, Search, Trash2 } from "lucide-react";
+import { Megaphone, PlusCircle, Search } from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { useAuth } from "@/hooks/useAuth";
 import { canCreateAnnouncements, canDeleteAnnouncement, canEditAnnouncement } from "@/modules/announcements/access";
@@ -129,22 +129,12 @@ export function AnnouncementsPage() {
       {!loading && filtered.length > 0 && (
         <div className="space-y-4">
           {filtered.map((announcement) => (
-            <div key={announcement.id} className="space-y-2">
-              <AnnouncementCard announcement={announcement} />
-              {(canEditAnnouncement(announcement) || canDeleteAnnouncement(announcement)) && (
-                <div className="flex justify-end gap-2">
-                  {canEditAnnouncement(announcement) && (
-                    <Button variant="outline" size="sm" to={`/app/announcements/${announcement.id}/edit`}>Edit</Button>
-                  )}
-                  {canDeleteAnnouncement(announcement) && (
-                    <Button variant="danger" size="sm" onClick={() => setDeleteTarget(announcement)}>
-                      <Trash2 size={14} color="#ef4444" />
-                      Delete
-                    </Button>
-                  )}
-                </div>
-              )}
-            </div>
+            <AnnouncementCard
+              key={announcement.id}
+              announcement={announcement}
+              onEdit={canEditAnnouncement(announcement) ? (ann) => window.location.href = `/app/announcements/${ann.id}/edit` : undefined}
+              onDelete={canDeleteAnnouncement(announcement) ? setDeleteTarget : undefined}
+            />
           ))}
         </div>
       )}
