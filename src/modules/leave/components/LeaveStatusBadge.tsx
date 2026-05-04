@@ -1,22 +1,46 @@
 import type { LeaveStatus } from "@/modules/leave/types";
+import { SemanticBadge } from "@/components/common/SemanticBadge";
 
 interface LeaveStatusBadgeProps {
   status: LeaveStatus;
 }
 
-const STYLE: Record<LeaveStatus, { bg: string; text: string }> = {
-  PENDING: { bg: "rgba(245,158,11,0.12)", text: "#d97706" },
-  APPROVED: { bg: "rgba(16,185,129,0.12)", text: "#10b981" },
-  REJECTED: { bg: "rgba(239,68,68,0.12)", text: "#ef4444" },
-  CANCELLED: { bg: "rgba(148,163,184,0.12)", text: "#64748b" },
-};
+/**
+ * Maps leave status to semantic variant for badge coloring
+ * Follows semantic meaning: warning → pending approval, success → approved, danger → rejected, neutral → cancelled
+ */
+function getStatusVariant(status: LeaveStatus): 'success' | 'warning' | 'danger' | 'info' | 'neutral' {
+  const variantMap: Record<LeaveStatus, 'success' | 'warning' | 'danger' | 'info' | 'neutral'> = {
+    PENDING: "warning",
+    APPROVED: "success",
+    REJECTED: "danger",
+    CANCELLED: "neutral",
+  };
+  return variantMap[status];
+}
+
+/**
+ * Gets display label for leave status
+ */
+function getStatusLabel(status: LeaveStatus): string {
+  const labelMap: Record<LeaveStatus, string> = {
+    PENDING: "Pending",
+    APPROVED: "Approved",
+    REJECTED: "Rejected",
+    CANCELLED: "Cancelled",
+  };
+  return labelMap[status];
+}
 
 export function LeaveStatusBadge({ status }: LeaveStatusBadgeProps) {
-  const style = STYLE[status];
+  const variant = getStatusVariant(status);
+  const label = getStatusLabel(status);
 
   return (
-    <span className="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold" style={{ background: style.bg, color: style.text }}>
-      {status.charAt(0) + status.slice(1).toLowerCase()}
-    </span>
+    <SemanticBadge
+      variant={variant}
+      label={label}
+      showDot={true}
+    />
   );
 }

@@ -2,6 +2,7 @@ import { Input } from "@/components/common/Input";
 import { Button } from "@/components/common/Button";
 import { AppSelect } from "@/components/common/AppSelect";
 import { FileUploadField } from "@/components/common/FileUploadField";
+import { TextareaField } from "@/components/common/TextareaField";
 import type { ProjectFormErrors, ProjectFormValues } from "@/modules/projects/types";
 import type { Team } from "@/modules/teams/types";
 
@@ -70,34 +71,15 @@ export function ProjectForm({
         </div>
       </div>
 
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="project-description" className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
-          Description
-        </label>
-        <textarea
-          id="project-description"
-          rows={4}
-          value={values.description}
-          onChange={(e) => onChange({ ...values, description: e.target.value })}
-          className={`w-full rounded-xl border px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/60 ${
-            errors.description ? "border-red-400 focus:ring-red-400/60 focus:border-red-400" : ""
-          }`}
-          style={{
-            backgroundColor: "var(--bg-surface)",
-            borderColor: errors.description ? undefined : "var(--border-default)",
-            color: "var(--text-primary)"
-          }}
-          placeholder="Describe project objective, scope, and delivery expectations."
-        />
-        {errors.description && (
-          <span className="text-xs text-red-500 mt-0.5 flex items-center gap-1">
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
-              <path d="M6 1a5 5 0 100 10A5 5 0 006 1zm-.5 2.5a.5.5 0 011 0v3a.5.5 0 01-1 0v-3zm.5 5a.625.625 0 110-1.25A.625.625 0 016 8.5z"/>
-            </svg>
-            {errors.description}
-          </span>
-        )}
-      </div>
+      <TextareaField
+        id="project-description"
+        label="Description"
+        rows={4}
+        value={values.description}
+        error={errors.description}
+        onChange={(e) => onChange({ ...values, description: e.target.value })}
+        placeholder="Describe project objective, scope, and delivery expectations."
+      />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <Input
@@ -170,7 +152,7 @@ export function ProjectForm({
         <Button type="button" variant="ghost" onClick={onCancel} disabled={submitting}>
           Cancel
         </Button>
-        <Button type="submit" variant="primary" disabled={submitting}>
+        <Button type="submit" variant="primary" disabled={submitting} loading={submitting}>
           {submitting ? "Saving..." : submitLabel}
         </Button>
       </div>

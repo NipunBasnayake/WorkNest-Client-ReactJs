@@ -2,6 +2,7 @@ import { Input } from "@/components/common/Input";
 import { Button } from "@/components/common/Button";
 import { AppSelect } from "@/components/common/AppSelect";
 import { FileUploadField } from "@/components/common/FileUploadField";
+import { TextareaField } from "@/components/common/TextareaField";
 import { LEAVE_TYPE_OPTIONS, type LeaveFormErrors, type LeaveFormValues } from "@/modules/leave/types";
 
 interface LeaveFormProps {
@@ -61,25 +62,15 @@ export function LeaveForm({ values, errors, submitting, submitLabel, onChange, o
         />
       </div>
 
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="leave-reason" className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
-          Reason
-        </label>
-        <textarea
-          id="leave-reason"
-          rows={5}
-          value={values.reason}
-          onChange={(event) => onChange({ ...values, reason: event.target.value })}
-          className="w-full rounded-xl border px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/60"
-          style={{
-            backgroundColor: "var(--bg-surface)",
-            borderColor: errors.reason ? "rgba(239,68,68,0.4)" : "var(--border-default)",
-            color: "var(--text-primary)",
-          }}
-          placeholder="Briefly explain the leave request."
-        />
-        {errors.reason && <p className="text-xs text-red-500">{errors.reason}</p>}
-      </div>
+      <TextareaField
+        id="leave-reason"
+        label="Reason"
+        rows={5}
+        value={values.reason}
+        error={errors.reason}
+        onChange={(event) => onChange({ ...values, reason: event.target.value })}
+        placeholder="Briefly explain the leave request."
+      />
 
       <FileUploadField
         id="leave-attachments"
@@ -97,7 +88,7 @@ export function LeaveForm({ values, errors, submitting, submitLabel, onChange, o
         <Button type="button" variant="ghost" onClick={onCancel} disabled={submitting}>
           Cancel
         </Button>
-        <Button type="submit" variant="primary" disabled={submitting}>
+        <Button type="submit" variant="primary" disabled={submitting} loading={submitting}>
           {submitting ? "Saving..." : submitLabel}
         </Button>
       </div>
