@@ -18,6 +18,7 @@ export function LeaveFormPage() {
   const { id } = useParams<{ id?: string }>();
   const isEdit = Boolean(id);
   const { user } = useAuth();
+  const userId = user?.id;
 
   usePageMeta({
     title: isEdit ? "Edit Leave Request" : "Apply Leave",
@@ -40,7 +41,7 @@ export function LeaveFormPage() {
     getLeaveRequestById(id)
       .then((request) => {
         if (!active) return;
-        if (user && request.employeeId !== user.id) {
+        if (userId && request.employeeId !== userId) {
           setFatalError("You can edit only your own leave requests.");
           return;
         }
@@ -66,7 +67,7 @@ export function LeaveFormPage() {
     return () => {
       active = false;
     };
-  }, [id]);
+  }, [id, userId]);
 
   const title = useMemo(() => (isEdit ? "Update Leave Request" : "Apply for Leave"), [isEdit]);
 

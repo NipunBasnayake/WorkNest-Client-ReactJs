@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { PlusCircle, Search } from "lucide-react";
+import { PlusCircle } from "lucide-react";
 import { FiCheck, FiEdit2, FiEye, FiTrash2, FiX } from "react-icons/fi";
 import { Link } from "react-router-dom";
 import { usePageMeta } from "@/hooks/usePageMeta";
@@ -14,6 +14,8 @@ import { SectionCard } from "@/components/common/SectionCard";
 import { Button } from "@/components/common/Button";
 import { AppSelect } from "@/components/common/AppSelect";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
+import { InlineAlert } from "@/components/common/InlineAlert";
+import { SearchField } from "@/components/common/SearchField";
 import { EmptyState, ErrorBanner, SkeletonRow } from "@/components/common/AppUI";
 import { getErrorMessage } from "@/utils/errorHandler";
 
@@ -140,17 +142,12 @@ export function LeavePage() {
 
       <SectionCard>
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1.3fr_0.8fr_0.8fr]">
-          <div className="relative">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--text-tertiary)" }} />
-            <input
-              type="text"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search by employee, reason, or leave type..."
-              className="w-full rounded-xl border py-2.5 pl-9 pr-3 text-sm outline-none transition-all focus:ring-2 focus:ring-primary-500/30"
-              style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)", color: "var(--text-primary)" }}
-            />
-          </div>
+          <SearchField
+            label="Search leave requests"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search by employee, reason, or leave type..."
+          />
 
           <AppSelect
             value={statusFilter}
@@ -177,21 +174,12 @@ export function LeavePage() {
       </SectionCard>
 
       {feedback && (
-        <div
-          className="rounded-xl border px-4 py-3 text-sm"
-          style={{
-            borderColor: feedback.toLowerCase().includes("could") || feedback.toLowerCase().includes("only") ? "rgba(239,68,68,0.25)" : "rgba(16,185,129,0.25)",
-            backgroundColor: feedback.toLowerCase().includes("could") || feedback.toLowerCase().includes("only") ? "rgba(239,68,68,0.06)" : "rgba(16,185,129,0.08)",
-            color: feedback.toLowerCase().includes("could") || feedback.toLowerCase().includes("only") ? "#ef4444" : "#10b981",
-          }}
-        >
-          {feedback}
-        </div>
+        <InlineAlert tone={feedback.toLowerCase().includes("could") || feedback.toLowerCase().includes("only") ? "error" : "success"} message={feedback} />
       )}
 
       {error && <ErrorBanner message={error} onRetry={fetchLeaves} />}
 
-      <SectionCard className="overflow-hidden" contentClassName="p-0" title="Leave Requests" subtitle="Review requests and keep leave schedules organized.">
+      <SectionCard variant="table" title="Leave Requests" subtitle="Review requests and keep leave schedules organized.">
         <div className="overflow-x-auto">
           <div
             className="hidden min-w-[1040px] md:grid grid-cols-[1.2fr_0.8fr_1fr_1fr_2fr_1fr_1.8fr] gap-3 border-b px-5 py-3 text-xs font-semibold uppercase tracking-wider"
