@@ -1,28 +1,48 @@
 import type { AttendanceStatus } from "@/modules/attendance/types";
+import { SemanticBadge } from "@/components/common/SemanticBadge";
 
 interface AttendanceStatusBadgeProps {
   status: AttendanceStatus;
 }
 
-const STYLE: Record<AttendanceStatus, { bg: string; text: string }> = {
-  PRESENT: { bg: "rgba(16,185,129,0.12)", text: "#10b981" },
-  LATE: { bg: "rgba(245,158,11,0.12)", text: "#d97706" },
-  ABSENT: { bg: "rgba(239,68,68,0.12)", text: "#ef4444" },
-  HALF_DAY: { bg: "rgba(99,102,241,0.12)", text: "#6366f1" },
-  INCOMPLETE: { bg: "rgba(100,116,139,0.14)", text: "#475569" },
-};
+/**
+ * Maps attendance status to semantic variant for badge coloring
+ * Follows semantic meaning: success → present, danger → absent, warning → late, neutral → half-day/incomplete
+ */
+function getStatusVariant(status: AttendanceStatus): 'success' | 'warning' | 'danger' | 'info' | 'neutral' {
+  const variantMap: Record<AttendanceStatus, 'success' | 'warning' | 'danger' | 'info' | 'neutral'> = {
+    PRESENT: "success",
+    ABSENT: "danger",
+    LATE: "warning",
+    HALF_DAY: "neutral",
+    INCOMPLETE: "neutral",
+  };
+  return variantMap[status];
+}
+
+/**
+ * Gets display label for attendance status
+ */
+function getStatusLabel(status: AttendanceStatus): string {
+  const labelMap: Record<AttendanceStatus, string> = {
+    PRESENT: "Present",
+    ABSENT: "Absent",
+    LATE: "Late",
+    HALF_DAY: "Half Day",
+    INCOMPLETE: "Incomplete",
+  };
+  return labelMap[status];
+}
 
 export function AttendanceStatusBadge({ status }: AttendanceStatusBadgeProps) {
-  const style = STYLE[status];
-  const label = status === "HALF_DAY"
-    ? "Half Day"
-    : status === "INCOMPLETE"
-      ? "Incomplete"
-      : status.charAt(0) + status.slice(1).toLowerCase();
+  const variant = getStatusVariant(status);
+  const label = getStatusLabel(status);
 
   return (
-    <span className="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold" style={{ background: style.bg, color: style.text }}>
-      {label}
-    </span>
+    <SemanticBadge
+      variant={variant}
+      label={label}
+      showDot={true}
+    />
   );
 }
