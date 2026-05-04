@@ -1,6 +1,7 @@
 import { Input } from "@/components/common/Input";
 import { Button } from "@/components/common/Button";
 import { AppSelect } from "@/components/common/AppSelect";
+import { TextareaField } from "@/components/common/TextareaField";
 import type { TeamFormErrors, TeamFormValues } from "@/modules/teams/types";
 
 interface EmployeeOption {
@@ -73,20 +74,15 @@ export function TeamForm({
         </div>
       </div>
 
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="team-description" className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
-          Description
-        </label>
-        <textarea
-          id="team-description"
-          rows={3}
-          value={values.description}
-          onChange={(e) => onChange({ ...values, description: e.target.value })}
-          className="w-full rounded-xl border px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/60"
-          style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)", color: "var(--text-primary)" }}
-          placeholder="Brief summary of team purpose and responsibilities."
-        />
-      </div>
+      <TextareaField
+        id="team-description"
+        label="Description"
+        rows={3}
+        value={values.description}
+        error={errors.description}
+        onChange={(e) => onChange({ ...values, description: e.target.value })}
+        placeholder="Brief summary of team purpose and responsibilities."
+      />
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor="team-manager-employee" className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
@@ -167,7 +163,7 @@ export function TeamForm({
         <Button type="button" variant="ghost" onClick={onCancel} disabled={submitting}>
           Cancel
         </Button>
-        <Button type="submit" variant="primary" disabled={submitting}>
+        <Button type="submit" variant="primary" disabled={submitting} loading={submitting}>
           {submitting ? "Saving..." : submitLabel}
         </Button>
       </div>

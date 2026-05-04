@@ -2,6 +2,7 @@ import { Input } from "@/components/common/Input";
 import { Button } from "@/components/common/Button";
 import { AppSelect } from "@/components/common/AppSelect";
 import { FileUploadField } from "@/components/common/FileUploadField";
+import { TextareaField } from "@/components/common/TextareaField";
 import { TASK_PRIORITY_OPTIONS, TASK_STATUS_OPTIONS, type TaskFormErrors, type TaskFormValues } from "@/modules/tasks/types";
 
 interface Option {
@@ -62,25 +63,15 @@ export function TaskForm({
         placeholder="e.g. Prepare sprint planning deck"
       />
 
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="task-description" className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
-          Description
-        </label>
-        <textarea
-          id="task-description"
-          rows={4}
-          value={values.description}
-          onChange={(event) => onChange({ ...values, description: event.target.value })}
-          className="w-full rounded-xl border px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/60"
-          style={{
-            backgroundColor: "var(--bg-surface)",
-            borderColor: errors.description ? "rgba(239,68,68,0.4)" : "var(--border-default)",
-            color: "var(--text-primary)",
-          }}
-          placeholder="Provide implementation notes, acceptance criteria, or dependencies."
-        />
-        {errors.description && <p className="text-xs text-red-500">{errors.description}</p>}
-      </div>
+      <TextareaField
+        id="task-description"
+        label="Description"
+        rows={4}
+        value={values.description}
+        error={errors.description}
+        onChange={(event) => onChange({ ...values, description: event.target.value })}
+        placeholder="Provide implementation notes, acceptance criteria, or dependencies."
+      />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <div className="flex flex-col gap-1.5">
@@ -205,7 +196,7 @@ export function TaskForm({
         <Button type="button" variant="ghost" onClick={onCancel} disabled={submitting}>
           Cancel
         </Button>
-        <Button type="submit" variant="primary" disabled={submitting || submitDisabled}>
+        <Button type="submit" variant="primary" disabled={submitting || submitDisabled} loading={submitting}>
           {submitting ? "Saving..." : submitLabel}
         </Button>
       </div>

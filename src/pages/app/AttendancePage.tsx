@@ -6,9 +6,12 @@ import { PERMISSIONS } from "@/constants/permissions";
 import { usePermission } from "@/hooks/usePermission";
 import { checkIn, checkOut, getAttendanceRecords, getAttendanceSummary, summarizeAttendance } from "@/modules/attendance/services/attendanceService";
 import { AttendanceStatusBadge } from "@/modules/attendance/components/AttendanceStatusBadge";
+import { SemanticBadge } from "@/components/common/SemanticBadge";
 import { PageHeader } from "@/components/common/PageHeader";
 import { SectionCard } from "@/components/common/SectionCard";
 import { Button } from "@/components/common/Button";
+import { InlineAlert } from "@/components/common/InlineAlert";
+import { TextareaField } from "@/components/common/TextareaField";
 import { EmptyState, ErrorBanner, SkeletonRow, StatCard } from "@/components/common/AppUI";
 import type { AttendanceRecord } from "@/modules/attendance/types";
 import { getErrorMessage } from "@/utils/errorHandler";
@@ -28,7 +31,7 @@ function formatMinutes(value?: number): string {
 
 export function AttendancePage() {
   usePageMeta({ title: "Attendance", breadcrumb: ["Workspace", "Attendance"] });
-  const { user, role } = useAuth();
+  const { role } = useAuth();
   const { hasPermission } = usePermission();
 
   const [selectedDate, setSelectedDate] = useState(today());
@@ -231,16 +234,7 @@ export function AttendancePage() {
       />
 
       {feedback && (
-        <div
-          className="rounded-xl border px-4 py-3 text-sm"
-          style={{
-            borderColor: feedback.toLowerCase().includes("unable") || feedback.toLowerCase().includes("required") ? "rgba(239,68,68,0.25)" : "rgba(16,185,129,0.25)",
-            backgroundColor: feedback.toLowerCase().includes("unable") || feedback.toLowerCase().includes("required") ? "rgba(239,68,68,0.06)" : "rgba(16,185,129,0.08)",
-            color: feedback.toLowerCase().includes("unable") || feedback.toLowerCase().includes("required") ? "#ef4444" : "#10b981",
-          }}
-        >
-          {feedback}
-        </div>
+        <InlineAlert tone={feedback.toLowerCase().includes("unable") || feedback.toLowerCase().includes("required") ? "error" : "success"} message={feedback} />
       )}
 
       {selfRecord && (
@@ -257,8 +251,8 @@ export function AttendancePage() {
           </div>
           <div className="mt-4 flex flex-wrap items-center gap-2">
             <AttendanceStatusBadge status={selfRecord.status} />
-            {selfRecord.late && <span className="rounded-full bg-amber-500/10 px-2.5 py-1 text-xs font-semibold text-amber-600">Late</span>}
-            {selfRecord.manualEntry && <span className="rounded-full bg-slate-500/10 px-2.5 py-1 text-xs font-semibold text-slate-600">Manual entry</span>}
+            {selfRecord.late && <SemanticBadge variant="warning" label="Late" showDot={false} />}
+            {selfRecord.manualEntry && <SemanticBadge variant="neutral" label="Manual entry" showDot={false} />}
           </div>
           {selfRecord.note && (
             <p className="mt-3 text-sm" style={{ color: "var(--text-secondary)" }}>
@@ -310,17 +304,13 @@ export function AttendancePage() {
               )}
             </label>
 
-            <label className="space-y-2 text-sm">
-              <span className="font-medium" style={{ color: "var(--text-primary)" }}>Note</span>
-              <textarea
-                value={manualNote}
-                onChange={(event) => setManualNote(event.target.value)}
-                rows={3}
-                className="w-full rounded-xl border px-3 py-2 outline-none focus:ring-2 focus:ring-primary-500/30"
-                style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)", color: "var(--text-primary)" }}
-                placeholder="Optional note for the record"
-              />
-            </label>
+            <TextareaField
+              label="Note"
+              value={manualNote}
+              onChange={(event) => setManualNote(event.target.value)}
+              rows={3}
+              placeholder="Optional note for the record"
+            />
           </div>
 
           <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -338,7 +328,7 @@ export function AttendancePage() {
 
       {error && <ErrorBanner message={error} onRetry={() => fetchAttendance(selectedDate)} />}
 
-      <SectionCard className="overflow-hidden" contentClassName="p-0" title="Attendance Records" subtitle={canViewAll ? "Workforce-wide view" : "Your attendance records"}>
+      <SectionCard variant="table" title="Attendance Records" subtitle={canViewAll ? "Workforce-wide view" : "Your attendance records"}>
         <div className="overflow-x-auto">
           <div
             className="hidden min-w-[900px] md:grid grid-cols-[1.4fr_1fr_1fr_1fr_1fr_0.9fr] gap-3 border-b px-5 py-3 text-xs font-semibold uppercase tracking-wider"

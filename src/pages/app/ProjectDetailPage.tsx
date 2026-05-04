@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { ArrowLeft, Calendar, ClipboardList, Layers3 } from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
@@ -55,7 +55,7 @@ export function ProjectDetailPage() {
 
   const resolvedError = !id ? "Invalid project id." : error;
 
-  async function loadProjectContext(projectId: string) {
+  const loadProjectContext = useCallback(async (projectId: string) => {
     const profilePromise = isEmployeeOnly
       ? getMyEmployeeProfile().catch(() => null)
       : Promise.resolve(null);
@@ -74,7 +74,7 @@ export function ProjectDetailPage() {
       employeeId: profile?.id ?? user?.id,
       email: profile?.email ?? user?.email,
     });
-  }
+  }, [isEmployeeOnly, user?.email, user?.id]);
 
   useEffect(() => {
     if (!id) return;
@@ -94,7 +94,7 @@ export function ProjectDetailPage() {
     return () => {
       active = false;
     };
-  }, [id, isEmployeeOnly, user?.email, user?.id]);
+  }, [id, loadProjectContext]);
 
   const projectTasks = useMemo(() => {
     if (!project) return [];

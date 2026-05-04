@@ -1,10 +1,12 @@
 import { useMemo, useState } from "react";
-import { Building2, ChevronRight, ExternalLink, Search } from "lucide-react";
+import { Building2, ChevronRight, ExternalLink } from "lucide-react";
 import { Link } from "react-router-dom";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { usePlatformTenantsQuery } from "@/hooks/queries/usePlatformQueries";
 import { EmptyState, ErrorState } from "@/components/common/AsyncStates";
 import { SkeletonRow } from "@/components/common/AppUI";
+import { SearchField } from "@/components/common/SearchField";
+import { SectionCard } from "@/components/common/SectionCard";
 import { getErrorMessage } from "@/utils/errorHandler";
 
 const STATUS_STYLE: Record<string, { bg: string; text: string; dot: string }> = {
@@ -46,25 +48,14 @@ export function PlatformTenantsPage() {
           </p>
         </div>
 
-        <div className="relative w-full sm:w-72">
-          <Search
-            size={16}
-            className="absolute left-3 top-1/2 -translate-y-1/2"
-            style={{ color: "var(--text-tertiary)" }}
-          />
-          <input
-            type="text"
-            placeholder="Search tenants..."
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            className="w-full rounded-xl border py-2.5 pl-9 pr-4 text-sm outline-none transition-all focus:ring-2 focus:ring-primary-500/30"
-            style={{
-              backgroundColor: "var(--bg-surface)",
-              borderColor: "var(--border-default)",
-              color: "var(--text-primary)",
-            }}
-          />
-        </div>
+        <SearchField
+          label="Search tenants"
+          placeholder="Search tenants..."
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          onClear={() => setSearch("")}
+          className="w-full sm:w-72"
+        />
       </div>
 
       {errorMessage ? (
@@ -73,10 +64,7 @@ export function PlatformTenantsPage() {
         </div>
       ) : null}
 
-      <div
-        className="overflow-hidden rounded-2xl border"
-        style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)" }}
-      >
+      <SectionCard variant="table">
         <div
           className="hidden grid-cols-[1.5fr_2fr_2fr_1fr_0.5fr] gap-4 border-b px-5 py-3 text-xs font-semibold uppercase tracking-wider sm:grid"
           style={{ color: "var(--text-tertiary)", borderColor: "var(--border-default)", backgroundColor: "var(--bg-muted)" }}
@@ -162,7 +150,7 @@ export function PlatformTenantsPage() {
               );
             })
           : null}
-      </div>
+      </SectionCard>
     </div>
   );
 }

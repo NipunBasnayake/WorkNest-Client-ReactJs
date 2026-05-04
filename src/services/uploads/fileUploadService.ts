@@ -32,12 +32,13 @@ function validateFile(file: File, kind: UploadKind): void {
   }
 }
 
-async function uploadFile(file: File, kind: UploadKind, _options: UploadOptions): Promise<UploadedFileAsset> {
+async function uploadFile(file: File, kind: UploadKind, options: UploadOptions): Promise<UploadedFileAsset> {
   validateFile(file, kind);
 
   const formData = new FormData();
   formData.append("file", file);
   formData.append("type", kind === "image" ? "image" : "doc");
+  formData.append("folder", options.folder);
 
   const { data } = await apiClient.post<UploadedFileAsset>(LOCAL_UPLOAD_ENDPOINT, formData, {
     headers: {

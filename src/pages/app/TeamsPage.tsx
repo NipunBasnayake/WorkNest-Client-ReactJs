@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Search, Users, UserPlus2 } from "lucide-react";
+import { Users, UserPlus2 } from "lucide-react";
 import { FiEdit2, FiEye, FiUsers } from "react-icons/fi";
 import { Link } from "react-router-dom";
 import { usePageMeta } from "@/hooks/usePageMeta";
@@ -13,6 +13,7 @@ import { EmptyState, ErrorState } from "@/components/common/AsyncStates";
 import { SkeletonRow } from "@/components/common/AppUI";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { Button } from "@/components/common/Button";
+import { SearchField } from "@/components/common/SearchField";
 import type { Team } from "@/modules/teams/types";
 import type { Project } from "@/modules/projects/types";
 import { getTeamMemberCount } from "@/modules/teams/utils/memberCount";
@@ -94,24 +95,18 @@ export function TeamsPage() {
       />
 
       <SectionCard>
-        <div className="relative">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--text-tertiary)" }} />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by team name, manager, members, or description..."
-            className="w-full rounded-xl border py-2.5 pl-9 pr-3 text-sm outline-none transition-all focus:ring-2 focus:ring-primary-500/30"
-            style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)", color: "var(--text-primary)" }}
-          />
-        </div>
+        <SearchField
+          label="Search teams"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by team name, manager, members, or description..."
+        />
       </SectionCard>
 
       {errorMessage && <ErrorState message={errorMessage} onRetry={retryFetch} />}
 
       <SectionCard
-        className="overflow-hidden"
-        contentClassName="p-0"
+        variant="table"
         title={isEmployeeOnly ? "Team Visibility" : "Teams"}
         subtitle={isEmployeeOnly ? "Your team structure and manager context." : "Structure your workforce by teams and managers."}
       >

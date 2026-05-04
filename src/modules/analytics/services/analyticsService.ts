@@ -571,6 +571,8 @@ export async function getTenantAnalyticsData(): Promise<TenantAnalyticsData> {
       date: toIsoDate(firstDefined(value.date, value.workDate, value.day)),
       present: getNumber(value.present) ?? 0,
       late: getNumber(value.late) ?? 0,
+      halfDay: getNumber(value.halfDay) ?? getNumber(value.half_day) ?? 0,
+      incomplete: getNumber(value.incomplete) ?? 0,
       absent: getNumber(value.absent) ?? 0,
     };
   });

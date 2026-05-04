@@ -38,28 +38,34 @@ export function AnnouncementCard({ announcement, onEdit, onDelete }: Announcemen
           )}
           {onEdit && (
             <button
+              type="button"
               onClick={(e) => {
                 e.preventDefault();
                 onEdit(announcement);
               }}
               className="p-2 rounded-lg hover:bg-primary-100 dark:hover:bg-primary-950/20 transition-colors"
               title="Edit announcement"
+              aria-label="Edit announcement"
               style={{ color: "var(--text-secondary)" }}
             >
               <Edit2 size={16} />
+              <span className="sr-only">Edit</span>
             </button>
           )}
           {onDelete && (
             <button
+              type="button"
               onClick={(e) => {
                 e.preventDefault();
                 onDelete(announcement);
               }}
               className="p-2 rounded-lg hover:bg-red-100 dark:hover:bg-red-950/20 transition-colors"
               title="Delete announcement"
-              style={{ color: "var(--color-error-600)" }}
+              aria-label="Delete announcement"
+              style={{ color: "#ef4444" }}
             >
               <Trash2 size={16} />
+              <span className="sr-only">Delete</span>
             </button>
           )}
         </div>

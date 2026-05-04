@@ -6,7 +6,6 @@ import {
   closestCorners,
   useSensor,
   useSensors,
-  type DragCancelEvent,
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
@@ -146,7 +145,7 @@ export function TaskBoardPage() {
     };
   }, [fetchTasks]);
 
-  const employeeTeams = myTeamsQuery.data ?? [];
+  const employeeTeams = useMemo(() => myTeamsQuery.data ?? [], [myTeamsQuery.data]);
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -208,7 +207,7 @@ export function TaskBoardPage() {
     setActiveTaskId(String(event.active.id));
   }, []);
 
-  const handleDragCancel = useCallback((_event: DragCancelEvent) => {
+  const handleDragCancel = useCallback(() => {
     setActiveTaskId(null);
   }, []);
 

@@ -3,9 +3,11 @@ import { Link, type LinkProps, type To } from "react-router-dom";
 
 interface ButtonBaseProps {
   variant?: "primary" | "secondary" | "ghost" | "outline" | "danger";
-  size?: "sm" | "md" | "lg";
+  size?: "sm" | "md" | "lg" | "icon";
   children: ReactNode;
   className?: string;
+  loading?: boolean;
+  loadingLabel?: string;
 }
 
 type ButtonAsNative = ButtonBaseProps &
@@ -26,21 +28,22 @@ const base =
 
 const variants = {
   primary:
-    "bg-primary-500 text-white hover:bg-primary-600 active:bg-primary-700 shadow-md hover:shadow-lg hover:shadow-primary-500/25",
+    "bg-primary-500 text-white hover:bg-primary-600 active:bg-primary-700 shadow-sm hover:shadow-md hover:shadow-primary-500/15",
   secondary:
-    "bg-accent-500 text-white hover:bg-accent-600 active:bg-accent-700 shadow-md hover:shadow-lg",
+    "bg-[var(--bg-surface)] text-[var(--text-primary)] border border-[var(--border-default)] hover:bg-[var(--bg-surface-hover)] active:bg-[var(--bg-muted)] shadow-sm",
   ghost:
-    "bg-transparent hover:bg-primary-50 dark:hover:bg-primary-950/30 text-[var(--text-primary)]",
+    "bg-transparent hover:bg-[var(--bg-surface-hover)] dark:hover:bg-[var(--bg-surface-hover)] text-[var(--text-primary)]",
   outline:
-    "border-2 border-primary-500 text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-950/30",
+    "border border-[var(--border-strong)] text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] dark:hover:bg-[var(--bg-surface-hover)]",
   danger:
-    "bg-red-600 text-white hover:bg-red-700 active:bg-red-800 shadow-md",
+    "bg-red-600 text-white hover:bg-red-700 active:bg-red-800 shadow-sm hover:shadow-md",
 };
 
 const sizes = {
   sm: "px-4 py-2 text-sm gap-1.5",
   md: "px-6 py-2.5 text-sm gap-2",
   lg: "px-8 py-3 text-base gap-2.5",
+  icon: "h-10 w-10 p-0 text-sm gap-0",
 };
 
 export function Button({
@@ -48,9 +51,18 @@ export function Button({
   size = "md",
   children,
   className = "",
+  loading = false,
+  loadingLabel = "Loading",
   ...rest
 }: ButtonProps) {
   const classes = `${base} ${variants[variant]} ${sizes[size]} ${className}`.trim();
+  const content = (
+    <>
+      {loading && <ButtonSpinner />}
+      {children}
+      {loading && <span className="sr-only">{loadingLabel}</span>}
+    </>
+  );
 
   if ("to" in rest && rest.to !== undefined) {
     const {
@@ -61,7 +73,8 @@ export function Button({
       ...linkProps
     } = rest as ButtonAsLink;
 
-    const linkClasses = disabled
+    const isDisabled = disabled || loading;
+    const linkClasses = isDisabled
       ? `${classes} opacity-50 pointer-events-none cursor-not-allowed`
       : classes;
 
@@ -70,10 +83,11 @@ export function Button({
         {...linkProps}
         to={to}
         className={linkClasses}
-        aria-disabled={disabled || undefined}
-        tabIndex={disabled ? -1 : tabIndex}
+        aria-busy={loading || undefined}
+        aria-disabled={isDisabled || undefined}
+        tabIndex={isDisabled ? -1 : tabIndex}
         onClick={(event) => {
-          if (disabled) {
+          if (isDisabled) {
             event.preventDefault();
             event.stopPropagation();
             return;
@@ -81,14 +95,25 @@ export function Button({
           onClick?.(event);
         }}
       >
-        {children}
+        {content}
       </Link>
     );
   }
 
+  const { disabled = false, ...buttonProps } = rest as ButtonAsNative;
+
   return (
-    <button className={classes} {...(rest as ButtonAsNative)}>
-      {children}
+    <button className={classes} disabled={disabled || loading} aria-busy={loading || undefined} {...buttonProps}>
+      {content}
     </button>
+  );
+}
+
+function ButtonSpinner() {
+  return (
+    <span
+      aria-hidden="true"
+      className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-current border-t-transparent"
+    />
   );
 }

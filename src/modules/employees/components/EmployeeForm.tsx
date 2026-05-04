@@ -177,7 +177,7 @@ export function EmployeeForm({
         <Button type="button" variant="ghost" onClick={onCancel} disabled={submitting}>
           Cancel
         </Button>
-        <Button type="submit" variant="primary" disabled={submitting}>
+        <Button type="submit" variant="primary" disabled={submitting} loading={submitting}>
           {submitting ? "Saving..." : submitLabel}
         </Button>
       </div>

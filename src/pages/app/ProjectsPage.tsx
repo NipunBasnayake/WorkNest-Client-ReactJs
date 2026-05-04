@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Calendar, FolderKanban, Search } from "lucide-react";
+import { Calendar, FolderKanban } from "lucide-react";
 import { FiEdit2, FiEye } from "react-icons/fi";
 import { Link } from "react-router-dom";
 import { usePageMeta } from "@/hooks/usePageMeta";
@@ -14,6 +14,7 @@ import { SkeletonRow } from "@/components/common/AppUI";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { Button } from "@/components/common/Button";
 import { AppSelect } from "@/components/common/AppSelect";
+import { SearchField } from "@/components/common/SearchField";
 import type { Project, ProjectStatus } from "@/modules/projects/types";
 import type { Task } from "@/modules/tasks/types";
 import { getErrorMessage } from "@/utils/errorHandler";
@@ -43,7 +44,9 @@ export function ProjectsPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<ProjectStatusFilter>("all");
 
-  const projectsQuery = isEmployeeOnly ? useMyProjectsQuery(true) : useProjectsQuery(true);
+  const myProjectsQuery = useMyProjectsQuery(isEmployeeOnly);
+  const allProjectsQuery = useProjectsQuery(!isEmployeeOnly);
+  const projectsQuery = isEmployeeOnly ? myProjectsQuery : allProjectsQuery;
   const tasksQuery = useTasksQuery(true);
 
   const projects = projectsQuery.data ?? EMPTY_PROJECTS;
@@ -109,17 +112,12 @@ export function ProjectsPage() {
 
       <SectionCard>
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_220px]">
-          <div className="relative">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--text-tertiary)" }} />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by project name, status, description, or team..."
-              className="w-full rounded-xl border py-2.5 pl-9 pr-3 text-sm outline-none transition-all focus:ring-2 focus:ring-primary-500/30"
-              style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)", color: "var(--text-primary)" }}
-            />
-          </div>
+          <SearchField
+            label="Search projects"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by project name, status, description, or team..."
+          />
 
           <AppSelect
             value={statusFilter}
@@ -137,7 +135,7 @@ export function ProjectsPage() {
 
       {errorMessage && <ErrorState message={errorMessage} onRetry={retryFetch} />}
 
-      <SectionCard className="overflow-hidden" contentClassName="p-0" title="Projects" subtitle="Track scope, timeline, teams, and execution health.">
+      <SectionCard variant="table" title="Projects" subtitle="Track scope, timeline, teams, and execution health.">
         <div className="overflow-x-auto">
           <div
             className="hidden min-w-[1020px] md:grid grid-cols-[1.9fr_0.9fr_0.9fr_0.8fr_1fr_1.2fr_1.4fr] gap-3 border-b px-5 py-3 text-xs font-semibold uppercase tracking-wider"

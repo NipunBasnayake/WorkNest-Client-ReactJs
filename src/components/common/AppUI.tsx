@@ -13,23 +13,24 @@ interface StatCardProps {
 export function StatCard({ label, value, icon, trend, accentColor = "#9332EA" }: StatCardProps) {
   return (
     <div
-      className="rounded-2xl p-5 border flex items-start gap-4 transition-all duration-200 hover:shadow-md hover:-translate-y-0.5"
+      className="rounded-2xl p-5 border flex items-start gap-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm"
       style={{
-        backgroundColor: "var(--bg-surface)",
+        backgroundColor: "color-mix(in srgb, var(--bg-surface) 98%, var(--bg-muted))",
         borderColor:     "var(--border-default)",
+        boxShadow:       "var(--shadow-sm)",
       }}
     >
       <div
         className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
         style={{
-          background: `linear-gradient(135deg, ${accentColor}22 0%, ${accentColor}10 100%)`,
-          border:     `1px solid ${accentColor}30`,
+          background: `color-mix(in srgb, ${accentColor}12, var(--bg-muted))`,
+          border:     `1px solid ${accentColor}20`,
         }}
       >
         <span style={{ color: accentColor }}>{icon}</span>
       </div>
       <div className="min-w-0">
-        <div className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>
+        <div className="text-2xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
           {value}
         </div>
         <div className="text-xs mt-0.5" style={{ color: "var(--text-secondary)" }}>
@@ -62,9 +63,9 @@ export function PageSection({
   return (
     <div className="mb-8">
       {(title || action) && (
-        <div className="flex items-center justify-between mb-4">
+        <div className="mb-4 flex items-center justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold" style={{ color: "var(--text-primary)" }}>
+            <h2 className="text-lg font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
               {title}
             </h2>
             {description && (
@@ -94,14 +95,14 @@ export function EmptyState({
   action?:      ReactNode;
 }) {
   return (
-    <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
+    <div className="flex flex-col items-center justify-center px-4 py-16 text-center">
       {icon && (
         <div
           className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4"
           style={{
-            background:  "rgba(147,50,234,0.08)",
-            border:      "1px solid rgba(147,50,234,0.15)",
-            color:       "var(--color-primary-500)",
+            background: "color-mix(in srgb, var(--bg-muted) 88%, var(--bg-surface))",
+            border:     "1px solid var(--border-default)",
+            color:      "var(--color-primary-500)",
           }}
         >
           {icon}
@@ -111,7 +112,7 @@ export function EmptyState({
         {title}
       </h3>
       {description && (
-        <p className="text-sm max-w-xs"  style={{ color: "var(--text-secondary)" }}>
+        <p className="text-sm max-w-xs" style={{ color: "var(--text-secondary)" }}>
           {description}
         </p>
       )}
@@ -123,12 +124,12 @@ export function EmptyState({
 /* ── Loading Skeleton ── */
 export function SkeletonRow({ cols = 4 }: { cols?: number }) {
   return (
-    <div className="flex gap-4 px-4 py-3 border-b animate-pulse" style={{ borderColor: "var(--border-default)" }}>
+    <div className="flex gap-4 border-b px-4 py-3 animate-pulse" style={{ borderColor: "var(--border-default)" }}>
       {Array.from({ length: cols }).map((_, i) => (
         <div
           key={i}
           className="h-4 rounded flex-1"
-          style={{ backgroundColor: "var(--bg-muted)" }}
+          style={{ backgroundColor: "color-mix(in srgb, var(--bg-muted) 88%, var(--bg-surface))" }}
         />
       ))}
     </div>
@@ -139,10 +140,10 @@ export function SkeletonRow({ cols = 4 }: { cols?: number }) {
 export function ErrorBanner({ message, onRetry }: { message: string; onRetry?: () => void }) {
   return (
     <div
-      className="rounded-xl p-4 flex items-start gap-3 border"
+      className="flex items-start gap-3 rounded-xl border p-4"
       style={{
-        backgroundColor: "rgba(239,68,68,0.06)",
-        borderColor:     "rgba(239,68,68,0.2)",
+        backgroundColor: "color-mix(in srgb, var(--bg-surface) 98%, #fef2f2)",
+        borderColor:     "color-mix(in srgb, #ef4444 22%, var(--border-default))",
       }}
     >
       <div className="text-red-400 shrink-0 mt-0.5">
@@ -151,12 +152,12 @@ export function ErrorBanner({ message, onRetry }: { message: string; onRetry?: (
         </svg>
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm text-red-400 font-medium">{message}</p>
+        <p className="text-sm font-medium" style={{ color: "#dc2626" }}>{message}</p>
       </div>
       {onRetry && (
         <button
           onClick={onRetry}
-          className="text-xs font-medium text-red-400 hover:text-red-300 transition-colors cursor-pointer shrink-0"
+          className="shrink-0 cursor-pointer text-xs font-medium text-red-500 transition-colors hover:text-red-400"
         >
           Retry
         </button>
@@ -184,19 +185,19 @@ export function QuickNavCard({
   if (disabled) {
     return (
       <div
-        className="rounded-2xl p-5 border flex items-start gap-3 opacity-50 cursor-not-allowed"
+        className="flex cursor-not-allowed items-start gap-3 rounded-2xl border p-5 opacity-60"
         style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)" }}
       >
         <div
           className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
-          style={{ background: "rgba(147,50,234,0.08)", border: "1px solid rgba(147,50,234,0.15)", color: "var(--color-primary-500)" }}
+          style={{ background: "color-mix(in srgb, var(--bg-muted) 88%, var(--bg-surface))", border: "1px solid var(--border-default)", color: "var(--color-primary-500)" }}
         >
           {icon}
         </div>
         <div>
           <div className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{label}</div>
           <div className="text-xs mt-0.5" style={{ color: "var(--text-secondary)" }}>{description}</div>
-          <span className="text-[10px] font-semibold text-primary-400 mt-1 inline-block">{disabledHint}</span>
+          <span className="mt-1 inline-block text-[10px] font-semibold" style={{ color: "var(--text-tertiary)" }}>{disabledHint}</span>
         </div>
       </div>
     );
@@ -205,24 +206,25 @@ export function QuickNavCard({
   return (
     <Link
       to={to}
-      className="rounded-2xl p-5 border flex items-start gap-3 group transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 no-underline"
+      className="group flex items-start gap-3 rounded-2xl border p-5 no-underline transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/25 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent"
       style={{
-        backgroundColor: "var(--bg-surface)",
+        backgroundColor: "color-mix(in srgb, var(--bg-surface) 99%, var(--bg-muted))",
         borderColor:     "var(--border-default)",
+        boxShadow:       "var(--shadow-sm)",
       }}
     >
       <div
-        className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-110"
+        className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-[1.03]"
         style={{
-          background: "linear-gradient(135deg, rgba(147,50,234,0.14) 0%, rgba(168,85,247,0.08) 100%)",
-          border:     "1px solid rgba(147,50,234,0.2)",
+          background: "color-mix(in srgb, var(--bg-muted) 88%, var(--bg-surface))",
+          border:     "1px solid var(--border-default)",
           color:      "var(--color-primary-500)",
         }}
       >
         {icon}
       </div>
       <div>
-        <div className="text-sm font-semibold group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors" style={{ color: "var(--text-primary)" }}>
+        <div className="text-sm font-semibold transition-colors group-hover:text-primary-600 dark:group-hover:text-primary-400" style={{ color: "var(--text-primary)" }}>
           {label}
         </div>
         <div className="text-xs mt-0.5" style={{ color: "var(--text-secondary)" }}>{description}</div>

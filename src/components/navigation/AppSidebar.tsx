@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, Users, User, Settings, Building2,
@@ -12,8 +13,13 @@ import { usePermission } from "@/hooks/usePermission";
 interface SidebarNavDef {
   label: string;
   to: string;
-  icon: React.ReactNode;
+  icon: ReactNode;
   permission?: Permission;
+}
+
+interface SidebarNavGroup {
+  label: string;
+  items: SidebarNavDef[];
 }
 
 interface AppSidebarProps {
@@ -24,25 +30,60 @@ interface AppSidebarProps {
   onMobileClose: () => void;
 }
 
-const TENANT_NAV: SidebarNavDef[] = [
-  { label: "Dashboard",     to: "/app/dashboard",     icon: <LayoutDashboard size={18} /> },
-  { label: "Employees",     to: "/app/employees",     icon: <Users size={18} />, permission: PERMISSIONS.EMPLOYEES_VIEW },
-  { label: "Teams",         to: "/app/teams",         icon: <Briefcase size={18} />, permission: PERMISSIONS.TEAMS_VIEW },
-  { label: "Projects",      to: "/app/projects",      icon: <ClipboardList size={18} />, permission: PERMISSIONS.PROJECTS_VIEW },
-  { label: "Tasks",         to: "/app/tasks",         icon: <CheckSquare size={18} />, permission: PERMISSIONS.TASKS_VIEW },
-  { label: "Analytics",     to: "/app/analytics",     icon: <BarChart3 size={18} />, permission: PERMISSIONS.ANALYTICS_VIEW },
-  { label: "Attendance",    to: "/app/attendance",    icon: <CalendarCheck size={18} />, permission: PERMISSIONS.ATTENDANCE_VIEW },
-  { label: "Leave",         to: "/app/leave",         icon: <CalendarCheck size={18} />, permission: PERMISSIONS.LEAVE_VIEW },
-  { label: "Announcements", to: "/app/announcements", icon: <Bell size={18} />, permission: PERMISSIONS.ANNOUNCEMENTS_VIEW },
-  { label: "Notifications", to: "/app/notifications", icon: <BellRing size={18} />, permission: PERMISSIONS.NOTIFICATIONS_VIEW },
-  { label: "Chat",          to: "/app/chat",          icon: <MessageSquare size={18} />, permission: PERMISSIONS.CHAT_VIEW },
+const TENANT_NAV_GROUPS: SidebarNavGroup[] = [
+  {
+    label: "Overview",
+    items: [
+      { label: "Dashboard", to: "/app/dashboard", icon: <LayoutDashboard size={18} /> },
+      { label: "Analytics", to: "/app/analytics", icon: <BarChart3 size={18} />, permission: PERMISSIONS.ANALYTICS_VIEW },
+    ],
+  },
+  {
+    label: "People",
+    items: [
+      { label: "Employees", to: "/app/employees", icon: <Users size={18} />, permission: PERMISSIONS.EMPLOYEES_VIEW },
+      { label: "Teams", to: "/app/teams", icon: <Briefcase size={18} />, permission: PERMISSIONS.TEAMS_VIEW },
+    ],
+  },
+  {
+    label: "Work",
+    items: [
+      { label: "Projects", to: "/app/projects", icon: <ClipboardList size={18} />, permission: PERMISSIONS.PROJECTS_VIEW },
+      { label: "Tasks", to: "/app/tasks", icon: <CheckSquare size={18} />, permission: PERMISSIONS.TASKS_VIEW },
+    ],
+  },
+  {
+    label: "HR",
+    items: [
+      { label: "Attendance", to: "/app/attendance", icon: <CalendarCheck size={18} />, permission: PERMISSIONS.ATTENDANCE_VIEW },
+      { label: "Leave", to: "/app/leave", icon: <CalendarCheck size={18} />, permission: PERMISSIONS.LEAVE_VIEW },
+    ],
+  },
+  {
+    label: "Communication",
+    items: [
+      { label: "Announcements", to: "/app/announcements", icon: <Bell size={18} />, permission: PERMISSIONS.ANNOUNCEMENTS_VIEW },
+      { label: "Notifications", to: "/app/notifications", icon: <BellRing size={18} />, permission: PERMISSIONS.NOTIFICATIONS_VIEW },
+      { label: "Chat", to: "/app/chat", icon: <MessageSquare size={18} />, permission: PERMISSIONS.CHAT_VIEW },
+    ],
+  },
 ];
 
-const PLATFORM_NAV: SidebarNavDef[] = [
-  { label: "Dashboard", to: "/platform/dashboard", icon: <LayoutDashboard size={18} /> },
-  { label: "Tenants",   to: "/platform/tenants",   icon: <Building2 size={18} /> },
-  { label: "Analytics", to: "/platform/analytics", icon: <BarChart3 size={18} /> },
-  { label: "Settings",  to: "/platform/settings",  icon: <Settings size={18} /> },
+const PLATFORM_NAV_GROUPS: SidebarNavGroup[] = [
+  {
+    label: "Overview",
+    items: [
+      { label: "Dashboard", to: "/platform/dashboard", icon: <LayoutDashboard size={18} /> },
+      { label: "Analytics", to: "/platform/analytics", icon: <BarChart3 size={18} /> },
+    ],
+  },
+  {
+    label: "Admin",
+    items: [
+      { label: "Tenants", to: "/platform/tenants", icon: <Building2 size={18} /> },
+      { label: "Settings", to: "/platform/settings", icon: <Settings size={18} /> },
+    ],
+  },
 ];
 
 const BOTTOM_NAV_TENANT: SidebarNavDef[] = [
@@ -68,7 +109,7 @@ function NavItem({
   const isDisabled = COMING_SOON.includes(item.to);
 
   const base =
-    "group relative flex items-center gap-3 rounded-2xl px-3.5 py-3 text-sm font-medium transition-all duration-150";
+    "group relative flex items-center gap-3 rounded-2xl px-3.5 py-2.5 text-sm font-medium transition-all duration-150";
   const active =
     "text-white";
   const inactive =
@@ -110,10 +151,10 @@ function NavItem({
       }
       style={({ isActive }) => ({
         background: isActive
-          ? "linear-gradient(135deg, rgba(147,50,234,0.88) 0%, rgba(124,31,209,0.78) 100%)"
+          ? "linear-gradient(135deg, rgba(147,50,234,0.72) 0%, rgba(124,31,209,0.58) 100%)"
           : "transparent",
-        color: isActive ? "white" : "rgba(255,255,255,0.6)",
-        boxShadow: isActive ? "0 4px 12px rgba(147,50,234,0.3)" : undefined,
+        color: isActive ? "white" : "rgba(255,255,255,0.72)",
+        boxShadow: isActive ? "inset 0 0 0 1px rgba(255,255,255,0.08), 0 6px 16px rgba(15,8,32,0.18)" : undefined,
       })}
     >
       <span className="shrink-0">{item.icon}</span>
@@ -131,12 +172,47 @@ function NavItem({
   );
 }
 
+function NavGroup({
+  group,
+  collapsed,
+  onMobileClose,
+  isFirst,
+}: {
+  group: SidebarNavGroup;
+  collapsed: boolean;
+  onMobileClose: () => void;
+  isFirst: boolean;
+}) {
+  return (
+    <div className={isFirst ? "space-y-1" : "space-y-1 pt-2"}>
+      {!collapsed && (
+        <div
+          className="px-3.5 pb-1 text-[10px] font-semibold uppercase tracking-[0.18em]"
+          style={{ color: "rgba(255,255,255,0.42)" }}
+        >
+          {group.label}
+        </div>
+      )}
+      {group.items.map((item) => (
+        <NavItem key={item.to} item={item} collapsed={collapsed} onMobileClose={onMobileClose} />
+      ))}
+    </div>
+  );
+}
+
 export function AppSidebar({ area, collapsed, mobileOpen, onToggleCollapse, onMobileClose }: AppSidebarProps) {
   const { user, logout, role } = useAuth();
   const { hasPermission } = usePermission();
   const navigate = useNavigate();
 
-  const mainNav   = area === "tenant" ? TENANT_NAV.filter((item) => !item.permission || hasPermission(item.permission)) : PLATFORM_NAV;
+  const mainNavGroups = area === "tenant"
+    ? TENANT_NAV_GROUPS
+      .map((group) => ({
+        ...group,
+        items: group.items.filter((item) => !item.permission || hasPermission(item.permission)),
+      }))
+      .filter((group) => group.items.length > 0)
+    : PLATFORM_NAV_GROUPS;
   const bottomNav = area === "tenant" ? BOTTOM_NAV_TENANT : BOTTOM_NAV_PLATFORM;
 
   async function handleLogout() {
@@ -215,9 +291,15 @@ export function AppSidebar({ area, collapsed, mobileOpen, onToggleCollapse, onMo
       </div>
 
       {/* Main nav */}
-      <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5 scrollbar-hide">
-        {mainNav.map((item) => (
-          <NavItem key={item.to} item={item} collapsed={collapsed} onMobileClose={onMobileClose} />
+      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1 scrollbar-hide">
+        {mainNavGroups.map((group, index) => (
+          <NavGroup
+            key={group.label}
+            group={group}
+            collapsed={collapsed}
+            onMobileClose={onMobileClose}
+            isFirst={index === 0}
+          />
         ))}
       </nav>
 
@@ -225,7 +307,15 @@ export function AppSidebar({ area, collapsed, mobileOpen, onToggleCollapse, onMo
       <div className="mx-3 border-t border-white/8" />
 
       {/* Bottom nav */}
-      <div className="px-3 py-3 space-y-0.5">
+      <div className="px-3 py-3 space-y-1">
+        {!collapsed && (
+          <div
+            className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-[0.18em]"
+            style={{ color: "rgba(255,255,255,0.42)" }}
+          >
+            Account
+          </div>
+        )}
         {bottomNav.map((item) => (
           <NavItem key={item.to} item={item} collapsed={collapsed} onMobileClose={onMobileClose} />
         ))}

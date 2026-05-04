@@ -7,22 +7,54 @@ interface SectionCardProps {
   children: ReactNode;
   className?: string;
   contentClassName?: string;
+  variant?: "default" | "dense" | "table" | "plain";
 }
 
-export function SectionCard({ title, subtitle, action, children, className = "", contentClassName = "" }: SectionCardProps) {
+const sectionClasses = {
+  default: "rounded-2xl border",
+  dense: "rounded-2xl border",
+  table: "overflow-hidden rounded-2xl border",
+  plain: "rounded-2xl border",
+};
+
+const headerClasses = {
+  default: "flex flex-col gap-3 border-b px-5 py-5 sm:flex-row sm:items-center sm:justify-between lg:px-6",
+  dense: "flex flex-col gap-2.5 border-b px-4 py-4 sm:flex-row sm:items-center sm:justify-between",
+  table: "flex flex-col gap-2.5 border-b px-5 py-4 sm:flex-row sm:items-center sm:justify-between lg:px-6",
+  plain: "flex flex-col gap-3 border-b px-0 pb-4 sm:flex-row sm:items-center sm:justify-between",
+};
+
+const contentClasses = {
+  default: "p-5 sm:p-6",
+  dense: "p-4",
+  table: "p-0",
+  plain: "pt-3",
+};
+
+export function SectionCard({
+  title,
+  subtitle,
+  action,
+  children,
+  className = "",
+  contentClassName = "",
+  variant = "default",
+}: SectionCardProps) {
+  const isPlain = variant === "plain";
+
   return (
     <section
-      className={`rounded-3xl border ${className}`}
+      className={`${sectionClasses[variant]} ${className}`}
       style={{
-        backgroundColor: "var(--bg-surface)",
-        borderColor: "var(--border-default)",
-        boxShadow: "var(--shadow-md)",
+        backgroundColor: isPlain ? "transparent" : variant === "table" ? "var(--bg-surface)" : "color-mix(in srgb, var(--bg-surface) 98%, var(--bg-muted))",
+        borderColor: isPlain ? "transparent" : variant === "table" ? "var(--border-strong)" : "var(--border-default)",
+        boxShadow: isPlain ? "none" : variant === "table" ? "var(--shadow-sm)" : "var(--shadow-sm)",
       }}
     >
       {(title || subtitle || action) && (
         <div
-          className="flex flex-col gap-3 border-b px-5 py-5 sm:flex-row sm:items-center sm:justify-between lg:px-6"
-          style={{ borderColor: "var(--border-default)" }}
+          className={headerClasses[variant]}
+          style={{ borderColor: isPlain ? "transparent" : variant === "table" ? "var(--border-strong)" : "var(--border-default)" }}
         >
           <div className="min-w-0">
             {title && (
@@ -40,7 +72,7 @@ export function SectionCard({ title, subtitle, action, children, className = "",
         </div>
       )}
 
-      <div className={`p-5 sm:p-6 ${contentClassName}`}>{children}</div>
+      <div className={`${contentClasses[variant]} ${contentClassName}`}>{children}</div>
     </section>
   );
 }

@@ -490,14 +490,13 @@ function DashboardHero({
     <div
       className="rounded-2xl border p-6 sm:p-8 relative overflow-hidden"
       style={{
-        background: "linear-gradient(135deg, rgba(147,50,234,0.11) 0%, rgba(124,31,209,0.05) 100%)",
-        borderColor: "rgba(147,50,234,0.2)",
+        background: "var(--bg-surface)",
+        borderColor: "var(--border-default)",
+        borderTop: "3px solid var(--color-primary-500)",
       }}
     >
-      <div className="absolute right-0 top-0 h-56 w-56 rounded-full blur-3xl opacity-20" style={{ background: "#9332EA" }} />
       <div className="relative z-10">
-
-        <p className="text-sm font-medium" style={{ color: "var(--color-primary-600)" }}>
+        <p className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
           {greeting}
         </p>
         <h2 className="mt-1 text-2xl font-bold sm:text-3xl" style={{ color: "var(--text-primary)" }}>
