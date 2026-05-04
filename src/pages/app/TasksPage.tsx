@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { LayoutGrid, PlusCircle, Search, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { LayoutGrid, PlusCircle, Trash2 } from "lucide-react";
 import { FiEdit2, FiEye, FiTrash2 } from "react-icons/fi";
 import { Link } from "react-router-dom";
 import { usePageMeta } from "@/hooks/usePageMeta";
@@ -27,6 +27,8 @@ import { SectionCard } from "@/components/common/SectionCard";
 import { Button } from "@/components/common/Button";
 import { AppSelect } from "@/components/common/AppSelect";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
+import { InlineAlert } from "@/components/common/InlineAlert";
+import { SearchField } from "@/components/common/SearchField";
 import { EmptyState, ErrorBanner, SkeletonRow } from "@/components/common/AppUI";
 import { getErrorMessage } from "@/utils/errorHandler";
 
@@ -67,7 +69,7 @@ export function TasksPage() {
   const [deleteTarget, setDeleteTarget] = useState<Task | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  async function fetchData() {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
 
@@ -87,11 +89,11 @@ export function TasksPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [canManageTasks, isEmployeeOnly]);
 
   useEffect(() => {
     void fetchData();
-  }, [canManageTasks, isEmployeeOnly, role, user?.id]);
+  }, [fetchData, role, user?.id]);
 
   const viewerIdentity = useMemo(
     () => ({
@@ -203,17 +205,12 @@ export function TasksPage() {
 
       <SectionCard>
         <div className="grid grid-cols-1 gap-3 xl:grid-cols-[1.4fr_0.8fr_0.8fr_1fr_1fr]">
-          <div className="relative">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--text-tertiary)" }} />
-            <input
-              type="text"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search task title, assignee, or project..."
-              className="w-full rounded-xl border py-2.5 pl-9 pr-3 text-sm outline-none transition-all focus:ring-2 focus:ring-primary-500/30"
-              style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)", color: "var(--text-primary)" }}
-            />
-          </div>
+          <SearchField
+            label="Search tasks"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search task title, assignee, or project..."
+          />
 
           <AppSelect
             value={statusFilter}
@@ -268,20 +265,11 @@ export function TasksPage() {
       </SectionCard>
 
       {feedback && (
-        <div
-          className="rounded-xl border px-4 py-3 text-sm"
-          style={{
-            borderColor: feedback.toLowerCase().includes("unable") || feedback.toLowerCase().includes("could") ? "rgba(239,68,68,0.25)" : "rgba(16,185,129,0.25)",
-            backgroundColor: feedback.toLowerCase().includes("unable") || feedback.toLowerCase().includes("could") ? "rgba(239,68,68,0.06)" : "rgba(16,185,129,0.08)",
-            color: feedback.toLowerCase().includes("unable") || feedback.toLowerCase().includes("could") ? "#ef4444" : "#10b981",
-          }}
-        >
-          {feedback}
-        </div>
+        <InlineAlert tone={feedback.toLowerCase().includes("unable") || feedback.toLowerCase().includes("could") ? "error" : "success"} message={feedback} />
       )}
 
       {error && <ErrorBanner message={error} onRetry={fetchData} />}
-      <SectionCard className="overflow-hidden" contentClassName="p-0" title="Task Backlog" subtitle="Track delivery ownership, status, and deadlines.">
+      <SectionCard variant="table" title="Task Backlog" subtitle="Track delivery ownership, status, and deadlines.">
         <div className="overflow-x-auto">
           <div
             className="hidden min-w-[1080px] md:grid grid-cols-[2fr_1fr_1fr_1.2fr_1.2fr_1fr_1.5fr] gap-3 border-b px-5 py-3 text-xs font-semibold uppercase tracking-wider"

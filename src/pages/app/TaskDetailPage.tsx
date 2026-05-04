@@ -102,16 +102,13 @@ export function TaskDetailPage() {
     return projects.map((project) => ({ id: project.id, label: project.name }));
   }, [projectsQuery.data]);
 
-  const viewerTeamRoles = useMemo(
-    () => resolveViewerTeamRoles(
-      teamsQuery.data ?? [],
-      {
-        employeeId: viewerIdentity?.employeeId ?? user?.id,
-        email: viewerIdentity?.email ?? user?.email,
-      },
-      task?.assignedTeamId ? [task.assignedTeamId] : undefined
-    ),
-    [task?.assignedTeamId, teamsQuery.data, user?.email, user?.id, viewerIdentity?.email, viewerIdentity?.employeeId]
+  const viewerTeamRoles = resolveViewerTeamRoles(
+    teamsQuery.data ?? [],
+    {
+      employeeId: viewerIdentity?.employeeId ?? user?.id,
+      email: viewerIdentity?.email ?? user?.email,
+    },
+    task?.assignedTeamId ? [task.assignedTeamId] : undefined
   );
 
   const canAssignTask = hasPermission(PERMISSIONS.TASKS_ASSIGN, { teamRoles: viewerTeamRoles });
