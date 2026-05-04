@@ -24,20 +24,27 @@ interface AppTopbarProps {
 export function AppTopbar({ area, pageTitle, breadcrumb, onMobileMenuToggle }: AppTopbarProps) {
   const { user } = useAuth();
   const dropdownRef = useRef<HTMLDivElement | null>(null);
+  const notificationButtonRef = useRef<HTMLButtonElement | null>(null);
+  const notificationPanelRef = useRef<HTMLDivElement | null>(null);
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<AppNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [notificationError, setNotificationError] = useState<string | null>(null);
 
   const isTenantArea = area === "tenant";
+  const notificationPanelId = "topbar-notifications-panel";
 
   const refreshNotifications = useCallback(async () => {
     if (!isTenantArea) return;
     setLoading(true);
+    setNotificationError(null);
     try {
       const [list, unread] = await Promise.all([getNotifications(), getUnreadNotificationCount()]);
       setItems(list);
       setUnreadCount(unread);
+    } catch {
+      setNotificationError("Unable to load notifications.");
     } finally {
       setLoading(false);
     }
@@ -68,6 +75,23 @@ export function AppTopbar({ area, pageTitle, breadcrumb, onMobileMenuToggle }: A
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
+
+  useEffect(() => {
+    if (!open) return;
+
+    notificationPanelRef.current?.focus({ preventScroll: true });
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key !== "Escape") return;
+      setOpen(false);
+      notificationButtonRef.current?.focus({ preventScroll: true });
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [open]);
 
   const previewItems = useMemo(() => items.slice(0, 5), [items]);
 
@@ -153,11 +177,15 @@ export function AppTopbar({ area, pageTitle, breadcrumb, onMobileMenuToggle }: A
         {isTenantArea && (
           <div className="relative" ref={dropdownRef}>
             <button
+              ref={notificationButtonRef}
               type="button"
               onClick={() => setOpen((prev) => !prev)}
               className="relative h-9 w-9 rounded-xl border flex items-center justify-center cursor-pointer transition-colors hover:bg-primary-50 dark:hover:bg-primary-950/20"
               style={{ borderColor: "var(--border-default)", color: "var(--text-secondary)" }}
               aria-label="Notifications"
+              aria-haspopup="dialog"
+              aria-expanded={open}
+              aria-controls={open ? notificationPanelId : undefined}
             >
               <BellRing size={16} />
               {unreadCount > 0 && (
@@ -172,7 +200,12 @@ export function AppTopbar({ area, pageTitle, breadcrumb, onMobileMenuToggle }: A
 
             {open && (
               <div
-                className="absolute right-0 mt-2 w-[350px] rounded-2xl border p-3 shadow-xl"
+                ref={notificationPanelRef}
+                id={notificationPanelId}
+                role="dialog"
+                aria-label="Notifications"
+                tabIndex={-1}
+                className="absolute right-0 mt-2 w-[calc(100vw-2rem)] max-w-[22rem] rounded-2xl border p-3 shadow-xl outline-none sm:w-[350px]"
                 style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)" }}
               >
                 <div className="mb-3 flex items-center justify-between">
@@ -190,20 +223,26 @@ export function AppTopbar({ area, pageTitle, breadcrumb, onMobileMenuToggle }: A
                   </button>
                 </div>
 
-                <div className="space-y-2 max-h-[320px] overflow-y-auto">
+                <div className="max-h-[70vh] space-y-2 overflow-y-auto sm:max-h-[320px]">
                   {loading && (
                     <div className="rounded-xl border p-4 text-xs text-center" style={{ borderColor: "var(--border-default)", color: "var(--text-tertiary)" }}>
                       Loading notifications...
                     </div>
                   )}
 
-                  {!loading && previewItems.length === 0 && (
+                  {!loading && notificationError && (
+                    <div className="rounded-xl border p-4 text-xs text-center" style={{ borderColor: "var(--border-default)", color: "var(--text-tertiary)" }}>
+                      {notificationError}
+                    </div>
+                  )}
+
+                  {!loading && !notificationError && previewItems.length === 0 && (
                     <div className="rounded-xl border p-4 text-xs text-center" style={{ borderColor: "var(--border-default)", color: "var(--text-tertiary)" }}>
                       No notifications yet.
                     </div>
                   )}
 
-                  {!loading && previewItems.map((item) => (
+                  {!loading && !notificationError && previewItems.map((item) => (
                     <NotificationItem
                       key={item.id}
                       item={item}
