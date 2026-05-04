@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { Megaphone, PlusCircle, Search } from "lucide-react";
+import { Megaphone, PlusCircle } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { useAuth } from "@/hooks/useAuth";
 import { canCreateAnnouncements, canDeleteAnnouncement, canEditAnnouncement } from "@/modules/announcements/access";
@@ -9,6 +10,8 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { SectionCard } from "@/components/common/SectionCard";
 import { Button } from "@/components/common/Button";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
+import { InlineAlert } from "@/components/common/InlineAlert";
+import { SearchField } from "@/components/common/SearchField";
 import { EmptyState, ErrorBanner } from "@/components/common/AppUI";
 import type { Announcement } from "@/modules/announcements/types";
 import { getErrorMessage } from "@/utils/errorHandler";
@@ -16,6 +19,7 @@ import { getErrorMessage } from "@/utils/errorHandler";
 export function AnnouncementsPage() {
   usePageMeta({ title: "Announcements", breadcrumb: ["Workspace", "Announcements"] });
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
@@ -83,30 +87,18 @@ export function AnnouncementsPage() {
       />
 
       <SectionCard>
-        <div className="relative max-w-lg">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--text-tertiary)" }} />
-          <input
-            type="text"
+        <div className="max-w-lg">
+          <SearchField
+            label="Search announcements"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Search title, content, or author..."
-            className="w-full rounded-xl border py-2.5 pl-9 pr-3 text-sm outline-none transition-all focus:ring-2 focus:ring-primary-500/30"
-            style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)", color: "var(--text-primary)" }}
           />
         </div>
       </SectionCard>
 
       {feedback && (
-        <div
-          className="rounded-xl border px-4 py-3 text-sm"
-          style={{
-            borderColor: feedback.toLowerCase().includes("unable") ? "rgba(239,68,68,0.25)" : "rgba(16,185,129,0.25)",
-            backgroundColor: feedback.toLowerCase().includes("unable") ? "rgba(239,68,68,0.06)" : "rgba(16,185,129,0.08)",
-            color: feedback.toLowerCase().includes("unable") ? "#ef4444" : "#10b981",
-          }}
-        >
-          {feedback}
-        </div>
+        <InlineAlert tone={feedback.toLowerCase().includes("unable") ? "error" : "success"} message={feedback} />
       )}
 
       {error && <ErrorBanner message={error} onRetry={fetchAnnouncements} />}
@@ -132,7 +124,7 @@ export function AnnouncementsPage() {
             <AnnouncementCard
               key={announcement.id}
               announcement={announcement}
-              onEdit={canEditAnnouncement(announcement) ? (ann) => window.location.href = `/app/announcements/${ann.id}/edit` : undefined}
+              onEdit={canEditAnnouncement(announcement) ? (ann) => navigate(`/app/announcements/${ann.id}/edit`) : undefined}
               onDelete={canDeleteAnnouncement(announcement) ? setDeleteTarget : undefined}
             />
           ))}

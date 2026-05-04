@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { AnnouncementsPage } from "@/pages/app/AnnouncementsPage";
 import { getAnnouncements, deleteAnnouncement } from "@/modules/announcements/services/announcementService";
 import type { Announcement } from "@/modules/announcements/types";
@@ -153,5 +153,32 @@ describe("AnnouncementsPage", () => {
 
     await waitFor(() => expect(getAnnouncements).toHaveBeenCalledTimes(1));
     expect(getNotifications).not.toHaveBeenCalled();
+  });
+
+  it("filters announcements with the shared search field and clears the query", async () => {
+    vi.mocked(getAnnouncements).mockResolvedValueOnce([
+      makeAnnouncement(),
+      makeAnnouncement({
+        id: "102",
+        title: "Policy Update",
+        content: "Updated travel policy is now available.",
+        authorName: "Operations",
+      }),
+    ]);
+
+    renderPage();
+
+    await waitFor(() => expect(getAnnouncements).toHaveBeenCalledTimes(1));
+
+    const searchInput = screen.getByRole("searchbox", { name: "Search announcements" });
+
+    fireEvent.change(searchInput, { target: { value: "policy" } });
+
+    expect(screen.getByText("Policy Update")).toBeInTheDocument();
+    expect(screen.queryByText("Workspace Update")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Clear Search announcements" }));
+
+    expect(screen.getByText("Workspace Update")).toBeInTheDocument();
   });
 });

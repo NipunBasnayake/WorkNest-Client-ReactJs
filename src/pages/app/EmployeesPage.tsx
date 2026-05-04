@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Building2, CalendarDays, Mail, Phone, Search, UserCheck, UserPlus, UserX, Users } from "lucide-react";
+import { Building2, CalendarDays, Mail, Phone, UserCheck, UserPlus, UserX, Users } from "lucide-react";
 import { FiEdit2, FiEye } from "react-icons/fi";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -15,6 +15,8 @@ import { SectionCard } from "@/components/common/SectionCard";
 import { AvatarInitials } from "@/components/common/AvatarInitials";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
+import { InlineAlert } from "@/components/common/InlineAlert";
+import { SearchField } from "@/components/common/SearchField";
 import { toEmployeeViewModel } from "@/modules/employees/utils/employeeMapper";
 import type { EmployeeViewModel } from "@/modules/employees/types";
 import { getErrorMessage } from "@/utils/errorHandler";
@@ -144,25 +146,12 @@ export function EmployeesPage() {
 
       <SectionCard>
         <div className="grid grid-cols-1 gap-3 xl:grid-cols-[1.2fr_0.8fr_0.8fr_0.8fr]">
-          <div className="relative">
-            <Search
-              size={16}
-              className="absolute left-3 top-1/2 -translate-y-1/2"
-              style={{ color: "var(--text-tertiary)" }}
-            />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by code, name, email, role, department..."
-              className="w-full rounded-xl border py-2.5 pl-9 pr-3 text-sm outline-none transition-all focus:ring-2 focus:ring-primary-500/30"
-              style={{
-                backgroundColor: "var(--bg-surface)",
-                borderColor: "var(--border-default)",
-                color: "var(--text-primary)",
-              }}
-            />
-          </div>
+          <SearchField
+            label="Search employees"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by code, name, email, role, department..."
+          />
 
           <AppSelect
             value={departmentFilter}
@@ -197,21 +186,12 @@ export function EmployeesPage() {
       </SectionCard>
 
       {feedback && (
-        <div
-          className="rounded-xl border px-4 py-3 text-sm"
-          style={{
-            borderColor: feedback.toLowerCase().includes("unable") ? "rgba(239,68,68,0.25)" : "rgba(16,185,129,0.25)",
-            backgroundColor: feedback.toLowerCase().includes("unable") ? "rgba(239,68,68,0.06)" : "rgba(16,185,129,0.08)",
-            color: feedback.toLowerCase().includes("unable") ? "#ef4444" : "#10b981",
-          }}
-        >
-          {feedback}
-        </div>
+        <InlineAlert tone={feedback.toLowerCase().includes("unable") ? "error" : "success"} message={feedback} />
       )}
 
       {error && <ErrorBanner message={error} onRetry={fetchEmployees} />}
 
-      <SectionCard className="overflow-hidden" contentClassName="p-0" title="Employees" subtitle="View, update, and maintain workforce records.">
+      <SectionCard variant="table" title="Employees" subtitle="View, update, and maintain workforce records.">
         <div className="overflow-x-auto">
           <div
             className="hidden min-w-[1180px] md:grid grid-cols-[1fr_1.8fr_1.8fr_1.2fr_1.2fr_1.1fr_1fr_0.9fr_1.7fr] gap-3 border-b px-5 py-3 text-xs font-semibold uppercase tracking-wider"
