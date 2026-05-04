@@ -16,10 +16,8 @@ export function LoadingSkeleton({ lines = 3, className = "" }: LoadingSkeletonPr
           className="h-4 overflow-hidden rounded-lg"
           style={{
             width: `${Math.max(52, 100 - (index % 3) * 14)}%`,
-            backgroundColor: "var(--bg-muted)",
-            backgroundImage: "linear-gradient(90deg, transparent, rgba(255,255,255,0.55), transparent)",
-            backgroundSize: "220% 100%",
-            animation: "shimmer 1.6s linear infinite",
+            backgroundColor: "color-mix(in srgb, var(--bg-muted) 88%, var(--bg-surface))",
+            animation: "pulse 1.8s ease-in-out infinite",
           }}
         />
       ))}
@@ -36,22 +34,22 @@ interface ErrorStateProps {
 export function ErrorState({ message, title = "Something went wrong", onRetry }: ErrorStateProps) {
   return (
     <div
-      className="rounded-3xl border p-5 sm:p-6"
+      className="rounded-2xl border p-5 sm:p-6"
       style={{
-        borderColor: "rgba(239,68,68,0.25)",
-        backgroundColor: "rgba(239,68,68,0.06)",
+        borderColor: "color-mix(in srgb, #ef4444 22%, var(--border-default))",
+        backgroundColor: "color-mix(in srgb, var(--bg-surface) 98%, #fef2f2)",
         boxShadow: "var(--shadow-sm)",
       }}
     >
       <div className="flex items-start gap-3">
         <div
           className="mt-0.5 inline-flex h-8 w-8 items-center justify-center rounded-lg"
-          style={{ backgroundColor: "rgba(239,68,68,0.14)", color: "#ef4444" }}
+          style={{ backgroundColor: "color-mix(in srgb, #ef4444 10%, var(--bg-surface))", color: "#ef4444" }}
         >
           <AlertTriangle size={16} />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold" style={{ color: "#ef4444" }}>
+          <p className="text-sm font-semibold" style={{ color: "#b91c1c" }}>
             {title}
           </p>
           <p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>
@@ -80,17 +78,17 @@ interface EmptyStateProps {
 export function EmptyState({ title, description, icon, action }: EmptyStateProps) {
   return (
     <div
-      className="rounded-3xl border px-6 py-10 text-center sm:px-8 sm:py-12"
+      className="rounded-2xl border px-6 py-10 text-center sm:px-8 sm:py-12"
       style={{
         borderColor: "var(--border-default)",
-        background: "linear-gradient(180deg, rgba(147,50,234,0.03) 0%, rgba(147,50,234,0) 100%)",
+        backgroundColor: "color-mix(in srgb, var(--bg-surface) 96%, var(--bg-muted))",
       }}
     >
       <div
         className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl"
         style={{
-          backgroundColor: "rgba(147,50,234,0.08)",
-          border: "1px solid rgba(147,50,234,0.18)",
+          backgroundColor: "color-mix(in srgb, var(--bg-muted) 88%, var(--bg-surface))",
+          border: "1px solid var(--border-default)",
           color: "var(--color-primary-500)",
         }}
       >
