@@ -8,7 +8,7 @@ import { DEFAULT_LEAVE_FORM, validateLeaveForm } from "@/modules/leave/schemas/l
 import { LeaveForm } from "@/modules/leave/components/LeaveForm";
 import { SectionCard } from "@/components/common/SectionCard";
 import { PageHeader } from "@/components/common/PageHeader";
-import { Button } from "@/components/common/Button";
+import { Button} from "@/components/common/Button";
 import { ErrorBanner } from "@/components/common/AppUI";
 import type { LeaveFormErrors, LeaveFormValues } from "@/modules/leave/types";
 import { getErrorMessage } from "@/utils/errorHandler";
