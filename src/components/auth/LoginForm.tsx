@@ -91,7 +91,6 @@ export function LoginForm() {
   const routeState = useMemo(() => readLoginRouteState(location.state), [location.state]);
   const [email, setEmail] = useState(searchParams.get("email") ?? "");
   const [password, setPassword] = useState("");
-  const [tenantKey, setTenantKey] = useState(searchParams.get("tenant") ?? "");
   const [showPassword, setShowPassword] = useState(false);
   const [touched, setTouched] = useState<LoginTouched>({ email: false, password: false });
   const [formError, setFormError] = useState<string | null>(null);
@@ -131,10 +130,9 @@ export function LoginForm() {
   const forgotPasswordHref = useMemo(() => {
     const params = new URLSearchParams();
     if (email.trim()) params.set("email", email.trim());
-    if (tenantKey.trim()) params.set("tenant", tenantKey.trim());
     const query = params.toString();
     return query ? `/forgot-password?${query}` : "/forgot-password";
-  }, [email, tenantKey]);
+  }, [email]);
 
   const infoMessage = !formError && !error ? routeState.message ?? null : null;
   const displayError = formError || error;
@@ -156,7 +154,7 @@ export function LoginForm() {
     }
 
     try {
-      await login({ email: email.trim(), password, tenantKey: tenantKey.trim() || null });
+      await login({ email: email.trim(), password, tenantKey: null });
     } catch {
       // Store handles server errors.
     }
@@ -228,17 +226,6 @@ export function LoginForm() {
             {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
           </button>
         }
-      />
-
-      <Input
-        id="login-tenant-key"
-        type="text"
-        label="Workspace ID (Team Accounts)"
-        hint="Use your company workspace ID for tenant sign-in. Platform accounts can leave this blank."
-        placeholder="your-company-key"
-        value={tenantKey}
-        onChange={(event) => setTenantKey(event.target.value.toLowerCase())}
-        autoComplete="off"
       />
 
       <div

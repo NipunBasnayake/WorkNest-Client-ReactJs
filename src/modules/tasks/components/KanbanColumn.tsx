@@ -14,19 +14,21 @@ interface KanbanColumnProps {
 function KanbanColumnComponent({ status, title, tasks, draggableTaskIds }: KanbanColumnProps) {
   const { isOver, setNodeRef } = useDroppable({ id: status, data: { status } });
   const statusLabel = getTaskStatusLabel(status);
+  const columnBackground = "color-mix(in srgb, var(--bg-surface) 96%, var(--bg-muted))";
+  const headerBackground = "color-mix(in srgb, var(--bg-surface) 92%, var(--bg-muted))";
 
   return (
     <section
       ref={setNodeRef}
       className="w-[325px] shrink-0 rounded-2xl border-2"
       style={{
-        backgroundColor: "var(--bg-surface)",
+        backgroundColor: columnBackground,
         borderColor: isOver ? "var(--color-primary-500)" : "var(--border-default)"
       }}
     >
       <div
         className="flex items-center justify-between border-b rounded-t-2xl px-4 py-3.5"
-        style={{ borderColor: "var(--border-default)", backgroundColor: "rgba(255,255,255,0.75)" }}
+        style={{ borderColor: "var(--border-default)", backgroundColor: headerBackground }}
       >
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
