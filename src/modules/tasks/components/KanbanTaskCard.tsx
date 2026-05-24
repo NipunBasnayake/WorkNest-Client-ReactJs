@@ -25,6 +25,10 @@ function priorityTone(priority: Task["priority"]): { bg: string; text: string } 
   return { bg: "rgba(100,116,139,0.10)", text: "#475569" };
 }
 
+const cardBackground = "color-mix(in srgb, var(--bg-surface) 94%, var(--bg-muted))";
+const cardShadow = "var(--shadow-md)";
+const overlayShadow = "var(--shadow-xl)";
+
 function KanbanTaskCardComponent({ task, draggable, overlay = false }: KanbanTaskCardProps) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: task.id,
@@ -41,13 +45,13 @@ function KanbanTaskCardComponent({ task, draggable, overlay = false }: KanbanTas
       {...(draggable && !overlay ? listeners : undefined)}
       className="block rounded-xl border p-3.5 transition-all"
       style={{
-        backgroundColor: "#ffffff",
+        backgroundColor: cardBackground,
         borderColor: isDragging || overlay ? "var(--color-primary-500)" : "var(--border-default)",
         opacity: isDragging ? 0.4 : 1,
         cursor: draggable ? "grab" : "default",
         touchAction: draggable ? "none" : "auto",
         transform: CSS.Translate.toString(transform),
-        boxShadow: isDragging || overlay ? "0 14px 30px rgba(15,23,42,0.14)" : "0 2px 8px rgba(15,23,42,0.08)",
+        boxShadow: isDragging || overlay ? overlayShadow : cardShadow,
       }}
     >
       <div className="flex items-start justify-between gap-2">
