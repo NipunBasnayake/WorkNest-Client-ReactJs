@@ -1,19 +1,14 @@
 import { useState, type ReactNode } from "react";
-import axios from "axios";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 interface QueryProviderProps {
   children: ReactNode;
 }
 
-function shouldRetry(failureCount: number, error: unknown): boolean {
-  if (failureCount >= 2) return false;
-  if (!axios.isAxiosError(error)) return true;
-
-  const status = error.response?.status;
-  if (!status) return true;
-  if (status === 401 || status === 403 || status === 404) return false;
-  return status >= 500;
+function shouldRetry(failureCount: number, error: any): boolean {
+  const status = error?.status ?? error?.response?.status;
+  if (status === 401 || status === 403) return false;
+  return failureCount < 2;
 }
 
 export function QueryProvider({ children }: QueryProviderProps) {
