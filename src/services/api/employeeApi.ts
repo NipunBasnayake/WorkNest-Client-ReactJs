@@ -1,5 +1,5 @@
 import axios from "axios";
-import { apiClient } from "@/services/http/client";
+import { apiClient, buildTenantApiUrl } from "@/services/http/client";
 import { unwrapApiData } from "@/services/http/response";
 import { asRecord, extractList } from "@/services/http/parsers";
 import type { ApiResponse } from "@/types";
@@ -57,7 +57,7 @@ export interface EmployeeListQuery {
 
 export async function tenantAccessCheckApi(): Promise<boolean> {
   try {
-    await apiClient.get("/api/tenant/access-check");
+    await apiClient.get(buildTenantApiUrl("/access-check"));
     return true;
   } catch (error: unknown) {
     if (axios.isAxiosError(error) && (error.response?.status === 401 || error.response?.status === 403)) {
@@ -69,7 +69,7 @@ export async function tenantAccessCheckApi(): Promise<boolean> {
 
 export async function createEmployeeApi(payload: EmployeeCreateRequest): Promise<unknown> {
   const { data } = await apiClient.post<ApiResponse<unknown> | unknown>(
-    "/api/tenant/employees",
+    buildTenantApiUrl("/employees"),
     payload
   );
   return unwrapApiData<unknown>(data);
@@ -77,7 +77,7 @@ export async function createEmployeeApi(payload: EmployeeCreateRequest): Promise
 
 export async function getEmployeesApi(query: EmployeeListQuery = {}): Promise<unknown[]> {
   const { data } = await apiClient.get<ApiResponse<unknown> | unknown>(
-    "/api/tenant/employees",
+    buildTenantApiUrl("/employees"),
     { params: query }
   );
   const parsed = unwrapApiData<unknown>(data);
@@ -90,21 +90,21 @@ export async function getEmployeesApi(query: EmployeeListQuery = {}): Promise<un
 
 export async function getEmployeeByIdApi(id: string): Promise<unknown> {
   const { data } = await apiClient.get<ApiResponse<unknown> | unknown>(
-    `/api/tenant/employees/${id}`
+    buildTenantApiUrl(`/employees/${id}`)
   );
   return unwrapApiData<unknown>(data);
 }
 
 export async function getMyEmployeeProfileApi(): Promise<unknown> {
   const { data } = await apiClient.get<ApiResponse<unknown> | unknown>(
-    "/api/tenant/employees/me"
+    buildTenantApiUrl("/employees/me")
   );
   return unwrapApiData<unknown>(data);
 }
 
 export async function updateEmployeeApi(id: string, payload: EmployeeUpdateRequest): Promise<unknown> {
   const { data } = await apiClient.put<ApiResponse<unknown> | unknown>(
-    `/api/tenant/employees/${id}`,
+    buildTenantApiUrl(`/employees/${id}`),
     payload
   );
   return unwrapApiData<unknown>(data);
@@ -112,26 +112,26 @@ export async function updateEmployeeApi(id: string, payload: EmployeeUpdateReque
 
 export async function updateMyEmployeeProfileApi(payload: EmployeeProfileUpdateRequest): Promise<unknown> {
   const { data } = await apiClient.put<ApiResponse<unknown> | unknown>(
-    "/api/tenant/employees/me",
+    buildTenantApiUrl("/employees/me"),
     payload
   );
   return unwrapApiData<unknown>(data);
 }
 
 export async function updateEmployeeStatusApi(id: string, status: "ACTIVE" | "INACTIVE"): Promise<void> {
-  await apiClient.patch(`/api/tenant/employees/${id}/status`, { status });
+  await apiClient.patch(buildTenantApiUrl(`/employees/${id}/status`), { status });
 }
 
 export async function getEmployeeSkillsApi(employeeId: string): Promise<unknown[]> {
   const { data } = await apiClient.get<ApiResponse<unknown> | unknown>(
-    `/api/tenant/employees/${employeeId}/skills`
+    buildTenantApiUrl(`/employees/${employeeId}/skills`)
   );
   return extractList(unwrapApiData<unknown>(data));
 }
 
 export async function addEmployeeSkillApi(employeeId: string, payload: EmployeeSkillApiPayload): Promise<unknown> {
   const { data } = await apiClient.post<ApiResponse<unknown> | unknown>(
-    `/api/tenant/employees/${employeeId}/skills`,
+    buildTenantApiUrl(`/employees/${employeeId}/skills`),
     payload
   );
   return unwrapApiData<unknown>(data);
@@ -143,14 +143,14 @@ export async function updateEmployeeSkillApi(
   payload: EmployeeSkillApiPayload
 ): Promise<unknown> {
   const { data } = await apiClient.put<ApiResponse<unknown> | unknown>(
-    `/api/tenant/employees/${employeeId}/skills/${skillId}`,
+    buildTenantApiUrl(`/employees/${employeeId}/skills/${skillId}`),
     payload
   );
   return unwrapApiData<unknown>(data);
 }
 
 export async function deleteEmployeeSkillApi(employeeId: string, skillId: string): Promise<void> {
-  await apiClient.delete(`/api/tenant/employees/${employeeId}/skills/${skillId}`);
+  await apiClient.delete(buildTenantApiUrl(`/employees/${employeeId}/skills/${skillId}`));
 }
 
 export async function provisionEmployeeAccountApi(
@@ -158,7 +158,7 @@ export async function provisionEmployeeAccountApi(
   payload: ProvisionEmployeeAccountApiPayload
 ): Promise<unknown> {
   const { data } = await apiClient.post<ApiResponse<unknown> | unknown>(
-    `/api/tenant/employees/${employeeId}/provision-account`,
+    buildTenantApiUrl(`/employees/${employeeId}/provision-account`),
     payload
   );
   return unwrapApiData<unknown>(data);

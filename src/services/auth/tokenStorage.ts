@@ -3,8 +3,10 @@ import type { SessionType } from "@/types";
 const STORAGE_KEYS = {
   ACCESS_TOKEN: "wn_access_token",
   REFRESH_TOKEN: "wn_refresh_token",
+  CSRF_TOKEN: "wn_csrf_token",
   TENANT_KEY: "wn_tenant_key",
   SESSION_TYPE: "wn_session_type",
+  DEVICE_ID: "wn_device_id",
 } as const;
 
 type TokenStorageKey = (typeof STORAGE_KEYS)[keyof typeof STORAGE_KEYS];
@@ -22,6 +24,7 @@ function getBrowserStorage(kind: "sessionStorage" | "localStorage"): Storage | n
 }
 
 const sessionStorageRef = getBrowserStorage("sessionStorage");
+const localStorageRef = getBrowserStorage("localStorage");
 const legacyLocalStorageRef = getBrowserStorage("localStorage");
 
 function readValue(key: TokenStorageKey): string | null {
@@ -51,6 +54,9 @@ function migrateLegacyLocalStorageData() {
   if (!legacyLocalStorageRef) return;
 
   (Object.values(STORAGE_KEYS) as TokenStorageKey[]).forEach((key) => {
+    if (key === STORAGE_KEYS.DEVICE_ID) {
+      return;
+    }
     const existing = readValue(key);
     const legacy = legacyLocalStorageRef.getItem(key);
 
@@ -63,19 +69,41 @@ function migrateLegacyLocalStorageData() {
   });
 }
 
+function getOrCreateDeviceId(): string {
+  const existing = localStorageRef?.getItem(STORAGE_KEYS.DEVICE_ID);
+  if (existing) return existing;
+
+  const generated = typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : `device-${Math.random().toString(36).slice(2)}-${Date.now().toString(36)}`;
+
+  localStorageRef?.setItem(STORAGE_KEYS.DEVICE_ID, generated);
+  return generated;
+}
+
 migrateLegacyLocalStorageData();
 
 export const tokenStorage = {
-  // TODO(security-backend): Move to HttpOnly secure cookies once backend session-cookie support is available.
-  // TODO(security-backend): Add server-side token rotation/revocation and CSRF defenses when cookie auth lands.
   getAccess: () => readValue(STORAGE_KEYS.ACCESS_TOKEN),
   getRefresh: () => readValue(STORAGE_KEYS.REFRESH_TOKEN),
+  getCsrf: () => readValue(STORAGE_KEYS.CSRF_TOKEN),
   getTenantKey: () => readValue(STORAGE_KEYS.TENANT_KEY),
   getSession: () => readValue(STORAGE_KEYS.SESSION_TYPE) as SessionTypeValue,
+  getDeviceId: () => getOrCreateDeviceId(),
 
-  setTokens: (access: string, refresh: string) => {
+  setTokens: (access: string, refresh?: string) => {
     writeValue(STORAGE_KEYS.ACCESS_TOKEN, access);
-    writeValue(STORAGE_KEYS.REFRESH_TOKEN, refresh);
+    if (refresh) {
+      writeValue(STORAGE_KEYS.REFRESH_TOKEN, refresh);
+    }
+  },
+
+  setCsrf: (csrfToken: string | null | undefined) => {
+    if (csrfToken) {
+      writeValue(STORAGE_KEYS.CSRF_TOKEN, csrfToken);
+      return;
+    }
+    removeValue(STORAGE_KEYS.CSRF_TOKEN);
   },
 
   setContext: (tenantKey: string | null, sessionType: SessionType) => {
@@ -89,9 +117,17 @@ export const tokenStorage = {
   },
 
   clear: () => {
-    (Object.values(STORAGE_KEYS) as TokenStorageKey[]).forEach((key) => removeValue(key));
+    (Object.values(STORAGE_KEYS) as TokenStorageKey[]).forEach((key) => {
+      if (key === STORAGE_KEYS.DEVICE_ID) {
+        return;
+      }
+      removeValue(key);
+    });
     if (legacyLocalStorageRef) {
       (Object.values(STORAGE_KEYS) as TokenStorageKey[]).forEach((key) => {
+        if (key === STORAGE_KEYS.DEVICE_ID) {
+          return;
+        }
         legacyLocalStorageRef.removeItem(key);
       });
     }

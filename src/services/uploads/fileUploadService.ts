@@ -1,4 +1,4 @@
-import { apiClient } from "@/services/http/client";
+import { apiClient, buildTenantApiUrl } from "@/services/http/client";
 import type { UploadedFileAsset } from "@/types";
 
 type UploadKind = "image" | "document";
@@ -40,7 +40,7 @@ async function uploadFile(file: File, kind: UploadKind, options: UploadOptions):
   formData.append("type", kind === "image" ? "image" : "doc");
   formData.append("folder", options.folder);
 
-  const { data } = await apiClient.post<UploadedFileAsset>(LOCAL_UPLOAD_ENDPOINT, formData, {
+  const { data } = await apiClient.post<UploadedFileAsset>(buildTenantApiUrl("/files/upload"), formData, {
     headers: {
       "Content-Type": "multipart/form-data",
     },
