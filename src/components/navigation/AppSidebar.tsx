@@ -1,18 +1,21 @@
-import type { ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, Users, User, Settings, Building2,
   LogOut, ChevronLeft, ChevronRight, X,
   ClipboardList, CalendarCheck, Bell, MessageSquare, Briefcase, BarChart3, CheckSquare, BellRing,
+  Lock,
 } from "lucide-react";
 import { FaUser } from "react-icons/fa6";
 import { useAuth } from "@/hooks/useAuth";
 import { type Permission, PERMISSIONS } from "@/constants/permissions";
 import { usePermission } from "@/hooks/usePermission";
+import { tenantRoutes, platformRoutes } from "@/utils/tenantRoutes";
 
 interface SidebarNavDef {
   label: string;
-  to: string;
+  /** Can be a static path string or a function that resolves per-tenant slug. */
+  to: string | ((tenantSlug: string) => string);
   icon: ReactNode;
   permission?: Permission;
 }
@@ -30,41 +33,49 @@ interface AppSidebarProps {
   onMobileClose: () => void;
 }
 
+/**
+ * Sidebar navigation definitions.
+ *
+ * Paths are resolved per-tenant via functions so all links adapt
+ * to the `/:tenant/...` routing structure instead of `/app/...`.
+ */
+
 const TENANT_NAV_GROUPS: SidebarNavGroup[] = [
   {
     label: "Overview",
     items: [
-      { label: "Dashboard", to: "/app/dashboard", icon: <LayoutDashboard size={18} /> },
-      { label: "Analytics", to: "/app/analytics", icon: <BarChart3 size={18} />, permission: PERMISSIONS.ANALYTICS_VIEW },
+      { label: "Dashboard", to: (t: string) => tenantRoutes.dashboard(t), icon: <LayoutDashboard size={18} /> },
+      { label: "Analytics", to: (t: string) => tenantRoutes.analytics(t), icon: <BarChart3 size={18} />, permission: PERMISSIONS.ANALYTICS_VIEW },
     ],
   },
   {
     label: "People",
     items: [
-      { label: "Employees", to: "/app/employees", icon: <Users size={18} />, permission: PERMISSIONS.EMPLOYEES_VIEW },
-      { label: "Teams", to: "/app/teams", icon: <Briefcase size={18} />, permission: PERMISSIONS.TEAMS_VIEW },
+      { label: "Employees", to: (t: string) => tenantRoutes.employees(t), icon: <Users size={18} />, permission: PERMISSIONS.EMPLOYEES_VIEW },
+      { label: "Teams", to: (t: string) => tenantRoutes.teams(t), icon: <Briefcase size={18} />, permission: PERMISSIONS.TEAMS_VIEW },
     ],
   },
   {
     label: "Work",
     items: [
-      { label: "Projects", to: "/app/projects", icon: <ClipboardList size={18} />, permission: PERMISSIONS.PROJECTS_VIEW },
-      { label: "Tasks", to: "/app/tasks", icon: <CheckSquare size={18} />, permission: PERMISSIONS.TASKS_VIEW },
+      { label: "Projects", to: (t: string) => tenantRoutes.projects(t), icon: <ClipboardList size={18} />, permission: PERMISSIONS.PROJECTS_VIEW },
+      { label: "Tasks", to: (t: string) => tenantRoutes.tasks(t), icon: <CheckSquare size={18} />, permission: PERMISSIONS.TASKS_VIEW },
     ],
   },
   {
     label: "HR",
     items: [
-      { label: "Attendance", to: "/app/attendance", icon: <CalendarCheck size={18} />, permission: PERMISSIONS.ATTENDANCE_VIEW },
-      { label: "Leave", to: "/app/leave", icon: <CalendarCheck size={18} />, permission: PERMISSIONS.LEAVE_VIEW },
+      { label: "Recruitment", to: (t: string) => tenantRoutes.recruitment(t), icon: <ClipboardList size={18} />, permission: PERMISSIONS.RECRUITMENT_VIEW },
+      { label: "Attendance", to: (t: string) => tenantRoutes.attendance(t), icon: <CalendarCheck size={18} />, permission: PERMISSIONS.ATTENDANCE_VIEW },
+      { label: "Leave", to: (t: string) => tenantRoutes.leave(t), icon: <CalendarCheck size={18} />, permission: PERMISSIONS.LEAVE_VIEW },
     ],
   },
   {
     label: "Communication",
     items: [
-      { label: "Announcements", to: "/app/announcements", icon: <Bell size={18} />, permission: PERMISSIONS.ANNOUNCEMENTS_VIEW },
-      { label: "Notifications", to: "/app/notifications", icon: <BellRing size={18} />, permission: PERMISSIONS.NOTIFICATIONS_VIEW },
-      { label: "Chat", to: "/app/chat", icon: <MessageSquare size={18} />, permission: PERMISSIONS.CHAT_VIEW },
+      { label: "Announcements", to: (t: string) => tenantRoutes.announcements(t), icon: <Bell size={18} />, permission: PERMISSIONS.ANNOUNCEMENTS_VIEW },
+      { label: "Notifications", to: (t: string) => tenantRoutes.notifications(t), icon: <BellRing size={18} />, permission: PERMISSIONS.NOTIFICATIONS_VIEW },
+      { label: "Chat", to: (t: string) => tenantRoutes.chat(t), icon: <MessageSquare size={18} />, permission: PERMISSIONS.CHAT_VIEW },
     ],
   },
 ];
@@ -73,40 +84,46 @@ const PLATFORM_NAV_GROUPS: SidebarNavGroup[] = [
   {
     label: "Overview",
     items: [
-      { label: "Dashboard", to: "/platform/dashboard", icon: <LayoutDashboard size={18} /> },
-      { label: "Analytics", to: "/platform/analytics", icon: <BarChart3 size={18} /> },
+      { label: "Dashboard", to: platformRoutes.dashboard(), icon: <LayoutDashboard size={18} /> },
+      { label: "Analytics", to: platformRoutes.analytics(), icon: <BarChart3 size={18} /> },
     ],
   },
   {
     label: "Admin",
     items: [
-      { label: "Tenants", to: "/platform/tenants", icon: <Building2 size={18} /> },
-      { label: "Settings", to: "/platform/settings", icon: <Settings size={18} /> },
+      { label: "Tenants", to: platformRoutes.tenants(), icon: <Building2 size={18} /> },
+      { label: "Settings", to: platformRoutes.settings(), icon: <Settings size={18} /> },
     ],
   },
 ];
 
-const BOTTOM_NAV_TENANT: SidebarNavDef[] = [
-  { label: "Profile",  to: "/app/profile",  icon: <User size={18} /> },
-  { label: "Settings", to: "/app/settings", icon: <Settings size={18} /> },
-];
-
-const BOTTOM_NAV_PLATFORM: SidebarNavDef[] = [
-  { label: "Profile", to: "/platform/profile", icon: <User size={18} /> },
-];
-
 const COMING_SOON: string[] = [];
+
+/**
+ * Resolve a sidebar nav item's `to` value.
+ * If it's a function, call it with the current tenant slug.
+ * Otherwise return the static string as-is.
+ */
+function resolveNavTo(to: string | ((slug: string) => string), tenantSlug?: string): string {
+  if (typeof to === "function") {
+    return to(tenantSlug ?? "app");
+  }
+  return to;
+}
 
 function NavItem({
   item,
   collapsed,
   onMobileClose,
+  tenantSlug,
 }: {
   item: SidebarNavDef;
   collapsed: boolean;
   onMobileClose: () => void;
+  tenantSlug?: string;
 }) {
-  const isDisabled = COMING_SOON.includes(item.to);
+  const resolvedTo = resolveNavTo(item.to, tenantSlug);
+  const isDisabled = COMING_SOON.includes(resolvedTo);
 
   const base =
     "group relative flex items-center gap-3 rounded-2xl px-3.5 py-2.5 text-sm font-medium transition-all duration-150";
@@ -144,8 +161,9 @@ function NavItem({
 
   return (
     <NavLink
-      to={item.to}
+      to={resolvedTo}
       onClick={onMobileClose}
+      end={resolvedTo === tenantRoutes.dashboard(tenantSlug)}
       className={({ isActive }) =>
         `${base} ${isActive ? active : inactive}`
       }
@@ -177,11 +195,13 @@ function NavGroup({
   collapsed,
   onMobileClose,
   isFirst,
+  tenantSlug,
 }: {
   group: SidebarNavGroup;
   collapsed: boolean;
   onMobileClose: () => void;
   isFirst: boolean;
+  tenantSlug?: string;
 }) {
   return (
     <div className={isFirst ? "space-y-1" : "space-y-1 pt-2"}>
@@ -194,16 +214,95 @@ function NavGroup({
         </div>
       )}
       {group.items.map((item) => (
-        <NavItem key={item.to} item={item} collapsed={collapsed} onMobileClose={onMobileClose} />
+        <NavItem
+          key={typeof item.to === "function" ? item.label : item.to}
+          item={item}
+          collapsed={collapsed}
+          onMobileClose={onMobileClose}
+          tenantSlug={tenantSlug}
+        />
       ))}
     </div>
   );
 }
 
+/* ── Account dropdown submenu ── */
+
+interface AccountDropdownMenuProps {
+  collapsed: boolean;
+  onItemClick: () => void;
+  onLogout: () => Promise<void> | void;
+}
+
+function AccountDropdownMenu({ collapsed, onItemClick, onLogout }: AccountDropdownMenuProps) {
+  const navigate = useNavigate();
+
+  return (
+    <div
+      className={`${collapsed ? "absolute left-full ml-2 top-0" : "relative mt-1"} w-48 rounded-xl border py-1 shadow-xl z-50`}
+      style={{
+        backgroundColor: "#1a0f2e",
+        borderColor: "rgba(255,255,255,0.08)",
+        boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
+      }}
+      role="menu"
+      aria-label="Account menu"
+    >
+      {ACCOUNT_DROPDOWN_ITEMS.map((item) => (
+        <button
+          key={item.label}
+          type="button"
+          onClick={() => {
+            navigate(item.getTo());
+            onItemClick();
+          }}
+          className="flex w-full items-center gap-2.5 px-3 py-2 text-xs font-medium transition-colors hover:bg-white/8"
+          style={{ color: "rgba(255,255,255,0.72)" }}
+          role="menuitem"
+        >
+          {item.icon}
+          {item.label}
+        </button>
+      ))}
+      <div className="mx-2 border-t" style={{ borderColor: "rgba(255,255,255,0.06)" }} />
+      <button
+        type="button"
+        onClick={async () => {
+          onItemClick();
+          await onLogout();
+          /* Navigation to /login is handled by handleLogout passed as onLogout */
+        }}
+        className="flex w-full items-center gap-2.5 px-3 py-2 text-xs font-medium transition-colors hover:bg-red-500/15 hover:text-red-300"
+        style={{ color: "rgba(255,255,255,0.45)" }}
+        role="menuitem"
+      >
+        <LogOut size={15} />
+        Log out
+      </button>
+    </div>
+  );
+}
+
+/* ── Sidebar component ── */
+
+const ACCOUNT_DROPDOWN_ITEMS: {
+  label: string;
+  icon: ReactNode;
+  getTo: () => string;
+}[] = [
+  { label: "Profile", icon: <User size={15} />, getTo: () => tenantRoutes.profile() },
+  { label: "Settings", icon: <Settings size={15} />, getTo: () => tenantRoutes.settings() },
+  { label: "Security", icon: <Lock size={15} />, getTo: () => tenantRoutes.settingsSecurity() },
+];
+
 export function AppSidebar({ area, collapsed, mobileOpen, onToggleCollapse, onMobileClose }: AppSidebarProps) {
-  const { user, logout, role } = useAuth();
+  const { user, logout, role, tenantKey } = useAuth();
   const { hasPermission } = usePermission();
   const navigate = useNavigate();
+  const accountMenuRef = useRef<HTMLDivElement | null>(null);
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+
+  const resolvedTenantSlug = tenantKey ?? "app";
 
   const mainNavGroups = area === "tenant"
     ? TENANT_NAV_GROUPS
@@ -213,7 +312,33 @@ export function AppSidebar({ area, collapsed, mobileOpen, onToggleCollapse, onMo
       }))
       .filter((group) => group.items.length > 0)
     : PLATFORM_NAV_GROUPS;
-  const bottomNav = area === "tenant" ? BOTTOM_NAV_TENANT : BOTTOM_NAV_PLATFORM;
+
+  /* ── Close account menu on outside click ── */
+  useEffect(() => {
+    if (!accountMenuOpen) return;
+
+    function handleClick(e: MouseEvent) {
+      if (accountMenuRef.current && !accountMenuRef.current.contains(e.target as Node)) {
+        setAccountMenuOpen(false);
+      }
+    }
+
+    function handleEscape(e: KeyboardEvent) {
+      if (e.key === "Escape") setAccountMenuOpen(false);
+    }
+
+    // Delay listener registration to avoid the same click that opened it
+    const raf = requestAnimationFrame(() => {
+      document.addEventListener("mousedown", handleClick);
+      document.addEventListener("keydown", handleEscape);
+    });
+
+    return () => {
+      cancelAnimationFrame(raf);
+      document.removeEventListener("mousedown", handleClick);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [accountMenuOpen]);
 
   async function handleLogout() {
     await logout();
@@ -299,6 +424,7 @@ export function AppSidebar({ area, collapsed, mobileOpen, onToggleCollapse, onMo
             collapsed={collapsed}
             onMobileClose={onMobileClose}
             isFirst={index === 0}
+            tenantSlug={resolvedTenantSlug}
           />
         ))}
       </nav>
@@ -306,21 +432,93 @@ export function AppSidebar({ area, collapsed, mobileOpen, onToggleCollapse, onMo
       {/* Divider */}
       <div className="mx-3 border-t border-white/8" />
 
-      {/* Bottom nav */}
-      <div className="px-3 py-3 space-y-1">
-        {!collapsed && (
-          <div
-            className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-[0.18em]"
-            style={{ color: "rgba(255,255,255,0.42)" }}
-          >
-            Account
-          </div>
-        )}
-        {bottomNav.map((item) => (
-          <NavItem key={item.to} item={item} collapsed={collapsed} onMobileClose={onMobileClose} />
-        ))}
+      {/* Account section with dropdown submenu */}
+      {user && (
+        <div className="px-3 py-3 space-y-1" ref={accountMenuRef}>
+          {!collapsed && (
+            <div
+              className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-[0.18em]"
+              style={{ color: "rgba(255,255,255,0.42)" }}
+            >
+              Account
+            </div>
+          )}
 
-        {/* Logout */}
+          {/* Clickable user card that toggles the dropdown */}
+          <button
+            type="button"
+            onClick={() => setAccountMenuOpen((prev) => !prev)}
+            className={`flex w-full items-center gap-3 rounded-xl border border-white/8 text-left transition-all duration-150 ${
+              collapsed ? "px-2 py-2 justify-center" : "px-3 py-2.5"
+            } ${accountMenuOpen ? "bg-white/10" : "hover:bg-white/6"}`}
+            style={{ background: accountMenuOpen ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.04)" }}
+            aria-haspopup="menu"
+            aria-expanded={accountMenuOpen}
+            title={collapsed ? user.name : undefined}
+          >
+            {collapsed ? (
+              <div className="relative">
+                {user.avatarUrl ? (
+                  <img
+                    src={user.avatarUrl}
+                    alt={user.name}
+                    className="h-8 w-8 shrink-0 rounded-full object-cover"
+                  />
+                ) : (
+                  <div
+                    className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-white"
+                    style={{ backgroundColor: "#6b7280" }}
+                  >
+                    <FaUser size={12} />
+                  </div>
+                )}
+                {/* Dropdown in collapsed mode appears to the right */}
+                {accountMenuOpen && (
+                  <div className="absolute left-full ml-2 top-0">
+                    <AccountDropdownMenu collapsed onItemClick={() => setAccountMenuOpen(false)} onLogout={handleLogout} />
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="flex w-full items-center gap-2.5">
+                {user.avatarUrl ? (
+                  <img
+                    src={user.avatarUrl}
+                    alt={user.name}
+                    className="h-8 w-8 shrink-0 rounded-full object-cover"
+                  />
+                ) : (
+                  <div
+                    className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-white"
+                    style={{ backgroundColor: "#6b7280" }}
+                  >
+                    <FaUser size={12} />
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <div className="text-xs font-semibold text-white/90 truncate">{user.name}</div>
+                  <div className="text-[10px] text-white/40 truncate">{user.email}</div>
+                  <div className="mt-1 text-[10px] uppercase tracking-[0.18em] text-white/30 truncate">{role ?? "workspace"}</div>
+                </div>
+                {/* Chevron indicator */}
+                <ChevronRight
+                  size={14}
+                  className={`shrink-0 transition-transform duration-200 ${accountMenuOpen ? "rotate-90" : ""}`}
+                  style={{ color: "rgba(255,255,255,0.3)" }}
+                />
+              </div>
+            )}
+          </button>
+
+          {/* Dropdown menu in expanded mode */}
+          {accountMenuOpen && !collapsed && (
+            <AccountDropdownMenu collapsed={false} onItemClick={() => setAccountMenuOpen(false)} onLogout={handleLogout} />
+          )}
+        </div>
+      )}
+
+      {/* Direct logout button at the very bottom (always visible shortcut) */}
+      <div className="px-3 pb-3">
         <button
           onClick={handleLogout}
           className={`flex items-center gap-3 px-3 py-2.5 w-full rounded-xl text-sm font-medium transition-colors cursor-pointer hover:bg-red-500/15 hover:text-red-300 group relative`}
@@ -339,56 +537,6 @@ export function AppSidebar({ area, collapsed, mobileOpen, onToggleCollapse, onMo
           )}
         </button>
       </div>
-
-      {/* User info */}
-      {user && (
-        <div
-          className={`mx-3 mb-3 rounded-xl border border-white/8 ${collapsed ? "px-2 py-2" : "px-3 py-2.5"}`}
-          style={{ background: "rgba(255,255,255,0.04)" }}
-          title={collapsed ? user.name : undefined}
-        >
-          {collapsed ? (
-            <div className="flex items-center justify-center">
-              {user.avatarUrl ? (
-                <img
-                  src={user.avatarUrl}
-                  alt={user.name}
-                  className="h-8 w-8 shrink-0 rounded-full object-cover"
-                />
-              ) : (
-                <div
-                  className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-white"
-                  style={{ backgroundColor: "#6b7280" }}
-                >
-                  <FaUser size={12} />
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="flex items-center gap-2.5">
-              {user.avatarUrl ? (
-                <img
-                  src={user.avatarUrl}
-                  alt={user.name}
-                  className="h-8 w-8 shrink-0 rounded-full object-cover"
-                />
-              ) : (
-                <div
-                  className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-white"
-                  style={{ backgroundColor: "#6b7280" }}
-                >
-                  <FaUser size={12} />
-                </div>
-              )}
-              <div className="min-w-0">
-                <div className="text-xs font-semibold text-white/90 truncate">{user.name}</div>
-                <div className="text-[10px] text-white/40 truncate">{user.email}</div>
-                <div className="mt-1 text-[10px] uppercase tracking-[0.18em] text-white/30 truncate">{role ?? "workspace"}</div>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 
@@ -409,6 +557,7 @@ export function AppSidebar({ area, collapsed, mobileOpen, onToggleCollapse, onMo
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         } ${collapsed ? "w-[5rem]" : "w-72"}`}
         style={{ height: "100vh" }}
+        aria-label="Sidebar navigation"
       >
         {sidebarContent}
       </aside>
