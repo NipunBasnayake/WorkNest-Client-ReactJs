@@ -1,12 +1,14 @@
 import axios from "axios";
 import { publicClient, apiClient } from "@/services/http/client";
 import { readApiEnvelope, unwrapApiData } from "@/services/http/response";
-import type { LoginPayload, AuthTokens, AuthUser, ApiResponse } from "@/types";
-import { asRecord, firstDefined, getBoolean, getId, getString } from "@/services/http/parsers";
+import type { LoginPayload, AuthTokens, AuthUser, ApiResponse, AuthSession } from "@/types";
+import { asRecord, firstDefined, getBoolean, getId, getNumber, getString } from "@/services/http/parsers";
 
 type TokenPayload = {
   accessToken?: unknown;
   refreshToken?: unknown;
+  csrfToken?: unknown;
+  sessionId?: unknown;
   user?: unknown;
 };
 
@@ -19,8 +21,10 @@ export interface PasswordChangeRequirement {
 }
 
 export type LoginApiResult =
-  | { kind: "authenticated"; tokens: AuthTokens; user?: AuthUser }
+  | { kind: "authenticated"; tokens: AuthTokens; csrfToken?: string; sessionId?: number; user?: AuthUser }
   | { kind: "password_change_required"; challenge: PasswordChangeRequirement };
+
+export type RefreshTokenApiResult = AuthTokens & { csrfToken?: string; sessionId?: number };
 
 export interface ChangeRequiredPasswordPayload {
   currentPassword: string;
@@ -49,13 +53,12 @@ export class PasswordChangeRequiredApiError extends Error {
 
 function extractTokens(payload: TokenPayload): AuthTokens {
   const accessToken = getString(payload.accessToken);
-  const refreshToken = getString(payload.refreshToken);
 
-  if (!accessToken || !refreshToken) {
-    throw new Error("Authentication response is missing tokens.");
+  if (!accessToken) {
+    throw new Error("Authentication response is missing an access token.");
   }
 
-  return { accessToken, refreshToken };
+  return { accessToken, refreshToken: getString(payload.refreshToken) ?? undefined };
 }
 
 function extractOptionalTokens(payload: unknown): AuthTokens | undefined {
@@ -98,6 +101,10 @@ function normalizeAuthUser(input: unknown): AuthUser {
     getString(value.tenantId),
     getString(value.tenant)
   ) ?? null;
+  const tenantSlug = firstDefined(
+    getString(value.tenantSlug),
+    getString(value.slug)
+  ) ?? tenantKey;
 
   return {
     id: id || email || "unknown",
@@ -105,6 +112,7 @@ function normalizeAuthUser(input: unknown): AuthUser {
     name,
     role,
     tenantKey,
+    tenantSlug,
     avatarUrl: firstDefined(getString(value.avatarUrl), getString(value.profileImageUrl), getString(value.imageUrl)),
   };
 }
@@ -211,7 +219,13 @@ export async function loginApi(payload: LoginPayload): Promise<LoginApiResult> {
     const tokens = extractTokens(parsed as TokenPayload);
     const user = parsed.user ? normalizeAuthUser(parsed.user) : undefined;
 
-    return { kind: "authenticated", tokens, user };
+    return {
+      kind: "authenticated",
+      tokens,
+      csrfToken: getString(parsed.csrfToken) ?? getString(asRecord(data).csrfToken) ?? undefined,
+      sessionId: getNumber(firstDefined(parsed.sessionId, asRecord(data).sessionId)) ?? undefined,
+      user,
+    };
   } catch (error) {
     const challenge = extractRequirementFromError(error, payload);
     if (challenge) {
@@ -305,18 +319,16 @@ export async function getMeApi(): Promise<AuthUser> {
   return user;
 }
 
-export async function logoutApi(refreshToken: string, tenantKey?: string | null): Promise<void> {
+export async function logoutApi(tenantKey?: string | null): Promise<void> {
   await apiClient.post("/api/auth/logout", {
-    refreshToken,
     ...(tenantKey ? { tenantKey } : {}),
   });
 }
 
-export async function refreshTokenApi(refreshToken: string, tenantKey?: string | null): Promise<AuthTokens> {
+export async function refreshTokenApi(tenantKey?: string | null): Promise<RefreshTokenApiResult> {
   const { data } = await publicClient.post<
-    ApiResponse<{ accessToken: string; refreshToken?: string }> | TokenPayload
+    ApiResponse<{ accessToken: string; csrfToken?: string; sessionId?: number }> | TokenPayload
   >("/api/auth/refresh", {
-    refreshToken,
     ...(tenantKey ? { tenantKey } : {}),
   });
 
@@ -327,6 +339,44 @@ export async function refreshTokenApi(refreshToken: string, tenantKey?: string |
 
   return {
     accessToken: getString(parsed.accessToken)!,
-    refreshToken: getString(parsed.refreshToken) ?? refreshToken,
+    refreshToken: getString(parsed.refreshToken) ?? undefined,
+    csrfToken: getString(parsed.csrfToken) ?? undefined,
+    sessionId: getNumber(parsed.sessionId) ?? undefined,
   };
+}
+
+type SessionPayload = {
+  sessions?: unknown;
+};
+
+export async function getActiveSessionsApi(): Promise<AuthSession[]> {
+  const { data } = await apiClient.get<ApiResponse<SessionPayload> | SessionPayload>("/api/auth/sessions");
+  const payload = unwrapApiData<SessionPayload>(data);
+  const sessions = Array.isArray(payload.sessions) ? payload.sessions : [];
+
+  return sessions.map((session) => {
+    const value = asRecord(session);
+    return {
+      id: getNumber(value.id) ?? 0,
+      deviceId: getString(value.deviceId) ?? null,
+      deviceName: getString(value.deviceName) ?? null,
+      userAgent: getString(value.userAgent) ?? null,
+      ipAddress: getString(value.ipAddress) ?? null,
+      suspicious: Boolean(value.suspicious),
+      suspiciousReason: getString(value.suspiciousReason) ?? null,
+      createdAt: getString(value.createdAt) ?? undefined,
+      lastUsedAt: getString(value.lastUsedAt) ?? undefined,
+      expiresAt: getString(value.expiresAt) ?? undefined,
+      revoked: Boolean(value.revoked),
+      currentSession: Boolean(value.currentSession),
+    } satisfies AuthSession;
+  });
+}
+
+export async function revokeSessionApi(sessionId: number): Promise<void> {
+  await apiClient.delete(`/api/auth/sessions/${sessionId}`);
+}
+
+export async function revokeOtherSessionsApi(): Promise<void> {
+  await apiClient.post("/api/auth/sessions/revoke-others", {});
 }

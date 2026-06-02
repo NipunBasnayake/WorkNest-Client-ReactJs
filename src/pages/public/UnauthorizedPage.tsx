@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { ShieldOff, ArrowLeft, LogIn } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useAuthStore } from "@/store/authStore";
 import { Button } from "@/components/common/Button";
 import { usePageMeta } from "@/hooks/usePageMeta";
 
@@ -12,7 +13,8 @@ export function UnauthorizedPage() {
 
   function handleBack() {
     if (isAuthenticated) {
-      navigate(sessionType === "platform" ? "/platform/dashboard" : "/app/dashboard", { replace: true });
+      const tenantSlug = useAuthStore.getState().tenantKey ?? "app";
+      navigate(sessionType === "platform" ? "/platform/dashboard" : `/${tenantSlug}/dashboard`, { replace: true });
     } else {
       navigate("/login", { replace: true });
     }

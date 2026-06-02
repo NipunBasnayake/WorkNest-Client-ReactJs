@@ -1,10 +1,11 @@
 import { NavLink, Outlet } from "react-router-dom";
-import { Building2, SlidersHorizontal, UserCircle2 } from "lucide-react";
+import { Building2, Shield, SlidersHorizontal, UserCircle2 } from "lucide-react";
 
 const SETTINGS_SECTIONS = [
   { label: "Profile", to: "/app/settings/profile", icon: <UserCircle2 size={16} /> },
   { label: "Workspace", to: "/app/settings/workspace", icon: <Building2 size={16} /> },
   { label: "Preferences", to: "/app/settings/preferences", icon: <SlidersHorizontal size={16} /> },
+  { label: "Security", to: "/app/settings/security", icon: <Shield size={16} /> },
 ];
 
 export function AppSettingsLayoutPage() {

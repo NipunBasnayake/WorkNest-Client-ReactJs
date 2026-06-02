@@ -56,10 +56,11 @@ function resolvePostPasswordChangePath(
   sessionType: SessionType | null,
   tenantKey: string | null
 ): string {
+  const tenantSlug = tenantKey ?? useAuthStore.getState().tenantKey ?? "app"
   const fallback = sessionType === "platform"
     ? "/platform/dashboard"
-    : tenantKey
-      ? "/app/dashboard"
+    : tenantSlug
+      ? `/${tenantSlug}/dashboard`
       : "/platform/dashboard";
 
   if (!fromLocation) return fallback;
