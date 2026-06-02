@@ -1,4 +1,4 @@
-import { apiClient } from "@/services/http/client";
+import { apiClient, buildTenantApiUrl } from "@/services/http/client";
 import { unwrapApiData } from "@/services/http/response";
 import { asRecord, extractList, firstDefined, getBoolean, getId, getNumber, getString, toIsoDateTime } from "@/services/http/parsers";
 import { readRealtimeDestinations, subscribeRealtime } from "@/services/realtime/stompService";
@@ -114,14 +114,14 @@ export function subscribeNotifications(listener: () => void): () => void {
 }
 
 export async function getNotifications(): Promise<AppNotification[]> {
-  const { data } = await apiClient.get<ApiResponse<unknown> | unknown>("/api/tenant/notifications/my");
+  const { data } = await apiClient.get<ApiResponse<unknown> | unknown>(buildTenantApiUrl("/notifications/my"));
   return extractList(unwrapApiData<unknown>(data))
     .map(normalizeNotification)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
 export async function getUnreadNotificationCount(): Promise<number> {
-  const { data } = await apiClient.get<ApiResponse<unknown> | unknown>("/api/tenant/notifications/my/unread-count");
+  const { data } = await apiClient.get<ApiResponse<unknown> | unknown>(buildTenantApiUrl("/notifications/my/unread-count"));
   const parsed = unwrapApiData<unknown>(data);
   if (typeof parsed === "number") return parsed;
   const value = asRecord(parsed);
@@ -133,7 +133,7 @@ export async function getUnreadNotificationCount(): Promise<number> {
 }
 
 export async function createNotification(payload: CreateNotificationPayload): Promise<AppNotification> {
-  const { data } = await apiClient.post<ApiResponse<unknown> | unknown>("/api/tenant/notifications", {
+  const { data } = await apiClient.post<ApiResponse<unknown> | unknown>(buildTenantApiUrl("/notifications"), {
     type: payload.type,
     message: payload.message,
     referenceType: "SYSTEM",
@@ -145,11 +145,11 @@ export async function createNotification(payload: CreateNotificationPayload): Pr
 }
 
 export async function markNotificationAsRead(id: string): Promise<void> {
-  await apiClient.patch(`/api/tenant/notifications/${id}/read`);
+  await apiClient.patch(buildTenantApiUrl(`/notifications/${id}/read`));
   emitUpdated();
 }
 
 export async function markAllNotificationsAsRead(): Promise<void> {
-  await apiClient.patch("/api/tenant/notifications/read-all");
+  await apiClient.patch(buildTenantApiUrl("/notifications/read-all"));
   emitUpdated();
 }

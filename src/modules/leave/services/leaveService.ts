@@ -1,4 +1,4 @@
-import { apiClient } from "@/services/http/client";
+import { apiClient, buildTenantApiUrl } from "@/services/http/client";
 import { unwrapApiData } from "@/services/http/response";
 import { asRecord, extractList, firstDefined, getId, getString, toIsoDate, toIsoDateTime } from "@/services/http/parsers";
 import { PERMISSIONS } from "@/constants/permissions";
@@ -103,23 +103,23 @@ function isReviewerRole(role?: string): boolean {
 export async function getLeaveRequests(): Promise<LeaveRequest[]> {
   const role = useAuthStore.getState().user?.role;
   if (isReviewerRole(typeof role === "string" ? role : undefined)) {
-    const { data } = await apiClient.get<ApiResponse<unknown> | unknown>("/api/tenant/leaves/paged", {
+    const { data } = await apiClient.get<ApiResponse<unknown> | unknown>(buildTenantApiUrl("/leaves/paged"), {
       params: { page: 0, size: 100, sortBy: "createdAt", sortDir: "desc" },
     });
     return extractList(unwrapApiData<unknown>(data)).map(normalizeLeave);
   }
 
-  const { data } = await apiClient.get<ApiResponse<unknown> | unknown>("/api/tenant/leaves/my");
+  const { data } = await apiClient.get<ApiResponse<unknown> | unknown>(buildTenantApiUrl("/leaves/my"));
   return extractList(unwrapApiData<unknown>(data)).map(normalizeLeave);
 }
 
 export async function getLeaveRequestById(id: string): Promise<LeaveRequest> {
-  const { data } = await apiClient.get<ApiResponse<unknown> | unknown>(`/api/tenant/leaves/${id}`);
+  const { data } = await apiClient.get<ApiResponse<unknown> | unknown>(buildTenantApiUrl(`/leaves/${id}`));
   return normalizeLeave(unwrapApiData<unknown>(data));
 }
 
 export async function createLeaveRequest(payload: LeavePayload): Promise<LeaveRequest> {
-  const { data } = await apiClient.post<ApiResponse<unknown> | unknown>("/api/tenant/leaves/apply", {
+  const { data } = await apiClient.post<ApiResponse<unknown> | unknown>(buildTenantApiUrl("/leaves/apply"), {
     leaveType: payload.leaveType,
     startDate: payload.startDate,
     endDate: payload.endDate,
@@ -135,7 +135,7 @@ export async function createLeaveRequest(payload: LeavePayload): Promise<LeaveRe
 }
 
 export async function updateLeaveRequest(id: string, payload: Omit<LeavePayload, "employeeId" | "employeeName">): Promise<LeaveRequest> {
-  const { data } = await apiClient.put<ApiResponse<unknown> | unknown>(`/api/tenant/leaves/${id}`, {
+  const { data } = await apiClient.put<ApiResponse<unknown> | unknown>(buildTenantApiUrl(`/leaves/${id}`), {
     leaveType: payload.leaveType,
     startDate: payload.startDate,
     endDate: payload.endDate,
@@ -151,7 +151,7 @@ export async function updateLeaveRequest(id: string, payload: Omit<LeavePayload,
 }
 
 export async function cancelLeaveRequest(id: string): Promise<LeaveRequest> {
-  const { data } = await apiClient.post<ApiResponse<unknown> | unknown>(`/api/tenant/leaves/${id}/cancel`);
+  const { data } = await apiClient.post<ApiResponse<unknown> | unknown>(buildTenantApiUrl(`/leaves/${id}/cancel`));
   return normalizeLeave(unwrapApiData<unknown>(data));
 }
 
@@ -161,8 +161,8 @@ export async function reviewLeaveRequest(
   review?: ReviewPayload
 ): Promise<LeaveRequest> {
   const endpoint = status === "APPROVED"
-    ? `/api/tenant/leaves/${id}/approve`
-    : `/api/tenant/leaves/${id}/reject`;
+    ? buildTenantApiUrl(`/leaves/${id}/approve`)
+    : buildTenantApiUrl(`/leaves/${id}/reject`);
 
   const { data } = await apiClient.post<ApiResponse<unknown> | unknown>(
     endpoint,
