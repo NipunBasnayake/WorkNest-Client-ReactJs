@@ -30,6 +30,7 @@ export function RecruitmentPipelineBoard({ pipeline, onMove }: { pipeline: Recru
                     className="w-full rounded-lg border px-3 py-2 text-sm"
                     style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)", color: "var(--text-primary)" }}
                     value={application.status}
+                    disabled={application.status === "HIRED"}
                     onChange={(event) => onMove?.(application.id, event.target.value)}
                   >
                     <option value={column.stage}>{column.stage}</option>

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CalendarDays, Clock3, LogIn, LogOut, UserCheck, Users2, UserRoundPen, BadgeCheck } from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
-import { useAuth } from "@/hooks/useAuth";
 import { PERMISSIONS } from "@/constants/permissions";
 import { usePermission } from "@/hooks/usePermission";
 import { checkIn, checkOut, getAttendanceRecords, getAttendanceSummary, summarizeAttendance } from "@/modules/attendance/services/attendanceService";
@@ -31,7 +30,6 @@ function formatMinutes(value?: number): string {
 
 export function AttendancePage() {
   usePageMeta({ title: "Attendance", breadcrumb: ["Workspace", "Attendance"] });
-  const { role } = useAuth();
   const { hasPermission } = usePermission();
 
   const [selectedDate, setSelectedDate] = useState(today());
@@ -47,8 +45,8 @@ export function AttendancePage() {
   const [summary, setSummary] = useState({ total: 0, present: 0, late: 0, absent: 0, halfDay: 0, incomplete: 0 });
 
   const canViewAll = hasPermission(PERMISSIONS.ATTENDANCE_MANAGE);
-  const canMarkOwnAttendance = role === "EMPLOYEE" || role === "HR";
-  const canManageManualAttendance = role === "HR";
+  const canMarkOwnAttendance = hasPermission(PERMISSIONS.ATTENDANCE_VIEW);
+  const canManageManualAttendance = hasPermission(PERMISSIONS.ATTENDANCE_MANAGE);
 
   useEffect(() => {
     let active = true;

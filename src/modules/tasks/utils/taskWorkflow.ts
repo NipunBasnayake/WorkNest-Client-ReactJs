@@ -36,7 +36,7 @@ export function getTaskAllowedStatuses(
   teamRoles: TeamMemberFunctionalRole[],
   isDirectAssignee: boolean
 ): TaskStatus[] {
-  if (actorRole === "TENANT_ADMIN") {
+  if (actorRole === "TENANT_ADMIN" || actorRole === "ADMIN") {
     return task.status === "TODO"
       ? ["TODO", "IN_PROGRESS"]
       : task.status === "IN_PROGRESS"
@@ -61,6 +61,8 @@ export function getTaskAllowedStatuses(
         ? ["IN_PROGRESS", "TODO", "IN_REVIEW"]
         : task.status === "IN_REVIEW"
           ? ["IN_REVIEW", "IN_PROGRESS"]
+          : task.status === "DONE"
+            ? ["DONE", "IN_REVIEW"]
         : [task.status];
   }
 

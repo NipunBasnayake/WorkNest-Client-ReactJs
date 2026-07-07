@@ -1,7 +1,7 @@
 import { apiClient } from "@/services/http/client";
 import { unwrapApiData } from "@/services/http/response";
 import { asRecord, extractList, firstDefined, getId, getNumber, getString, toIsoDateTime } from "@/services/http/parsers";
-import type { ApiResponse } from "@/types";
+import type { ApiResponse, Employee } from "@/types";
 import type {
   PaginatedResult,
   RecruitmentApplication,
@@ -11,6 +11,8 @@ import type {
   RecruitmentCandidateFormValues,
   RecruitmentDashboard,
   RecruitmentFeedbackFormValues,
+  RecruitmentHireFormValues,
+  RecruitmentHireResponse,
   RecruitmentInterview,
   RecruitmentInterviewFormValues,
   RecruitmentJobFormValues,
@@ -34,6 +36,37 @@ function normalizeEmployeeSummary(value: unknown) {
     id: getId(firstDefined(record.id, record.employeeId, record.userId)),
     name: firstDefined(getString(record.name), getString(record.fullName), `${getString(record.firstName) ?? ""} ${getString(record.lastName) ?? ""}`.trim()) || undefined,
     email: getString(record.email),
+  };
+}
+
+function normalizeEmployee(value: unknown): Employee {
+  const record = asRecord(value);
+  const firstName = firstDefined(getString(record.firstName), getString(record.first_name));
+  const lastName = firstDefined(getString(record.lastName), getString(record.last_name));
+  const name = firstDefined(
+    getString(record.name),
+    getString(record.fullName),
+    `${firstName ?? ""} ${lastName ?? ""}`.trim() || undefined
+  ) ?? "Employee";
+
+  return {
+    ...record,
+    id: getId(firstDefined(record.id, record.employeeId, record.userId)),
+    employeeCode: firstDefined(getString(record.employeeCode), getString(record.code)),
+    firstName,
+    lastName,
+    name,
+    email: firstDefined(getString(record.email), getString(record.workEmail)) ?? "",
+    phone: firstDefined(getString(record.phone), getString(record.mobile)),
+    designation: firstDefined(getString(record.designation), getString(record.position)),
+    position: firstDefined(getString(record.position), getString(record.designation)),
+    department: getString(record.department),
+    role: firstDefined(getString(record.role), getString(record.userRole)),
+    salary: getNumber(record.salary),
+    status: firstDefined(getString(record.status), getString(record.employeeStatus)),
+    joinedAt: firstDefined(getString(record.joinedAt), getString(record.joinedDate), getString(record.joinDate)),
+    joinedDate: firstDefined(getString(record.joinedDate), getString(record.joinedAt), getString(record.joinDate)),
+    avatarUrl: firstDefined(getString(record.avatarUrl), getString(record.profileImageUrl), getString(record.imageUrl)),
   };
 }
 
@@ -175,6 +208,18 @@ function normalizePipeline(value: unknown): RecruitmentPipeline {
   };
 }
 
+function normalizeHireResponse(value: unknown): RecruitmentHireResponse {
+  const record = asRecord(value);
+  return {
+    application: normalizeApplication(record.application),
+    employee: normalizeEmployee(record.employee),
+    teamId: record.teamId === undefined || record.teamId === null ? undefined : getId(record.teamId),
+    teamName: getString(record.teamName),
+    accountProvisioned: normalizeBoolean(record.accountProvisioned) ?? false,
+    temporaryPassword: getString(record.temporaryPassword),
+  };
+}
+
 function normalizePagedResult<T>(payload: unknown, normalizer: (value: unknown) => T): PaginatedResult<T> {
   const record = asRecord(payload);
   const items = extractList(record.items ?? record.content ?? record.results ?? record.data).map(normalizer);
@@ -276,6 +321,23 @@ export async function getApplications(): Promise<PaginatedResult<RecruitmentAppl
 
 export async function updateApplicationStatus(applicationId: string, status: RecruitmentApplication["status"]): Promise<RecruitmentApplication> {
   return patchJson(`/api/tenant/recruitment/applications/${applicationId}/status`, { status });
+}
+
+export async function hireApplication(applicationId: string, values: RecruitmentHireFormValues): Promise<RecruitmentHireResponse> {
+  const payload = {
+    employeeCode: values.employeeCode.trim() || null,
+    role: values.role,
+    designation: values.designation.trim() || null,
+    department: values.department.trim() || null,
+    joinedDate: values.joinedDate,
+    temporaryPassword: values.temporaryPassword.trim() || null,
+    teamId: values.teamId ? Number(values.teamId) : null,
+    teamFunctionalRole: values.teamFunctionalRole,
+    salary: values.salary.trim() ? Number(values.salary) : null,
+    recruiterNotes: values.recruiterNotes.trim() || null,
+  };
+  const response = await postJson<unknown>(`/api/tenant/recruitment/applications/${applicationId}/hire`, payload);
+  return normalizeHireResponse(response);
 }
 
 export async function createApplication(values: RecruitmentApplicationFormValues): Promise<RecruitmentApplication> {

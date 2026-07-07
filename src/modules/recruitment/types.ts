@@ -12,6 +12,15 @@ export type RecruitmentStage =
 export type RecruitmentInterviewMode = "ONSITE" | "REMOTE" | "PHONE";
 export type RecruitmentInterviewStatus = "SCHEDULED" | "COMPLETED" | "CANCELLED" | "RESCHEDULED";
 export type RecruitmentInterviewRecommendation = "STRONG_HIRE" | "HIRE" | "HOLD" | "NO_HIRE";
+export type RecruitmentHireRole = "TENANT_ADMIN" | "ADMIN" | "MANAGER" | "HR" | "EMPLOYEE";
+export type RecruitmentHireTeamRole =
+  | "MEMBER"
+  | "TEAM_LEAD"
+  | "PROJECT_MANAGER"
+  | "BUSINESS_ANALYST"
+  | "DEVELOPER"
+  | "QA"
+  | "DESIGNER";
 
 export interface PaginatedResult<T> {
   items: T[];
@@ -151,6 +160,28 @@ export interface RecruitmentApplicationFormValues {
   status: RecruitmentStage;
   coverLetter: string;
   expectedSalary: string;
+}
+
+export interface RecruitmentHireFormValues {
+  employeeCode: string;
+  role: RecruitmentHireRole;
+  designation: string;
+  department: string;
+  joinedDate: string;
+  temporaryPassword: string;
+  teamId: string;
+  teamFunctionalRole: RecruitmentHireTeamRole;
+  salary: string;
+  recruiterNotes: string;
+}
+
+export interface RecruitmentHireResponse {
+  application: RecruitmentApplication;
+  employee: import("@/types").Employee;
+  teamId?: string;
+  teamName?: string;
+  accountProvisioned: boolean;
+  temporaryPassword?: string;
 }
 
 export interface RecruitmentInterviewFormValues {
