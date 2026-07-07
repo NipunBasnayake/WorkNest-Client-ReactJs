@@ -37,6 +37,7 @@ function KanbanTaskCardComponent({ task, draggable, overlay = false }: KanbanTas
   });
   const tone = priorityTone(task.priority);
   const statusLabel = getTaskStatusLabel(task.status);
+  const isDone = task.status === "DONE";
 
   const cardBody = (
     <article
@@ -65,6 +66,15 @@ function KanbanTaskCardComponent({ task, draggable, overlay = false }: KanbanTas
           {task.priority}
         </span>
       </div>
+
+      {isDone ? (
+        <div
+          className="mt-2 rounded-lg border px-2 py-1 text-[11px] font-medium"
+          style={{ borderColor: "rgba(245,158,11,0.30)", backgroundColor: "rgba(245,158,11,0.08)", color: "#b45309" }}
+        >
+          {draggable ? "Reopen available" : "Locked when done"}
+        </div>
+      ) : null}
 
       <p className="mt-1 truncate text-xs" style={{ color: "var(--text-tertiary)" }}>
         {task.projectName || "No project"}

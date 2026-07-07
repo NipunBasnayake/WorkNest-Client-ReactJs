@@ -134,7 +134,8 @@ export function GuestGuard() {
   }
 
   if (isAuthenticated) {
-    const to = sessionType === "platform" ? "/platform/dashboard" : "/app/dashboard";
+    const tenantSlug = useAuthStore.getState().tenantKey ?? "app";
+    const to = sessionType === "platform" ? "/platform/dashboard" : `/${tenantSlug}/dashboard`;
     return <Navigate to={to} replace />;
   }
 

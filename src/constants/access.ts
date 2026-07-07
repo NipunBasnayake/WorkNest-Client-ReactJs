@@ -4,12 +4,12 @@ export const TENANT_ADMIN_EQUIVALENT_ROLES: TenantRole[] = ["TENANT_ADMIN", "ADM
 
 export const TENANT_ALL_ROLES: TenantRole[] = ["TENANT_ADMIN", "ADMIN", "MANAGER", "HR", "EMPLOYEE"];
 export const TENANT_MANAGERIAL_ROLES: TenantRole[] = ["TENANT_ADMIN", "ADMIN", "MANAGER"];
-export const TENANT_PEOPLE_ROLES: TenantRole[] = ["TENANT_ADMIN", "ADMIN", "MANAGER", "HR"];
+export const TENANT_PEOPLE_ROLES: TenantRole[] = ["TENANT_ADMIN", "ADMIN", "HR"];
 export const TENANT_COMMUNICATION_ROLES: TenantRole[] = ["TENANT_ADMIN", "ADMIN", "MANAGER", "HR"];
-export const TENANT_TEAM_MANAGEMENT_ROLES: TenantRole[] = ["TENANT_ADMIN", "ADMIN", "MANAGER", "HR"];
-export const TENANT_TEAM_VIEW_ROLES: TenantRole[] = [...TENANT_TEAM_MANAGEMENT_ROLES, "EMPLOYEE"];
-export const TENANT_PROJECT_MANAGEMENT_ROLES: TenantRole[] = ["TENANT_ADMIN", "ADMIN", "MANAGER"];
-export const TENANT_PROJECT_VIEW_ROLES: TenantRole[] = [...TENANT_PROJECT_MANAGEMENT_ROLES, "HR", "EMPLOYEE"];
+export const TENANT_TEAM_MANAGEMENT_ROLES: TenantRole[] = ["TENANT_ADMIN", "ADMIN", "HR"];
+export const TENANT_TEAM_VIEW_ROLES: TenantRole[] = ["TENANT_ADMIN", "ADMIN", "MANAGER", "HR", "EMPLOYEE"];
+export const TENANT_PROJECT_MANAGEMENT_ROLES: TenantRole[] = ["TENANT_ADMIN", "ADMIN"];
+export const TENANT_PROJECT_VIEW_ROLES: TenantRole[] = ["TENANT_ADMIN", "ADMIN", "MANAGER", "HR", "EMPLOYEE"];
 export const TENANT_TASK_MANAGEMENT_ROLES: TenantRole[] = ["TENANT_ADMIN", "ADMIN", "MANAGER"];
 export const TENANT_TASK_VIEW_ROLES: TenantRole[] = [...TENANT_TASK_MANAGEMENT_ROLES, "HR", "EMPLOYEE"];
 
@@ -38,9 +38,9 @@ export const TENANT_MODULE_ACCESS: Record<
   | "analytics",
   TenantRole[]
 > = {
-  employees: ["TENANT_ADMIN", "ADMIN", "MANAGER", "HR"],
-  teams: TENANT_TEAM_MANAGEMENT_ROLES,
-  projects: TENANT_PROJECT_MANAGEMENT_ROLES,
+  employees: ["TENANT_ADMIN", "ADMIN", "HR"],
+  teams: TENANT_TEAM_VIEW_ROLES,
+  projects: TENANT_PROJECT_VIEW_ROLES,
   tasks: TENANT_TASK_VIEW_ROLES,
   attendance: ["TENANT_ADMIN", "ADMIN", "MANAGER", "HR", "EMPLOYEE"],
   leave: ["TENANT_ADMIN", "ADMIN", "MANAGER", "HR", "EMPLOYEE"],

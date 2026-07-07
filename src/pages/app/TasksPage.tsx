@@ -51,6 +51,7 @@ export function TasksPage() {
   const { hasPermission } = usePermission();
 
   const canManageTasks = hasPermission(PERMISSIONS.TASKS_MANAGE);
+  const canViewEmployeeDirectory = hasPermission(PERMISSIONS.EMPLOYEES_VIEW);
   const isEmployeeOnly = role === "EMPLOYEE" && !canManageTasks;
   const viewerProfileQuery = useMyEmployeeProfileQuery(isEmployeeOnly);
   const myTeamsQuery = useMyTeamsQuery(isEmployeeOnly);
@@ -74,7 +75,7 @@ export function TasksPage() {
     setError(null);
 
     try {
-      const employeePromise = canManageTasks ? getEmployees().catch(() => []) : Promise.resolve([]);
+      const employeePromise = canViewEmployeeDirectory ? getEmployees().catch(() => []) : Promise.resolve([]);
       const [taskRes, employeeRes, projectRes] = await Promise.all([
         isEmployeeOnly ? getMyTasks() : getTasks(),
         employeePromise,
@@ -89,7 +90,7 @@ export function TasksPage() {
     } finally {
       setLoading(false);
     }
-  }, [canManageTasks, isEmployeeOnly]);
+  }, [canViewEmployeeDirectory, isEmployeeOnly]);
 
   useEffect(() => {
     void fetchData();
@@ -152,6 +153,11 @@ export function TasksPage() {
 
   async function handleDelete() {
     if (!deleteTarget) return;
+    if (deleteTarget.status === "DONE") {
+      setFeedback("DONE tasks are locked. Reopen the task before deleting it.");
+      setDeleteTarget(null);
+      return;
+    }
     setDeleting(true);
     setFeedback(null);
     try {
@@ -304,6 +310,7 @@ export function TasksPage() {
             <>
               <div className="hidden min-w-[1080px] md:block">
                 {filtered.map((task) => {
+                  const isDone = task.status === "DONE";
                   const canUpdateStatus = canManageTasks || canEmployeeUpdateStatus(task);
                   const teamRoles = task.assignedTeamId
                     ? resolveViewerTeamRoles(employeeTeams, viewerIdentity, [task.assignedTeamId])
@@ -314,6 +321,7 @@ export function TasksPage() {
                     teamRoles,
                     isTaskAssignedToViewer(task, viewerIdentity)
                   );
+                  const canUseStatusControl = canUpdateStatus && (!isDone || statusOptions.includes("IN_REVIEW"));
 
                   return (
                     <div
@@ -346,7 +354,7 @@ export function TasksPage() {
                       <div className="flex items-center justify-end gap-2">
                         <AppSelect
                           value={task.status}
-                          disabled={!canUpdateStatus}
+                          disabled={!canUseStatusControl}
                           onChange={(event) => handleStatusChange(task.id, event.target.value as TaskStatus)}
                         >
                           {statusOptions.map((status) => (
@@ -364,7 +372,7 @@ export function TasksPage() {
                         >
                           <FiEye size={15} />
                         </Link>
-                        {canManageTasks && (
+                        {canManageTasks && !isDone && (
                           <>
                             <Link
                               to={`/app/tasks/${task.id}/edit`}
@@ -387,6 +395,11 @@ export function TasksPage() {
                             </button>
                           </>
                         )}
+                        {canManageTasks && isDone && (
+                          <span className="text-xs font-medium" style={{ color: "var(--text-tertiary)" }}>
+                            Locked
+                          </span>
+                        )}
                       </div>
                     </div>
                   );
@@ -394,8 +407,11 @@ export function TasksPage() {
               </div>
 
               <div className="space-y-3 p-4 md:hidden">
-                {filtered.map((task) => (
+                {filtered.map((task) => {
+                  const isDone = task.status === "DONE";
+                  return (
                   <article
+                    key={task.id}
                     className="rounded-xl border p-4"
                     style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)" }}
                   >
@@ -421,7 +437,7 @@ export function TasksPage() {
 
                     <div className="mt-4 flex flex-wrap gap-2">
                       <Button variant="ghost" size="sm" to={`/app/tasks/${task.id}`}>View</Button>
-                      {canManageTasks && (
+                      {canManageTasks && !isDone && (
                         <>
                           <Button variant="outline" size="sm" to={`/app/tasks/${task.id}/edit`}>Edit</Button>
                           <Button variant="danger" size="sm" onClick={() => setDeleteTarget(task)}>
@@ -430,9 +446,15 @@ export function TasksPage() {
                           </Button>
                         </>
                       )}
+                      {canManageTasks && isDone && (
+                        <span className="inline-flex items-center rounded-xl px-3 py-2 text-xs font-semibold" style={{ color: "var(--text-tertiary)", backgroundColor: "var(--bg-muted)" }}>
+                          Locked
+                        </span>
+                      )}
                     </div>
                   </article>
-                ))}
+                  );
+                })}
               </div>
             </>
           )}

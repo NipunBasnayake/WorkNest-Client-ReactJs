@@ -1,4 +1,4 @@
-import { apiClient } from "@/services/http/client";
+import { apiClient, buildTenantApiUrl } from "@/services/http/client";
 import { unwrapApiData } from "@/services/http/response";
 import { asRecord, extractList, firstDefined, getId, getNumber, getString, toIsoDate, toIsoDateTime } from "@/services/http/parsers";
 import { extractUploadedFileAssets } from "@/services/uploads/fileAssetParser";
@@ -78,20 +78,20 @@ function normalizeProject(input: unknown, teamIds: string[] = []): Project {
 }
 
 async function getProjectTeams(projectId: string): Promise<string[]> {
-  const { data } = await apiClient.get<ApiResponse<unknown> | unknown>(`/api/tenant/projects/${projectId}/teams`);
+  const { data } = await apiClient.get<ApiResponse<unknown> | unknown>(buildTenantApiUrl(`/projects/${projectId}/teams`));
   const teams = extractList(unwrapApiData<unknown>(data));
   return normalizeTeamIds(teams);
 }
 
 export async function assignTeamToProject(projectId: string, teamId: string): Promise<void> {
   const normalizedTeamId = Number(teamId);
-  await apiClient.post(`/api/tenant/projects/${projectId}/teams`, {
+  await apiClient.post(buildTenantApiUrl(`/projects/${projectId}/teams`), {
     teamId: Number.isNaN(normalizedTeamId) ? teamId : normalizedTeamId,
   });
 }
 
 export async function removeTeamFromProject(projectId: string, teamId: string): Promise<void> {
-  await apiClient.delete(`/api/tenant/projects/${projectId}/teams/${teamId}`);
+  await apiClient.delete(buildTenantApiUrl(`/projects/${projectId}/teams/${teamId}`));
 }
 
 async function syncProjectTeams(projectId: string, expectedTeamIds: string[]) {
@@ -128,7 +128,7 @@ function toProjectPayload(values: ProjectFormValues) {
 }
 
 export async function getProjects(): Promise<Project[]> {
-  const { data } = await apiClient.get<ApiResponse<unknown> | unknown>("/api/tenant/projects");
+  const { data } = await apiClient.get<ApiResponse<unknown> | unknown>(buildTenantApiUrl("/projects"));
   const list = extractList(unwrapApiData<unknown>(data));
 
   // Avoid per-project fallback calls (`/projects/:id/teams`) to prevent N+1 list hydration.
@@ -145,7 +145,7 @@ export async function getProjects(): Promise<Project[]> {
 }
 
 export async function getMyProjects(): Promise<Project[]> {
-  const { data } = await apiClient.get<ApiResponse<unknown> | unknown>("/api/tenant/projects/my");
+  const { data } = await apiClient.get<ApiResponse<unknown> | unknown>(buildTenantApiUrl("/projects/my"));
   const list = extractList(unwrapApiData<unknown>(data));
 
   const items = list.map((item) => {
@@ -160,7 +160,7 @@ export async function getMyProjects(): Promise<Project[]> {
 }
 
 export async function getProjectById(id: string): Promise<Project> {
-  const { data } = await apiClient.get<ApiResponse<unknown> | unknown>(`/api/tenant/projects/${id}`);
+  const { data } = await apiClient.get<ApiResponse<unknown> | unknown>(buildTenantApiUrl(`/projects/${id}`));
   const payload = asRecord(unwrapApiData<unknown>(data));
   const nestedProject = asRecord(firstDefined(payload.project, payload));
   const nestedTeamIds = normalizeTeamIds(
@@ -181,7 +181,7 @@ export async function getProjectById(id: string): Promise<Project> {
 
 export async function createProject(values: ProjectFormValues): Promise<Project> {
   const { data } = await apiClient.post<ApiResponse<unknown> | unknown>(
-    "/api/tenant/projects",
+    buildTenantApiUrl("/projects"),
     toProjectPayload(values)
   );
   const created = unwrapApiData<unknown>(data);
@@ -193,11 +193,19 @@ export async function createProject(values: ProjectFormValues): Promise<Project>
 }
 
 export async function updateProject(id: string, values: ProjectFormValues): Promise<Project> {
-  await apiClient.put(`/api/tenant/projects/${id}`, toProjectPayload(values));
+  await apiClient.put(buildTenantApiUrl(`/projects/${id}`), toProjectPayload(values));
   await syncProjectTeams(id, values.teamIds);
   return getProjectById(id);
 }
 
+export async function updateProjectStatus(id: string, status: ProjectStatus): Promise<Project> {
+  const { data } = await apiClient.patch<ApiResponse<unknown> | unknown>(
+    buildTenantApiUrl(`/projects/${id}/status`),
+    { status: toApiStatus(status) }
+  );
+  return normalizeProject(unwrapApiData<unknown>(data));
+}
+
 export async function deleteProject(id: string): Promise<void> {
-  await apiClient.delete(`/api/tenant/projects/${id}`);
+  await apiClient.delete(buildTenantApiUrl(`/projects/${id}`));
 }

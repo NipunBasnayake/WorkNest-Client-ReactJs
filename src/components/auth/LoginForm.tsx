@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Eye, EyeOff, ArrowRight } from "lucide-react";
 import { Link, useLocation, useNavigate, useSearchParams, type Location } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { useAuthStore } from "@/store/authStore";
 import { Input } from "@/components/common/Input";
 import { Button } from "@/components/common/Button";
 import type { SessionType } from "@/types";
@@ -62,7 +63,8 @@ function isAuthOnlyPath(pathname: string): boolean {
 }
 
 function resolveRedirectPath(from: Location | undefined, sessionType: SessionType | null): string {
-  const fallback = sessionType === "platform" ? "/platform/dashboard" : "/app/dashboard";
+  const tenantSlug = useAuthStore.getState().tenantKey ?? "app";
+  const fallback = sessionType === "platform" ? "/platform/dashboard" : `/${tenantSlug}/dashboard`;
   if (!from) return fallback;
 
   const pathname = from.pathname || "";

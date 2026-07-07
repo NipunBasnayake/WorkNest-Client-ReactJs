@@ -15,12 +15,14 @@ export { tokenStorage };
 export const publicClient: AxiosInstance = axios.create({
   baseURL: BASE_URL,
   headers: { "Content-Type": "application/json" },
+  withCredentials: true,
   timeout: 15_000,
 });
 
 export const apiClient: AxiosInstance = axios.create({
   baseURL: BASE_URL,
   headers: { "Content-Type": "application/json" },
+  withCredentials: true,
   timeout: 15_000,
 });
 
@@ -31,7 +33,7 @@ type RefreshResponse = { accessToken: string; refreshToken?: string };
 type RetryableRequestConfig = AxiosRequestConfig & { _retry?: boolean };
 type AuthStoreState = {
   tenantKey: string | null;
-  applyTokenRefresh: (accessToken: string, refreshToken: string, tenantKey: string | null) => void;
+  applyTokenRefresh: (accessToken: string, tenantKey: string | null) => void;
   hardLogout: (redirectTo?: string) => void;
 };
 
@@ -50,18 +52,34 @@ function flushRefreshSubscribers(error: unknown, token: string | null) {
   refreshSubscribers = [];
 }
 
-function isTenantApiRequest(url?: string): boolean {
-  if (!url) return false;
-
-  let path = url;
-  if (url.startsWith("http://") || url.startsWith("https://")) {
-    path = new URL(url).pathname;
-  } else if (!url.startsWith("/")) {
-    path = `/${url}`;
+export function extractTenantSlugFromPath(): string | null {
+  if (typeof window === "undefined") return null;
+  const path = window.location.pathname;
+  const parts = path.split("/").filter(Boolean);
+  if (parts.length > 0) {
+    const candidate = parts[0];
+    const nonTenantRoots = [
+      "login", "register", "register-company", "forgot-password", 
+      "reset-password", "force-password-change", "session-expired", 
+      "unauthorized", "platform", "app"
+    ];
+    if (!nonTenantRoots.includes(candidate)) {
+      return candidate;
+    }
   }
-
-  return path.startsWith("/api/tenant/");
+  return null;
 }
+
+export function buildTenantApiUrl(path: string): string {
+  const tenantSlug = extractTenantSlugFromPath() || tokenStorage.getTenantKey();
+  const cleanPath = path.startsWith("/") ? path : `/${path}`;
+  if (tenantSlug) {
+    return `/api/${tenantSlug}${cleanPath}`;
+  }
+  return `/api/tenant${cleanPath}`;
+}
+
+
 
 function redirectTo(path: string) {
   if (typeof window === "undefined") return;
@@ -84,15 +102,15 @@ async function resolveTenantKeyForRefresh(): Promise<string | null> {
   return authStore?.tenantKey ?? tokenStorage.getTenantKey();
 }
 
-async function applyTokenRefresh(accessToken: string, refreshToken: string, tenantKey: string | null) {
+async function applyTokenRefresh(accessToken: string, tenantKey: string | null) {
   const authStore = await getAuthStoreState();
   if (authStore) {
-    authStore.applyTokenRefresh(accessToken, refreshToken, tenantKey);
+    authStore.applyTokenRefresh(accessToken, tenantKey);
     return;
   }
 
   const sessionType: SessionType = tokenStorage.getSession() ?? (tenantKey ? "tenant" : "platform");
-  tokenStorage.setTokens(accessToken, refreshToken);
+  tokenStorage.setTokens(accessToken);
   tokenStorage.setContext(tenantKey, sessionType);
 }
 
@@ -161,11 +179,29 @@ apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
     config.headers.Authorization = `Bearer ${token}`;
   }
 
-  const tenantKey = tokenStorage.getTenantKey();
-  if (isTenantApiRequest(config.url) && tenantKey) {
-    config.headers["X-Tenant-ID"] = tenantKey;
+  const csrfToken = tokenStorage.getCsrf();
+  if (csrfToken) {
+    config.headers["X-CSRF-Token"] = csrfToken;
+    config.headers["X-CSRF-TOKEN"] = csrfToken;
+  }
+
+  const deviceId = tokenStorage.getDeviceId();
+  config.headers["X-Device-Id"] = deviceId;
+  if (typeof navigator !== "undefined") {
+    config.headers["X-Device-Name"] = navigator.userAgent;
+  }
+
+  const tenantSlug = extractTenantSlugFromPath() || tokenStorage.getTenantKey();
+  if (tenantSlug) {
+    config.headers["X-Tenant-Slug"] = tenantSlug;
+    config.headers["X-Tenant-ID"] = tenantSlug;
   } else {
+    delete config.headers["X-Tenant-Slug"];
     delete config.headers["X-Tenant-ID"];
+  }
+
+  if (config.url && config.url.includes("/api/tenant/") && tenantSlug) {
+    config.url = config.url.replace("/api/tenant/", `/api/${tenantSlug}/`);
   }
 
   return config;
@@ -211,31 +247,30 @@ apiClient.interceptors.response.use(
     originalRequest._retry = true;
     isRefreshing = true;
 
-    const refreshToken = tokenStorage.getRefresh();
     const tenantKey = await resolveTenantKeyForRefresh();
-    if (!refreshToken) {
-      flushRefreshSubscribers(error, null);
-      isRefreshing = false;
-      await hardLogout(SESSION_EXPIRED_ROUTE);
-      return Promise.reject(applyMappedError(error));
-    }
-
     try {
-      const { data } = await publicClient.post<ApiResponse<RefreshResponse> | RefreshResponse>(
-        "/api/auth/refresh",
-        {
-          refreshToken,
-          tenantKey,
-        }
-      );
+      // Include stored refresh token if available for backend validation
+      const storedRefreshToken = tokenStorage.getRefresh();
+      const refreshPayload: Record<string, string> = {};
+      if (tenantKey) refreshPayload.tenantKey = tenantKey;
+      if (storedRefreshToken) refreshPayload.refreshToken = storedRefreshToken;
+
+      const { data } = await publicClient.post<ApiResponse<RefreshResponse> | RefreshResponse>("/api/auth/refresh", refreshPayload);
 
       const parsed = unwrapApiData<RefreshResponse>(data);
       if (!parsed.accessToken) {
         throw new Error("Refresh response did not include accessToken.");
       }
 
-      const nextRefresh = parsed.refreshToken ?? refreshToken;
-      await applyTokenRefresh(parsed.accessToken, nextRefresh, tenantKey);
+      if (parsed.refreshToken) {
+        tokenStorage.setTokens(parsed.accessToken, parsed.refreshToken);
+      } else {
+        tokenStorage.setTokens(parsed.accessToken);
+      }
+      if ((parsed as Record<string, unknown>).csrfToken) {
+        tokenStorage.setCsrf(getString((parsed as Record<string, unknown>).csrfToken) ?? null);
+      }
+      await applyTokenRefresh(parsed.accessToken, tenantKey);
       flushRefreshSubscribers(null, parsed.accessToken);
 
       originalRequest.headers = {

@@ -5,6 +5,7 @@ import { Link } from "react-router-dom";
 import { ThemeToggle } from "@/components/common/ThemeToggle";
 import { useAuth } from "@/hooks/useAuth";
 import { NotificationItem } from "@/modules/notifications/components/NotificationItem";
+import { tenantRoutes } from "@/utils/tenantRoutes";
 import {
   getNotifications,
   getUnreadNotificationCount,
@@ -257,7 +258,7 @@ export function AppTopbar({ area, pageTitle, breadcrumb, onMobileMenuToggle }: A
 
                 <div className="mt-3 flex justify-end">
                   <Link
-                    to="/app/notifications"
+                    to={tenantRoutes.notifications()}
                     onClick={() => {
                       setOpen(false);
                     }}

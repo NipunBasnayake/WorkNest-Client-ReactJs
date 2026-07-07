@@ -1,4 +1,4 @@
-import { apiClient } from "@/services/http/client";
+import { apiClient, buildTenantApiUrl } from "@/services/http/client";
 import type { UploadedFileAsset } from "@/types";
 
 type UploadKind = "image" | "document";
@@ -10,8 +10,6 @@ interface UploadOptions {
 const IMAGE_MAX_SIZE = 5 * 1024 * 1024;
 const DOCUMENT_MAX_SIZE = 10 * 1024 * 1024;
 const STORAGE_BUCKET_NAME = "uploads";
-// Temporary dev flow: backend writes into frontend public/uploads and returns /uploads/* URLs.
-const LOCAL_UPLOAD_ENDPOINT = "/api/files/upload";
 
 function validateFile(file: File, kind: UploadKind): void {
   if (kind === "image" && !file.type.startsWith("image/")) {
@@ -40,7 +38,7 @@ async function uploadFile(file: File, kind: UploadKind, options: UploadOptions):
   formData.append("type", kind === "image" ? "image" : "doc");
   formData.append("folder", options.folder);
 
-  const { data } = await apiClient.post<UploadedFileAsset>(LOCAL_UPLOAD_ENDPOINT, formData, {
+  const { data } = await apiClient.post<UploadedFileAsset>(buildTenantApiUrl("/files/upload"), formData, {
     headers: {
       "Content-Type": "multipart/form-data",
     },

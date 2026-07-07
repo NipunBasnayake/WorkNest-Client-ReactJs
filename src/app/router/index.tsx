@@ -1,10 +1,11 @@
 import { lazy, Suspense, type ComponentType } from "react";
-import { createBrowserRouter, Navigate, RouterProvider } from "react-router-dom";
+import { createBrowserRouter, Navigate, RouterProvider, useLocation } from "react-router-dom";
 import { AuthLayout } from "@/app/layouts/AuthLayout";
 import { PublicLayout } from "@/app/layouts/PublicLayout";
 import { PlatformLayout, TenantLayout } from "@/app/layouts/AppLayout";
 import { AnnouncementManageGuard, GuestGuard, PermissionGuard, PlatformGuard, TenantGuard } from "@/app/guards/RouteGuards";
 import { PERMISSIONS } from "@/constants/permissions";
+import { useAuthStore } from "@/store/authStore";
 
 function RouteLoader() {
   return (
@@ -74,11 +75,17 @@ const notificationsPage = lazyElement(() => import("@/pages/app/NotificationsPag
 const chatPage = lazyElement(() => import("@/pages/app/ChatPage"), "ChatPage");
 const analyticsPage = lazyElement(() => import("@/pages/app/AnalyticsPage"), "AnalyticsPage");
 const profilePage = lazyElement(() => import("@/pages/app/ProfilePage"), "ProfilePage");
+const recruitmentDashboardPage = lazyElement(() => import("@/modules/recruitment/pages/RecruitmentDashboardPage"), "RecruitmentDashboardPage");
+const recruitmentJobsPage = lazyElement(() => import("@/modules/recruitment/pages/RecruitmentJobsPage"), "RecruitmentJobsPage");
+const recruitmentCandidatesPage = lazyElement(() => import("@/modules/recruitment/pages/RecruitmentCandidatesPage"), "RecruitmentCandidatesPage");
+const recruitmentPipelinePage = lazyElement(() => import("@/modules/recruitment/pages/RecruitmentPipelinePage"), "RecruitmentPipelinePage");
+const recruitmentInterviewsPage = lazyElement(() => import("@/modules/recruitment/pages/RecruitmentInterviewsPage"), "RecruitmentInterviewsPage");
 
 const appSettingsLayoutPage = lazyElement(() => import("@/pages/app/settings/AppSettingsLayoutPage"), "AppSettingsLayoutPage");
 const appSettingsProfilePage = lazyElement(() => import("@/pages/app/settings/AppSettingsProfilePage"), "AppSettingsProfilePage");
 const appSettingsWorkspacePage = lazyElement(() => import("@/pages/app/settings/AppSettingsWorkspacePage"), "AppSettingsWorkspacePage");
 const appSettingsPreferencesPage = lazyElement(() => import("@/pages/app/settings/AppSettingsPreferencesPage"), "AppSettingsPreferencesPage");
+const appSettingsSecurityPage = lazyElement(() => import("@/pages/app/settings/AppSettingsSecurityPage"), "AppSettingsSecurityPage");
 
 const platformDashboardPage = lazyElement(() => import("@/pages/platform/PlatformDashboardPage"), "PlatformDashboardPage");
 const platformAnalyticsPage = lazyElement(() => import("@/pages/platform/PlatformAnalyticsPage"), "PlatformAnalyticsPage");
@@ -119,147 +126,166 @@ const router = createBrowserRouter([
     element: <TenantGuard />,
     children: [
       {
+        path: ":tenantSlug",
         element: <TenantLayout />,
         children: [
-          { path: "app", element: <Navigate to="/app/dashboard" replace /> },
-          { path: "app/dashboard", element: tenantDashboardPage },
+          { index: true, element: <Navigate to="dashboard" replace /> },
+          { path: "dashboard", element: tenantDashboardPage },
 
           {
             element: <PermissionGuard permission={PERMISSIONS.EMPLOYEES_VIEW} />,
             children: [
-              { path: "app/employees", element: employeesPage },
-              { path: "app/employees/:id", element: employeeDetailPage },
+              { path: "employees", element: employeesPage },
+              { path: "employees/:id", element: employeeDetailPage },
             ],
           },
 
           {
             element: <PermissionGuard permission={PERMISSIONS.EMPLOYEES_MANAGE} />,
             children: [
-              { path: "app/employees/new", element: employeeFormPage },
-              { path: "app/employees/:id/edit", element: employeeFormPage },
+              { path: "employees/new", element: employeeFormPage },
+              { path: "employees/:id/edit", element: employeeFormPage },
             ],
           },
 
           {
             element: <PermissionGuard permission={PERMISSIONS.TEAMS_VIEW} />,
             children: [
-              { path: "app/teams", element: teamsPage },
-              { path: "app/teams/:id", element: teamDetailPage },
+              { path: "teams", element: teamsPage },
+              { path: "teams/:id", element: teamDetailPage },
             ],
           },
 
           {
             element: <PermissionGuard permission={PERMISSIONS.TEAMS_MANAGE} />,
             children: [
-              { path: "app/teams/new", element: teamFormPage },
-              { path: "app/teams/:id/edit", element: teamFormPage },
+              { path: "teams/new", element: teamFormPage },
+              { path: "teams/:id/edit", element: teamFormPage },
             ],
           },
 
           {
             element: <PermissionGuard permission={PERMISSIONS.PROJECTS_VIEW} />,
             children: [
-              { path: "app/projects", element: projectsPage },
-              { path: "app/projects/:id", element: projectDetailPage },
+              { path: "projects", element: projectsPage },
+              { path: "projects/:id", element: projectDetailPage },
             ],
           },
 
           {
             element: <PermissionGuard permission={PERMISSIONS.PROJECTS_MANAGE} />,
             children: [
-              { path: "app/projects/new", element: projectFormPage },
+              { path: "projects/new", element: projectFormPage },
             ],
           },
 
           {
-            element: <PermissionGuard permission={PERMISSIONS.PROJECTS_VIEW} />,
-            children: [{ path: "app/projects/:id/edit", element: projectFormPage }],
+            element: <PermissionGuard permission={PERMISSIONS.PROJECTS_EDIT} />,
+            children: [{ path: "projects/:id/edit", element: projectFormPage }],
           },
 
           {
             element: <PermissionGuard permission={PERMISSIONS.TASKS_VIEW} />,
             children: [
-              { path: "app/tasks", element: tasksPage },
-              { path: "app/tasks/board", element: taskBoardPage },
-              { path: "app/tasks/new", element: taskFormPage },
-              { path: "app/tasks/:id", element: taskDetailPage },
+              { path: "tasks", element: tasksPage },
+              { path: "tasks/board", element: taskBoardPage },
+              { path: "tasks/new", element: taskFormPage },
+              { path: "tasks/:id", element: taskDetailPage },
             ],
           },
 
           {
             element: <PermissionGuard permission={PERMISSIONS.TASKS_MANAGE} />,
             children: [
-              { path: "app/tasks/:id/edit", element: taskFormPage },
+              { path: "tasks/:id/edit", element: taskFormPage },
             ],
           },
 
           {
             element: <PermissionGuard permission={PERMISSIONS.ATTENDANCE_VIEW} />,
-            children: [{ path: "app/attendance", element: attendancePage }],
+            children: [{ path: "attendance", element: attendancePage }],
           },
 
           {
             element: <PermissionGuard permission={PERMISSIONS.LEAVE_VIEW} />,
             children: [
-              { path: "app/leave", element: leavePage },
-              { path: "app/leave/:id", element: leaveDetailPage },
+              { path: "leave", element: leavePage },
+              { path: "leave/:id", element: leaveDetailPage },
             ],
           },
 
           {
             element: <PermissionGuard permission={PERMISSIONS.LEAVE_REQUEST} />,
             children: [
-              { path: "app/leave/new", element: leaveFormPage },
-              { path: "app/leave/:id/edit", element: leaveFormPage },
+              { path: "leave/new", element: leaveFormPage },
+              { path: "leave/:id/edit", element: leaveFormPage },
             ],
           },
 
           {
             element: <PermissionGuard permission={PERMISSIONS.ANNOUNCEMENTS_VIEW} />,
             children: [
-              { path: "app/announcements", element: announcementsPage },
-              { path: "app/announcements/:id", element: announcementDetailPage },
+              { path: "announcements", element: announcementsPage },
+              { path: "announcements/:id", element: announcementDetailPage },
             ],
           },
 
           {
             element: <AnnouncementManageGuard />,
             children: [
-              { path: "app/announcements/new", element: announcementFormPage },
-              { path: "app/announcements/:id/edit", element: announcementFormPage },
+              { path: "announcements/new", element: announcementFormPage },
+              { path: "announcements/:id/edit", element: announcementFormPage },
             ],
           },
 
           {
             element: <PermissionGuard permission={PERMISSIONS.NOTIFICATIONS_VIEW} />,
-            children: [{ path: "app/notifications", element: notificationsPage }],
+            children: [{ path: "notifications", element: notificationsPage }],
           },
 
           {
             element: <PermissionGuard permission={PERMISSIONS.CHAT_VIEW} />,
-            children: [{ path: "app/chat", element: chatPage }],
+            children: [{ path: "chat", element: chatPage }],
           },
 
           {
             element: <PermissionGuard permission={PERMISSIONS.ANALYTICS_VIEW} />,
-            children: [{ path: "app/analytics", element: analyticsPage }],
+            children: [{ path: "analytics", element: analyticsPage }],
           },
 
-          { path: "app/profile", element: profilePage },
           {
-            path: "app/settings",
+            element: <PermissionGuard permission={PERMISSIONS.RECRUITMENT_VIEW} />,
+            children: [
+              { path: "recruitment", element: <Navigate to="dashboard" replace /> },
+              { path: "recruitment/dashboard", element: recruitmentDashboardPage },
+              { path: "recruitment/pipeline", element: recruitmentPipelinePage },
+              { path: "recruitment/jobs", element: recruitmentJobsPage },
+              { path: "recruitment/candidates", element: recruitmentCandidatesPage },
+              { path: "recruitment/interviews", element: recruitmentInterviewsPage },
+            ],
+          },
+
+          { path: "profile", element: profilePage },
+          {
+            path: "settings",
             element: appSettingsLayoutPage,
             children: [
               { index: true, element: <Navigate to="profile" replace /> },
               { path: "profile", element: appSettingsProfilePage },
               { path: "workspace", element: appSettingsWorkspacePage },
               { path: "preferences", element: appSettingsPreferencesPage },
+              { path: "security", element: appSettingsSecurityPage },
             ],
           },
-          { path: "app/*", element: <ComingSoonPage /> },
+          { path: "*", element: <ComingSoonPage /> },
         ],
       },
     ],
+  },
+
+  {
+    path: "app/*",
+    element: <LegacyTenantPathRedirect />,
   },
 
   {
@@ -302,6 +328,14 @@ function ComingSoonPage() {
       </p>
     </div>
   );
+}
+
+function LegacyTenantPathRedirect() {
+  const location = useLocation();
+  const tenantSlug = useAuthStore.getState().tenantKey ?? "app";
+  const remainder = location.pathname.replace(/^\/app\/?/, "");
+  const nextPath = remainder ? `/${tenantSlug}/${remainder}${location.search}${location.hash}` : `/${tenantSlug}/dashboard`;
+  return <Navigate to={nextPath} replace />;
 }
 
 export function AppRouter() {

@@ -65,11 +65,25 @@ export function useChat(currentUserId: string | undefined) {
     [activeTab, hrConversations, teamConversations]
   );
 
+  const allConversations = useMemo(
+    () => [...teamConversations, ...hrConversations],
+    [hrConversations, teamConversations]
+  );
+
+  // Stable string key that only changes when conversations are added or removed (not on preview updates)
+  const conversationSubKey = useMemo(
+    () =>
+      allConversations
+        .map((c) => `${c.type}:${c.id}`)
+        .sort()
+        .join(","),
+    [allConversations]
+  );
+
   const selectedConversation = useMemo(() => {
     if (!selectedConversationKey) return null;
-    const all = [...teamConversations, ...hrConversations];
-    return all.find((conversation) => buildConversationKey(conversation) === selectedConversationKey) ?? null;
-  }, [hrConversations, selectedConversationKey, teamConversations]);
+    return allConversations.find((conversation) => buildConversationKey(conversation) === selectedConversationKey) ?? null;
+  }, [allConversations, selectedConversationKey]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -530,7 +544,18 @@ export function useChat(currentUserId: string | undefined) {
   }, [activeConversations, activeTab, selectedConversation]);
 
   useEffect(() => {
-    const unsubscribe = subscribeChatRealtime(null, (payload) => {
+    if (!conversationSubKey) return;
+
+    const refs = conversationSubKey
+      .split(",")
+      .filter(Boolean)
+      .map((key) => {
+        const [type, id] = key.split(":");
+        return { id, type: type as ChatType };
+      });
+    if (refs.length === 0) return;
+
+    const unsubscribe = subscribeChatRealtime(refs, (payload) => {
       const selected = selectedConversationRef.current;
       const conversationHint = selected
         ? {
@@ -555,7 +580,7 @@ export function useChat(currentUserId: string | undefined) {
         silentRefreshTimerRef.current = null;
       }
     };
-  }, [handleIncomingMessage, scheduleSilentConversationRefresh]);
+  }, [conversationSubKey, handleIncomingMessage, scheduleSilentConversationRefresh]);
 
   // Polling fallback for realtime updates
   useEffect(() => {

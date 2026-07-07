@@ -7,6 +7,48 @@ import type { ChangeRequiredPasswordResult, PasswordChangeRequirement } from "@/
 const SESSION_EXPIRED_ROUTE = "/session-expired";
 let bootstrapInFlight: Promise<void> | null = null;
 
+/**
+ * Broadcast channel name used to synchronise logout across browser tabs.
+ * When one tab logs out, all other tabs receive the signal and clear their session too.
+ */
+const AUTH_BROADCAST_CHANNEL = "worknest:auth";
+
+let broadcastChannel: BroadcastChannel | null = null;
+
+function getBroadcastChannel(): BroadcastChannel | null {
+  if (typeof BroadcastChannel === "undefined") return null;
+  if (broadcastChannel) return broadcastChannel;
+  try {
+    broadcastChannel = new BroadcastChannel(AUTH_BROADCAST_CHANNEL);
+    return broadcastChannel;
+  } catch {
+    return null;
+  }
+}
+
+function broadcastLogout() {
+  const channel = getBroadcastChannel();
+  if (channel) {
+    channel.postMessage({ type: "logout", timestamp: Date.now() });
+  }
+}
+
+function listenForBroadcastLogout(onLogout: () => void): () => void {
+  const channel = getBroadcastChannel();
+  if (!channel) return () => {};
+
+  const handler = (event: MessageEvent) => {
+    if (event.data?.type === "logout") {
+      onLogout();
+    }
+  };
+
+  channel.addEventListener("message", handler);
+  return () => {
+    channel.removeEventListener("message", handler);
+  };
+}
+
 interface AuthState {
   /* State */
   user: AuthUser | null;
@@ -15,6 +57,7 @@ interface AuthState {
   tenantKey: string | null;
   isLoading: boolean;
   isBootstrapping: boolean;
+  authReady: boolean;
   error: string | null;
   passwordChangeRequired: boolean;
   passwordChangeChallenge: PasswordChangeRequirement | null;
@@ -27,12 +70,12 @@ interface AuthState {
   setUser: (user: AuthUser) => void;
   setPasswordChangeChallenge: (challenge: PasswordChangeRequirement | null) => void;
   completePasswordChange: (result: ChangeRequiredPasswordResult) => Promise<void>;
-  applyTokenRefresh: (accessToken: string, refreshToken: string, tenantKey: string | null) => void;
+  applyTokenRefresh: (accessToken: string, tenantKey: string | null) => void;
   hardLogout: (redirectTo?: string) => void;
 }
 
 function deriveSessionType(user: AuthUser): SessionType {
-  if (user.tenantKey) return "tenant";
+  if (user.tenantSlug || user.tenantKey) return "tenant";
   const platformRoles = ["PLATFORM_ADMIN", "PLATFORM_USER"];
   return platformRoles.includes(user.role) ? "platform" : "tenant";
 }
@@ -55,6 +98,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   tenantKey:        null,
   isLoading:        false,
   isBootstrapping:  true,
+  authReady:        false,
   error:            null,
   passwordChangeRequired: false,
   passwordChangeChallenge: null,
@@ -80,16 +124,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
 
       const { tokens, user: loginUser } = loginResult;
+      const csrfToken = loginResult.csrfToken ?? null;
 
       const sessionType: SessionType = payload.tenantKey ? "tenant" : "platform";
       const tenantKey = payload.tenantKey ?? null;
 
       tokenStorage.setTokens(tokens.accessToken, tokens.refreshToken);
+      tokenStorage.setCsrf(csrfToken);
       tokenStorage.setContext(tenantKey, sessionType);
 
       const user = loginUser ?? await getMeApi();
       const resolvedSession = deriveSessionType(user);
-      const resolvedTenantKey = user.tenantKey ?? tenantKey;
+      const resolvedTenantKey = user.tenantSlug ?? user.tenantKey ?? tenantKey;
 
       // Ensure tenantKey is updated if backend returned it inside user
       tokenStorage.setContext(resolvedTenantKey, resolvedSession);
@@ -100,6 +146,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         sessionType:     resolvedSession,
         tenantKey:       resolvedTenantKey,
         isLoading:       false,
+        authReady:       true,
         error:           null,
         passwordChangeRequired: false,
         passwordChangeChallenge: null,
@@ -136,13 +183,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   /* ── Logout ── */
   logout: async () => {
-    const refreshToken = tokenStorage.getRefresh();
     const tenantKey = tokenStorage.getTenantKey();
     let logoutWarning: string | null = null;
     try {
-      if (refreshToken) {
-        await logoutApi(refreshToken, tenantKey);
-      }
+      await logoutApi(tenantKey);
     } catch {
       logoutWarning = "Logout request failed on the server, but your local session has been cleared.";
     } finally {
@@ -158,10 +202,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         passwordChangeRequired: false,
         passwordChangeChallenge: null,
       });
+      /* Notify other tabs that the session has ended */
+      broadcastLogout();
     }
   },
 
-  /* ── Bootstrap — restore session on app load ── */
+  /* ── Bootstrap — restore session on app load, with cross-tab logout sync ── */
   bootstrap: async () => {
     if (bootstrapInFlight) {
       return bootstrapInFlight;
@@ -169,19 +215,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     bootstrapInFlight = (async () => {
       set({ isBootstrapping: true });
-      const accessToken = tokenStorage.getAccess();
-      const refreshToken = tokenStorage.getRefresh();
-
-      if (!accessToken && !refreshToken) {
-        tokenStorage.clear();
-        set({ isBootstrapping: false, isAuthenticated: false });
-        return;
-      }
 
       try {
         const user = await getMeApi();
         const sessionType   = deriveSessionType(user);
-        const resolvedTenant = user.tenantKey ?? tokenStorage.getTenantKey();
+        const resolvedTenant = user.tenantSlug ?? user.tenantKey ?? tokenStorage.getTenantKey();
 
         tokenStorage.setContext(resolvedTenant, sessionType);
 
@@ -191,13 +229,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           sessionType,
           tenantKey:       resolvedTenant,
           isBootstrapping: false,
+          authReady:       true,
           error:           null,
           passwordChangeRequired: false,
           passwordChangeChallenge: null,
         });
       } catch (err: unknown) {
         // /me failed and refresh recovery did not produce a valid session.
-        // Clear local auth state to avoid stale authenticated UI.
+        // Clear local auth state and redirect to session-expired
         tokenStorage.clear();
         set({
           user:            null,
@@ -205,10 +244,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           sessionType:     null,
           tenantKey:       null,
           isBootstrapping: false,
+          authReady:       true,
           error: extractErrorMessage(err) ?? "Your previous session could not be restored. Please sign in again.",
           passwordChangeRequired: false,
           passwordChangeChallenge: null,
         });
+        /* Redirect to session-expired so the user sees a clear message
+           instead of an ambiguous blank page. */
+        if (typeof window !== "undefined") {
+          redirectTo(SESSION_EXPIRED_ROUTE);
+        }
       }
     })();
 
@@ -247,13 +292,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     try {
       tokenStorage.setTokens(result.tokens.accessToken, result.tokens.refreshToken);
+      tokenStorage.setCsrf(null);
 
       const provisionalSessionType: SessionType = challengeTenantKey ? "tenant" : "platform";
       tokenStorage.setContext(challengeTenantKey, provisionalSessionType);
 
       const user = result.user ?? await getMeApi();
       const resolvedSession = deriveSessionType(user);
-      const resolvedTenantKey = user.tenantKey ?? challengeTenantKey;
+      const resolvedTenantKey = user.tenantSlug ?? user.tenantKey ?? challengeTenantKey;
 
       tokenStorage.setContext(resolvedTenantKey, resolvedSession);
 
@@ -263,6 +309,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         sessionType: resolvedSession,
         tenantKey: resolvedTenantKey,
         isLoading: false,
+        authReady: true,
         error: null,
         passwordChangeRequired: false,
         passwordChangeChallenge: null,
@@ -282,12 +329,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       throw err;
     }
   },
-  applyTokenRefresh: (accessToken, refreshToken, tenantKey) => {
+  applyTokenRefresh: (accessToken, tenantKey) => {
     const state = get();
     const resolvedTenantKey = tenantKey ?? state.tenantKey ?? tokenStorage.getTenantKey();
     const resolvedSessionType = resolveSessionType(state.sessionType, resolvedTenantKey);
 
-    tokenStorage.setTokens(accessToken, refreshToken);
+    tokenStorage.setTokens(accessToken);
     tokenStorage.setContext(resolvedTenantKey, resolvedSessionType);
 
     set({
@@ -307,13 +354,31 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       tenantKey:       null,
       isLoading:       false,
       isBootstrapping: false,
+      authReady:       false,
       error:           null,
       passwordChangeRequired: false,
       passwordChangeChallenge: null,
     });
+    /* Notify other tabs that the session has ended */
+    broadcastLogout();
     redirectTo(redirectToPath);
   },
 }));
+
+/* ── Cross-tab logout synchronisation ── */
+/* Set up a BroadcastChannel listener once after the store module is loaded.
+   When another tab logs out, this tab receives the signal and clears its
+   session too, redirecting to session-expired. */
+if (typeof window !== "undefined") {
+  queueMicrotask(() => {
+    listenForBroadcastLogout(() => {
+      const state = useAuthStore.getState();
+      if (!state.isAuthenticated) return;
+      tokenStorage.clear();
+      state.hardLogout(SESSION_EXPIRED_ROUTE);
+    });
+  });
+}
 
 /* ── Selectors ── */
 export const selectIsAuthenticated  = (s: AuthState) => s.isAuthenticated;

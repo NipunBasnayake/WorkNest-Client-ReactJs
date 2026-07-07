@@ -49,12 +49,12 @@ export function TaskDetailPage() {
   const { hasPermission } = usePermission();
   const toast = useToast();
 
-  const canManageTasks = hasPermission(PERMISSIONS.TASKS_MANAGE);
-  const isEmployeeOnly = role === "EMPLOYEE" && !canManageTasks;
+  const roleValue = String(role ?? "");
+  const hasGlobalTaskWorkflow = roleValue === "TENANT_ADMIN" || roleValue === "ADMIN";
 
   const taskQuery = useTaskDetailQuery(id, Boolean(id));
   const commentsQuery = useTaskCommentsQuery(id, Boolean(id));
-  const viewerIdentityQuery = useTaskViewerIdentityQuery(Boolean(id && isEmployeeOnly));
+  const viewerIdentityQuery = useTaskViewerIdentityQuery(Boolean(id && !hasGlobalTaskWorkflow));
   const projectsQuery = useProjectsQuery(Boolean(id));
   const teamsQuery = useTeamsQuery(Boolean(id));
 
@@ -70,6 +70,7 @@ export function TaskDetailPage() {
   const task = taskQuery.data ?? null;
   const comments = commentsQuery.data ?? EMPTY_COMMENTS;
   const viewerIdentity = viewerIdentityQuery.data as TaskViewerIdentity | undefined;
+  const isTaskDone = task?.status === "DONE";
 
   const [commentDraft, setCommentDraft] = useState("");
   const [draftTaskId, setDraftTaskId] = useState<string | null>(null);
@@ -111,8 +112,10 @@ export function TaskDetailPage() {
     task?.assignedTeamId ? [task.assignedTeamId] : undefined
   );
 
+  const canEditTaskTeam = hasTeamWorkflowAccess(viewerTeamRoles);
+  const canManageTaskFields = hasGlobalTaskWorkflow || canEditTaskTeam;
   const canAssignTask = hasPermission(PERMISSIONS.TASKS_ASSIGN, { teamRoles: viewerTeamRoles });
-  const canManageAssignee = canManageTasks || canAssignTask;
+  const canManageAssignee = hasGlobalTaskWorkflow || (canAssignTask && canEditTaskTeam);
 
   const loading = taskQuery.isLoading;
   const loadingComments = commentsQuery.isLoading;
@@ -132,31 +135,30 @@ export function TaskDetailPage() {
     : null;
 
   const canViewTask = Boolean(task);
-  const canEditTaskTeam = hasTeamWorkflowAccess(viewerTeamRoles);
 
   const canUpdateStatus = useMemo(() => {
     if (!task) return false;
-    if (canManageTasks) return true;
-    if (!isEmployeeOnly) return false;
+    if (hasGlobalTaskWorkflow) return true;
     if (task.assignedTeamId) return canEditTaskTeam;
     return isTaskAssignedToViewer(task, viewerIdentity);
-  }, [canEditTaskTeam, canManageTasks, isEmployeeOnly, task, viewerIdentity]);
+  }, [canEditTaskTeam, hasGlobalTaskWorkflow, task, viewerIdentity]);
   const workflowPermissionNote = useMemo(() => {
-    if (canManageTasks) return null;
+    if (canManageTaskFields) return null;
     if (canManageAssignee) return "You don't have permission to edit protected fields outside task assignment.";
     if (canUpdateStatus) return "You don't have permission to edit assignment, scheduling, or priority.";
     return "You don't have permission to update this task.";
-  }, [canManageAssignee, canManageTasks, canUpdateStatus]);
+  }, [canManageAssignee, canManageTaskFields, canUpdateStatus]);
 
   const statusOptions = useMemo(() => {
     if (!task) return TASK_STATUS_OPTIONS;
     return getTaskAllowedStatuses(
       task,
-      canManageTasks ? "TENANT_ADMIN" : role,
+      hasGlobalTaskWorkflow ? "TENANT_ADMIN" : role,
       task.assignedTeamId ? viewerTeamRoles : [],
       isTaskAssignedToViewer(task, viewerIdentity)
     );
-  }, [canManageTasks, role, task, viewerIdentity, viewerTeamRoles]);
+  }, [hasGlobalTaskWorkflow, role, task, viewerIdentity, viewerTeamRoles]);
+  const canUseStatusControl = canUpdateStatus && (!isTaskDone || statusOptions.includes("IN_REVIEW"));
 
   const activityItems = useMemo<Array<{ id: string; label: string; at: string; detail?: string }>>(() => {
     if (!task) return [];
@@ -195,7 +197,7 @@ export function TaskDetailPage() {
   }
 
   async function handlePriorityChange(nextPriority: TaskPriority) {
-    if (!task || !canManageTasks || nextPriority === task.priority) return;
+    if (!task || isTaskDone || !canManageTaskFields || nextPriority === task.priority) return;
 
     try {
       const updated = await updatePriorityMutation.mutateAsync(nextPriority);
@@ -213,7 +215,7 @@ export function TaskDetailPage() {
   }
 
   async function handleDueDateUpdate() {
-    if (!task || !canManageTasks || !effectiveDueDateDraft || effectiveDueDateDraft === task.dueDate) return;
+    if (!task || isTaskDone || !canManageTaskFields || !effectiveDueDateDraft || effectiveDueDateDraft === task.dueDate) return;
 
     try {
       const updated = await updateDueDateMutation.mutateAsync(effectiveDueDateDraft);
@@ -231,7 +233,7 @@ export function TaskDetailPage() {
   }
 
   async function handleAssigneeUpdate() {
-    if (!task || !canManageAssignee || effectiveAssigneeDraft === (task.assigneeId ?? "")) return;
+    if (!task || isTaskDone || !canManageAssignee || effectiveAssigneeDraft === (task.assigneeId ?? "")) return;
 
     try {
       const updated = await updateAssigneeMutation.mutateAsync(effectiveAssigneeDraft);
@@ -249,7 +251,7 @@ export function TaskDetailPage() {
   }
 
   async function handleProjectUpdate() {
-    if (!task || !canManageTasks || effectiveProjectDraft === (task.projectId ?? "")) return;
+    if (!task || isTaskDone || !canManageTaskFields || effectiveProjectDraft === (task.projectId ?? "")) return;
 
     try {
       const updated = await updateTaskMutation.mutateAsync({
@@ -279,6 +281,13 @@ export function TaskDetailPage() {
 
   async function handleCommentSubmit() {
     if (!task || !canViewTask || !commentDraft.trim()) return;
+    if (isTaskDone) {
+      toast.error({
+        title: "Task is locked",
+        description: "Reopen the task before adding comments.",
+      });
+      return;
+    }
 
     try {
       await addCommentMutation.mutateAsync(commentDraft.trim());
@@ -299,7 +308,7 @@ export function TaskDetailPage() {
           <ArrowLeft size={16} />
           Back
         </Button>
-        {task && canManageTasks ? <Button variant="outline" to={`/app/tasks/${task.id}/edit`}>Edit Task</Button> : null}
+        {task && canManageTaskFields && !isTaskDone ? <Button variant="outline" to={`/app/tasks/${task.id}/edit`}>Edit Task</Button> : null}
       </div>
 
       {loading ? (
@@ -339,6 +348,15 @@ export function TaskDetailPage() {
             </div>
           </SectionCard>
 
+          {isTaskDone ? (
+            <div
+              className="rounded-xl border px-4 py-3 text-sm"
+              style={{ borderColor: "rgba(245,158,11,0.30)", backgroundColor: "rgba(245,158,11,0.08)", color: "#b45309" }}
+            >
+              This task is DONE and locked. The only available change is reopening it to Waiting for Admin Review through the status control.
+            </div>
+          ) : null}
+
           <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
             <InfoCard icon={<UserCircle2 size={16} />} label="Assignee" value={task.assignedTeamName || task.assigneeName || "Unassigned"} />
             <InfoCard icon={<UserCircle2 size={16} />} label="Assigned Team" value={task.assignedTeamName || "Unscoped"} />
@@ -353,7 +371,7 @@ export function TaskDetailPage() {
                 label="Status"
                 value={task.status}
                 options={statusOptions}
-                disabled={updatingTask || !canUpdateStatus}
+                disabled={updatingTask || !canUseStatusControl}
                 onChange={(value) => void handleStatusChange(value as TaskStatus)}
               />
               <FieldSelect
@@ -361,7 +379,7 @@ export function TaskDetailPage() {
                 label="Priority"
                 value={task.priority}
                 options={TASK_PRIORITY_OPTIONS}
-                disabled={updatingTask || !canManageTasks}
+                disabled={updatingTask || !canManageTaskFields || isTaskDone}
                 onChange={(value) => void handlePriorityChange(value as TaskPriority)}
               />
               <div className="space-y-1.5">
@@ -377,18 +395,18 @@ export function TaskDetailPage() {
                       setDraftTaskId(task.id);
                       setDueDateDraft(event.target.value);
                     }}
-                    disabled={!canManageTasks}
+                    disabled={!canManageTaskFields || isTaskDone}
                     className="w-full rounded-xl border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary-500/30 disabled:opacity-60"
                     style={{ borderColor: "var(--border-default)", backgroundColor: "var(--bg-surface)", color: "var(--text-primary)" }}
                   />
-                  <Button size="sm" variant="outline" disabled={updatingTask || !canManageTasks || effectiveDueDateDraft === task.dueDate} onClick={() => void handleDueDateUpdate()}>
+                  <Button size="sm" variant="outline" disabled={updatingTask || !canManageTaskFields || isTaskDone || effectiveDueDateDraft === task.dueDate} onClick={() => void handleDueDateUpdate()}>
                     Save
                   </Button>
                 </div>
               </div>
             </div>
 
-            {canManageTasks || canManageAssignee ? (
+            {canManageTaskFields || canManageAssignee ? (
               <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div className="space-y-1.5">
                   <label htmlFor="task-detail-assignee" className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
@@ -402,7 +420,7 @@ export function TaskDetailPage() {
                         setDraftTaskId(task.id);
                         setAssigneeDraft(event.target.value);
                       }}
-                      disabled={!canManageAssignee}
+                      disabled={!canManageAssignee || isTaskDone}
                     >
                       <option value="">Unassigned</option>
                       {assigneeOptions.map((assignee) => (
@@ -411,7 +429,7 @@ export function TaskDetailPage() {
                         </option>
                       ))}
                     </AppSelect>
-                    <Button size="sm" variant="outline" disabled={updatingTask || !canManageAssignee || effectiveAssigneeDraft === (task.assigneeId ?? "")} onClick={() => void handleAssigneeUpdate()}>
+                    <Button size="sm" variant="outline" disabled={updatingTask || !canManageAssignee || isTaskDone || effectiveAssigneeDraft === (task.assigneeId ?? "")} onClick={() => void handleAssigneeUpdate()}>
                       Save
                     </Button>
                   </div>
@@ -429,7 +447,7 @@ export function TaskDetailPage() {
                         setDraftTaskId(task.id);
                         setProjectDraft(event.target.value);
                       }}
-                      disabled={!canManageTasks}
+                      disabled={!canManageTaskFields || isTaskDone}
                     >
                       <option value="">No project</option>
                       {projectOptions.map((projectOption) => (
@@ -438,7 +456,7 @@ export function TaskDetailPage() {
                         </option>
                       ))}
                     </AppSelect>
-                    <Button size="sm" variant="outline" disabled={updatingTask || !canManageTasks || effectiveProjectDraft === (task.projectId ?? "")} onClick={() => void handleProjectUpdate()}>
+                    <Button size="sm" variant="outline" disabled={updatingTask || !canManageTaskFields || isTaskDone || effectiveProjectDraft === (task.projectId ?? "")} onClick={() => void handleProjectUpdate()}>
                       Save
                     </Button>
                   </div>
@@ -460,8 +478,8 @@ export function TaskDetailPage() {
                   rows={3}
                   value={commentDraft}
                   onChange={(event) => setCommentDraft(event.target.value)}
-                  disabled={addingComment}
-                  placeholder="Add implementation notes, blockers, or progress updates..."
+                  disabled={addingComment || isTaskDone}
+                  placeholder={isTaskDone ? "Reopen the task before adding comments." : "Add implementation notes, blockers, or progress updates..."}
                   className="w-full resize-none rounded-xl border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary-500/30"
                   style={{ borderColor: "var(--border-default)", backgroundColor: "var(--bg-surface)", color: "var(--text-primary)" }}
                 />
@@ -469,7 +487,7 @@ export function TaskDetailPage() {
                   <span className="text-xs" style={{ color: "var(--text-tertiary)" }}>
                     Commenting as {user?.name ?? "Current user"}
                   </span>
-                  <Button size="sm" variant="primary" disabled={addingComment || !commentDraft.trim()} onClick={() => void handleCommentSubmit()}>
+                  <Button size="sm" variant="primary" disabled={addingComment || isTaskDone || !commentDraft.trim()} onClick={() => void handleCommentSubmit()}>
                     {addingComment ? "Posting..." : "Post Comment"}
                   </Button>
                 </div>

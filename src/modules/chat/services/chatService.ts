@@ -26,18 +26,11 @@ import type {
   SendMessagePayload,
 } from "@/modules/chat/types";
 import { asRecord, extractList, firstDefined, getId, getNumber, getString, isRecord, toIsoDateTime } from "@/services/http/parsers";
-import { readRealtimeDestinations, subscribeRealtime, type RealtimeListener } from "@/services/realtime/stompService";
+import { subscribeRealtime, type RealtimeListener } from "@/services/realtime/stompService";
+import { tokenStorage } from "@/services/http/client";
 import { useAuthStore } from "@/store/authStore";
 
 const conversationTypeById = new Map<string, ChatType>();
-
-const CHAT_GLOBAL_REALTIME_DESTINATIONS = readRealtimeDestinations("VITE_CHAT_TOPICS", [
-  "/user/queue/chats",
-  "/user/queue/messages",
-  "/topic/tenant/chats",
-  "/topic/tenant/chats/hr",
-  "/topic/tenant/chats/team",
-]);
 
 function parseChatType(value: unknown): ChatType | undefined {
   const parsed = getString(value)?.toUpperCase();
@@ -436,26 +429,41 @@ export async function markConversationMessagesAsRead(options: {
     .map((result) => result.value);
 }
 
-function buildRealtimeDestinations(conversation: { id: string; type: ChatType } | null): string[] {
-  if (!conversation) return [...CHAT_GLOBAL_REALTIME_DESTINATIONS];
+/**
+ * Build STOMP topic destinations for chat real-time subscriptions.
+ *
+ * Matches the backend publish paths in TenantRealtimePublisher:
+ *   - HR messages:  /topic/tenant/{tenantKey}/hr-chat/{conversationId}
+ *   - Team messages: /topic/tenant/{tenantKey}/team-chat/{teamChatId}
+ *
+ * Also includes /user/queue destinations as a fallback for any
+ * user-directed messages.
+ */
+function buildRealtimeDestinations(conversations: { id: string; type: ChatType }[]): string[] {
+  const tenantKey = tokenStorage.getTenantKey();
+  if (!tenantKey) return [];
 
-  const typeKey = conversation.type.toLowerCase();
-  const scoped = [
-    `/topic/tenant/chats/${typeKey}/conversations/${conversation.id}`,
-    `/topic/tenant/chats/${typeKey}/${conversation.id}`,
-    `/topic/tenant/chats/conversations/${conversation.id}`,
-    `/user/queue/chats/${conversation.id}`,
-    `/user/queue/messages/${conversation.id}`,
-  ];
+  const destinations: string[] = [];
 
-  return [...new Set([...CHAT_GLOBAL_REALTIME_DESTINATIONS, ...scoped])];
+  // Add per-conversation topics matching backend publish paths
+  for (const conv of conversations) {
+    const typeSegment = conv.type === "HR" ? "hr-chat" : "team-chat";
+    destinations.push(`/topic/tenant/${tenantKey}/${typeSegment}/${conv.id}`);
+  }
+
+  // User-queue fallback for any user-directed messages
+  destinations.push("/user/queue/chats");
+  destinations.push("/user/queue/messages");
+
+  return [...new Set(destinations)];
 }
 
 export function subscribeChatRealtime(
-  conversation: { id: string; type: ChatType } | null,
+  conversations: { id: string; type: ChatType }[],
   listener: RealtimeListener
 ): () => void {
-  const destinations = buildRealtimeDestinations(conversation);
+  const destinations = buildRealtimeDestinations(conversations);
+  if (destinations.length === 0) return () => {};
   return subscribeRealtime(destinations, listener);
 }
 

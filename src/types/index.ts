@@ -44,6 +44,7 @@ export interface AuthUser {
   name: string;
   role: UserRole | string;
   tenantKey?: string | null;
+  tenantSlug?: string | null;
   sessionType?: SessionType;
   avatarUrl?: string;
 }
@@ -56,7 +57,22 @@ export interface LoginPayload {
 
 export interface AuthTokens {
   accessToken: string;
-  refreshToken: string;
+  refreshToken?: string;
+}
+
+export interface AuthSession {
+  id: number;
+  deviceId?: string | null;
+  deviceName?: string | null;
+  userAgent?: string | null;
+  ipAddress?: string | null;
+  suspicious?: boolean;
+  suspiciousReason?: string | null;
+  createdAt?: string;
+  lastUsedAt?: string;
+  expiresAt?: string;
+  revoked?: boolean;
+  currentSession?: boolean;
 }
 
 export interface LoginResponse {
