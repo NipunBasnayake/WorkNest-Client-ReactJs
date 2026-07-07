@@ -3,7 +3,7 @@ import type { PlatformRole, TenantRole } from "@/types";
 import { PERMISSIONS, type Permission } from "@/constants/permissions";
 
 export type AppRole = PlatformRole | TenantRole | string;
-export type NormalizedAppRole = "PLATFORM_ADMIN" | "PLATFORM_USER" | "TENANT_ADMIN" | "HR" | "EMPLOYEE";
+export type NormalizedAppRole = "PLATFORM_ADMIN" | "PLATFORM_USER" | "TENANT_ADMIN" | "HR" | "MANAGER" | "EMPLOYEE";
 
 const ALL_TENANT_PERMISSIONS: Permission[] = [
   PERMISSIONS.TENANT_DASHBOARD_VIEW,
@@ -85,6 +85,25 @@ export const ROLE_PERMISSION_MAP: Record<NormalizedAppRole, Permission[]> = {
     PERMISSIONS.HR_CHAT_START,
     PERMISSIONS.ANALYTICS_VIEW,
   ],
+  MANAGER: [
+    PERMISSIONS.TENANT_DASHBOARD_VIEW,
+    PERMISSIONS.ATTENDANCE_VIEW,
+    PERMISSIONS.LEAVE_VIEW,
+    PERMISSIONS.LEAVE_REQUEST,
+    PERMISSIONS.ANNOUNCEMENTS_VIEW,
+    PERMISSIONS.NOTIFICATIONS_VIEW,
+    PERMISSIONS.CHAT_VIEW,
+    PERMISSIONS.PROFILE_VIEW,
+    PERMISSIONS.PROFILE_MANAGE,
+    PERMISSIONS.SETTINGS_VIEW,
+    PERMISSIONS.TEAMS_VIEW,
+    PERMISSIONS.PROJECTS_VIEW,
+    PERMISSIONS.TASKS_VIEW,
+    PERMISSIONS.TASKS_MANAGE,
+    PERMISSIONS.TASKS_ASSIGN,
+    PERMISSIONS.TASK_ATTACHMENTS_MANAGE,
+    PERMISSIONS.ANALYTICS_VIEW,
+  ],
   EMPLOYEE: [
     ...ALL_TENANT_PERMISSIONS,
     PERMISSIONS.LEAVE_REQUEST,
@@ -99,7 +118,7 @@ export const ROLE_PERMISSION_MAP: Record<NormalizedAppRole, Permission[]> = {
 
 export const TEAM_ROLE_PERMISSION_MAP: Record<TeamMemberFunctionalRole, Permission[]> = {
   MEMBER: [],
-  PROJECT_MANAGER: [PERMISSIONS.TASKS_ASSIGN, PERMISSIONS.PROJECTS_EDIT],
+  PROJECT_MANAGER: [PERMISSIONS.TASKS_ASSIGN],
   TEAM_LEAD: [PERMISSIONS.TASKS_ASSIGN],
   BUSINESS_ANALYST: [],
   DEVELOPER: [],
@@ -111,11 +130,12 @@ export function normalizeAppRole(role: AppRole | null | undefined): NormalizedAp
   const normalized = String(role ?? "").trim().toUpperCase();
 
   if (!normalized) return null;
-  if (normalized === "ADMIN" || normalized === "MANAGER") return "TENANT_ADMIN";
+  if (normalized === "ADMIN") return "TENANT_ADMIN";
   if (normalized === "PLATFORM_ADMIN") return "PLATFORM_ADMIN";
   if (normalized === "PLATFORM_USER") return "PLATFORM_USER";
   if (normalized === "TENANT_ADMIN") return "TENANT_ADMIN";
   if (normalized === "HR") return "HR";
+  if (normalized === "MANAGER") return "MANAGER";
   if (normalized === "EMPLOYEE") return "EMPLOYEE";
 
   return null;

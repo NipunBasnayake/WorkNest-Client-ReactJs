@@ -58,6 +58,7 @@ export function EmployeeForm({
             onChange={(e) => onChange({ ...values, role: e.target.value as EmployeeFormValues["role"] })}
           >
             <option value="TENANT_ADMIN">Tenant Admin</option>
+            <option value="MANAGER">Manager</option>
             <option value="HR">HR</option>
             <option value="EMPLOYEE">Employee</option>
           </AppSelect>

@@ -28,11 +28,8 @@ import type { EmployeeSkill, EmployeeSkillPayload } from "@/modules/employees/ty
 
 function toApiRole(role: unknown): EmployeeApiRole {
   const value = getString(role)?.toUpperCase();
-  if (value === "TENANT_ADMIN" || value === "ADMIN" || value === "MANAGER") {
-    return "TENANT_ADMIN";
-  }
-  if (value === "HR" || value === "EMPLOYEE") {
-    return value;
+  if (value === "TENANT_ADMIN" || value === "ADMIN" || value === "MANAGER" || value === "HR" || value === "EMPLOYEE") {
+    return value as EmployeeApiRole;
   }
   return "EMPLOYEE";
 }

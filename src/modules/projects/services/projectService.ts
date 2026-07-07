@@ -198,6 +198,14 @@ export async function updateProject(id: string, values: ProjectFormValues): Prom
   return getProjectById(id);
 }
 
+export async function updateProjectStatus(id: string, status: ProjectStatus): Promise<Project> {
+  const { data } = await apiClient.patch<ApiResponse<unknown> | unknown>(
+    buildTenantApiUrl(`/projects/${id}/status`),
+    { status: toApiStatus(status) }
+  );
+  return normalizeProject(unwrapApiData<unknown>(data));
+}
+
 export async function deleteProject(id: string): Promise<void> {
   await apiClient.delete(buildTenantApiUrl(`/projects/${id}`));
 }

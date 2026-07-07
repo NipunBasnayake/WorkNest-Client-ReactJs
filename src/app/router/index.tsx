@@ -180,7 +180,7 @@ const router = createBrowserRouter([
           },
 
           {
-            element: <PermissionGuard permission={PERMISSIONS.PROJECTS_VIEW} />,
+            element: <PermissionGuard permission={PERMISSIONS.PROJECTS_EDIT} />,
             children: [{ path: "projects/:id/edit", element: projectFormPage }],
           },
 
