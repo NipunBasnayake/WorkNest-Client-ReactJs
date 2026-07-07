@@ -17,7 +17,6 @@ import type { SessionType } from "@/types";
 /* ── In-memory cache refreshed lazily ── */
 
 let cachedTenantKey: string | null = null;
-let cachedSessionType: SessionType | null = null;
 
 /**
  * Lazily sync the cached values from the auth store.
@@ -31,7 +30,6 @@ let refreshCache: () => void = () => {
       try {
         const state = useAuthStore.getState();
         cachedTenantKey = state.tenantKey;
-        cachedSessionType = state.sessionType;
       } catch {
         // Store not ready yet
       }
@@ -40,7 +38,6 @@ let refreshCache: () => void = () => {
         try {
           const state = useAuthStore.getState();
           cachedTenantKey = state.tenantKey;
-          cachedSessionType = state.sessionType;
         } catch {
           // Keep previous cache
         }

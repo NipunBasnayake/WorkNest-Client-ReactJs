@@ -113,13 +113,7 @@ class RealtimeStompClient {
 
     const client = new Client({
       webSocketFactory: () => new SockJS(resolveHttpWsUrl()),
-      /*
-       * Use a function for reconnectDelay so the delay is recomputed
-       * on every reconnect attempt, enabling true exponential backoff.
-       * The function receives the retryCount (1-based) from the STOMP
-       * client's internal retry loop.
-       */
-      reconnectDelay: () => this.computeDelay(),
+      reconnectDelay: this.computeDelay(),
       heartbeatIncoming: this.config.heartbeatIncoming,
       heartbeatOutgoing: this.config.heartbeatOutgoing,
       beforeConnect: () => {

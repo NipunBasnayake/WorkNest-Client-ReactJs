@@ -10,8 +10,6 @@ interface UploadOptions {
 const IMAGE_MAX_SIZE = 5 * 1024 * 1024;
 const DOCUMENT_MAX_SIZE = 10 * 1024 * 1024;
 const STORAGE_BUCKET_NAME = "uploads";
-// Temporary dev flow: backend writes into frontend public/uploads and returns /uploads/* URLs.
-const LOCAL_UPLOAD_ENDPOINT = "/api/files/upload";
 
 function validateFile(file: File, kind: UploadKind): void {
   if (kind === "image" && !file.type.startsWith("image/")) {
