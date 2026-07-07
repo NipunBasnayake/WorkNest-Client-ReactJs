@@ -28,7 +28,7 @@ import {
 import { KanbanColumn } from "@/modules/tasks/components/KanbanColumn";
 import { KanbanTaskCard } from "@/modules/tasks/components/KanbanTaskCard";
 import { TASK_STATUS_OPTIONS, type Task, type TaskStatus } from "@/modules/tasks/types";
-import { canMoveTaskToStatus, hasTeamWorkflowAccess } from "@/modules/tasks/utils/taskWorkflow";
+import { canMoveTaskToStatus, getTaskAllowedStatuses, hasTeamWorkflowAccess } from "@/modules/tasks/utils/taskWorkflow";
 import { persistTasksViewPreference, resolveTasksViewFromQuery } from "@/modules/tasks/utils/tasksViewPreference";
 import { subscribeTaskRealtime } from "@/modules/tasks/services/taskRealtimeService";
 import { resolveViewerTeamRoles } from "@/modules/teams/utils/teamRoles";
@@ -52,8 +52,11 @@ export function TaskBoardPage() {
   const { hasPermission } = usePermission();
 
   const canManageTasks = hasPermission(PERMISSIONS.TASKS_MANAGE);
+  const roleValue = String(role ?? "");
+  const hasGlobalTaskWorkflow = roleValue === "TENANT_ADMIN" || roleValue === "ADMIN";
+  const needsScopedWorkflowContext = !hasGlobalTaskWorkflow;
   const isEmployeeOnly = role === "EMPLOYEE" && !canManageTasks;
-  const myTeamsQuery = useMyTeamsQuery(isEmployeeOnly);
+  const myTeamsQuery = useMyTeamsQuery(needsScopedWorkflowContext);
 
   const [viewerIdentity, setViewerIdentity] = useState<TaskViewerIdentity | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -80,7 +83,7 @@ export function TaskBoardPage() {
     }
 
     try {
-      const identityPromise = isEmployeeOnly ? resolveTaskViewerIdentity() : Promise.resolve(null);
+      const identityPromise = needsScopedWorkflowContext ? resolveTaskViewerIdentity() : Promise.resolve(null);
       const taskPromise = isEmployeeOnly ? getMyTasks() : getTasks();
       const [data, identity] = await Promise.all([taskPromise, identityPromise]);
       setTasks(data);
@@ -94,7 +97,7 @@ export function TaskBoardPage() {
         setLoading(false);
       }
     }
-  }, [isEmployeeOnly]);
+  }, [isEmployeeOnly, needsScopedWorkflowContext]);
 
   useEffect(() => {
     const preferredView = resolveTasksViewFromQuery(searchParams.get("view"));
@@ -173,20 +176,34 @@ export function TaskBoardPage() {
   }, [filtered]);
 
   const canDragTask = useCallback((task: Task): boolean => {
-    if (canManageTasks) return true;
-    if (!isEmployeeOnly || !viewerIdentity) return false;
+    const teamRoles = task.assignedTeamId
+      ? resolveViewerTeamRoles(
+          employeeTeams,
+          { employeeId: viewerIdentity?.employeeId, email: viewerIdentity?.email },
+          [task.assignedTeamId]
+        )
+      : [];
+    const isDirectAssignee = Boolean(viewerIdentity && isTaskAssignedToViewer(task, viewerIdentity));
+    const allowedStatuses = getTaskAllowedStatuses(
+      task,
+      hasGlobalTaskWorkflow ? "TENANT_ADMIN" : role,
+      teamRoles,
+      isDirectAssignee
+    );
+
+    if (!allowedStatuses.some((status) => status !== task.status)) {
+      return false;
+    }
+
+    if (hasGlobalTaskWorkflow) return true;
+    if (!viewerIdentity) return false;
 
     if (task.assignedTeamId) {
-      const teamRoles = resolveViewerTeamRoles(
-        employeeTeams,
-        { employeeId: viewerIdentity.employeeId, email: viewerIdentity.email },
-        [task.assignedTeamId]
-      );
       return hasTeamWorkflowAccess(teamRoles);
     }
 
     return isTaskAssignedToViewer(task, viewerIdentity);
-  }, [canManageTasks, employeeTeams, isEmployeeOnly, viewerIdentity]);
+  }, [employeeTeams, hasGlobalTaskWorkflow, role, viewerIdentity]);
 
   const draggableTaskIds = useMemo(() => {
     const ids = new Set<string>();
@@ -229,7 +246,7 @@ export function TaskBoardPage() {
       : [];
     const isDirectAssignee = Boolean(viewerIdentity && isTaskAssignedToViewer(current, viewerIdentity));
 
-    if (!canMoveTaskToStatus(current, role, teamRoles, isDirectAssignee, nextStatus)) {
+    if (!canMoveTaskToStatus(current, hasGlobalTaskWorkflow ? "TENANT_ADMIN" : role, teamRoles, isDirectAssignee, nextStatus)) {
       setFeedback("This status transition is restricted for your role.");
       return;
     }
@@ -250,7 +267,7 @@ export function TaskBoardPage() {
       setTasks((prev) => prev.map((task) => (task.id === taskId ? { ...task, status: previousStatus } : task)));
       setFeedback(getErrorMessage(err, "Unable to move task right now."));
     }
-  }, [employeeTeams, role, tasks, viewerIdentity]);
+  }, [employeeTeams, hasGlobalTaskWorkflow, role, tasks, viewerIdentity]);
 
   return (
     <div className="space-y-6">

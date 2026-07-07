@@ -60,16 +60,22 @@ export function TaskFormPage() {
       getMyEmployeeProfile().catch(() => null),
     ])
       .then(([projectRes, teamRes, profile]) => {
-        setProjectCatalog(projectRes);
+        const openProjects = projectRes.filter((project) => !isClosedProject(project));
+        setProjectCatalog(openProjects);
         setTeams(teamRes);
         setViewerEmployeeId(profile?.id);
 
-        if (!isEdit && requestedProjectId && projectRes.some((project) => project.id === requestedProjectId)) {
-          setForm((current) => (current.projectId ? current : { ...current, projectId: requestedProjectId }));
+        if (!isEdit && requestedProjectId) {
+          const requestedProject = projectRes.find((project) => project.id === requestedProjectId);
+          if (requestedProject && isClosedProject(requestedProject)) {
+            setDependencyLoadError("The selected project is completed or cancelled and locked. Reopen the project before creating tasks.");
+          } else if (requestedProject && !isClosedProject(requestedProject)) {
+            setForm((current) => (current.projectId ? current : { ...current, projectId: requestedProjectId }));
+          }
         }
 
-        if (projectRes.length === 0) {
-          setDependencyLoadError("Projects are required to create or edit tasks.");
+        if (openProjects.length === 0) {
+          setDependencyLoadError("An open project is required to create or edit tasks.");
           return;
         }
 
@@ -91,6 +97,10 @@ export function TaskFormPage() {
     getTaskById(id)
       .then((task) => {
         if (!active) return;
+        if (task.status === "DONE") {
+          setFatalError("This task is DONE and locked. Reopen it from the task detail page before editing.");
+          return;
+        }
         setForm({
           title: task.title,
           description: task.description || "",
@@ -285,4 +295,8 @@ export function TaskFormPage() {
       )}
     </div>
   );
+}
+
+function isClosedProject(project: Project): boolean {
+  return project.status === "completed" || project.status === "cancelled";
 }

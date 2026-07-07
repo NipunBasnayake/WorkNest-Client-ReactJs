@@ -9,6 +9,7 @@ import {
   assignTeamToProject,
   getProjectById,
   removeTeamFromProject,
+  updateProjectStatus,
 } from "@/modules/projects/services/projectService";
 import { getMyEmployeeProfile } from "@/modules/employees/services/employeeService";
 import { getTeams } from "@/modules/teams/services/teamService";
@@ -52,8 +53,10 @@ export function ProjectDetailPage() {
   const [assigningTeam, setAssigningTeam] = useState(false);
   const [removeTeamTarget, setRemoveTeamTarget] = useState<Team | null>(null);
   const [removingTeam, setRemovingTeam] = useState(false);
+  const [reopeningProject, setReopeningProject] = useState(false);
 
   const resolvedError = !id ? "Invalid project id." : error;
+  const isProjectClosed = project?.status === "completed" || project?.status === "cancelled";
 
   const loadProjectContext = useCallback(async (projectId: string) => {
     const profilePromise = isEmployeeOnly
@@ -114,6 +117,7 @@ export function ProjectDetailPage() {
 
   const canEditProject = hasPermission(PERMISSIONS.PROJECTS_EDIT, { teamRoles: viewerTeamRoles });
   const canAssignProjectTasks = hasPermission(PERMISSIONS.TASKS_ASSIGN, { teamRoles: viewerTeamRoles });
+  const canMutateProject = canManageProjects && !isProjectClosed;
 
   const unlinkedTeamIds = useMemo(() => {
     if (!project) return [];
@@ -162,7 +166,7 @@ export function ProjectDetailPage() {
   }
 
   async function handleAssignTeam() {
-    if (!id || !teamToAssign) return;
+    if (!id || !teamToAssign || isProjectClosed) return;
     setAssigningTeam(true);
     setMessage(null);
     try {
@@ -178,7 +182,7 @@ export function ProjectDetailPage() {
   }
 
   async function handleRemoveTeam() {
-    if (!id || !removeTeamTarget) return;
+    if (!id || !removeTeamTarget || isProjectClosed) return;
     setRemovingTeam(true);
     setMessage(null);
     try {
@@ -193,6 +197,21 @@ export function ProjectDetailPage() {
     }
   }
 
+  async function handleReopenProject() {
+    if (!id || !isProjectClosed) return;
+    setReopeningProject(true);
+    setMessage(null);
+    try {
+      const updated = await updateProjectStatus(id, "active");
+      setProject(updated);
+      setMessage("Project reopened. Editing, team assignment, and task creation are available again.");
+    } catch (err: unknown) {
+      setMessage(getErrorMessage(err, "Unable to reopen project."));
+    } finally {
+      setReopeningProject(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-2">
@@ -200,7 +219,12 @@ export function ProjectDetailPage() {
           <ArrowLeft size={16} />
           Back
         </Button>
-        {project && canEditProject && <Button variant="outline" to={`/app/projects/${project.id}/edit`}>Edit Project</Button>}
+        {project && canEditProject && !isProjectClosed && <Button variant="outline" to={`/app/projects/${project.id}/edit`}>Edit Project</Button>}
+        {project && canManageProjects && isProjectClosed && (
+          <Button variant="outline" loading={reopeningProject} loadingLabel="Reopening project" onClick={() => void handleReopenProject()}>
+            Reopen Project
+          </Button>
+        )}
       </div>
 
       {message && (
@@ -213,6 +237,15 @@ export function ProjectDetailPage() {
           }}
         >
           {message}
+        </div>
+      )}
+
+      {project && isProjectClosed && (
+        <div
+          className="rounded-xl border px-4 py-3 text-sm"
+          style={{ borderColor: "rgba(245,158,11,0.30)", backgroundColor: "rgba(245,158,11,0.08)", color: "#b45309" }}
+        >
+          This project is {project.status === "completed" ? "completed" : "cancelled"} and locked. Reopen it before editing details, changing team assignments, or creating tasks.
         </div>
       )}
 
@@ -305,7 +338,7 @@ export function ProjectDetailPage() {
                 <Button size="sm" variant="outline" to="/app/tasks">
                   Open Tasks
                 </Button>
-                {(hasPermission(PERMISSIONS.TASKS_MANAGE) || canAssignProjectTasks) && (
+                {!isProjectClosed && (hasPermission(PERMISSIONS.TASKS_MANAGE) || canAssignProjectTasks) && (
                   <Button size="sm" variant="primary" to={`/app/tasks/new?projectId=${project.id}`}>
                     Create Task
                   </Button>
@@ -355,7 +388,7 @@ export function ProjectDetailPage() {
 
           <div id="project-teams">
             <SectionCard title="Assigned Teams" subtitle="Teams currently linked to this project.">
-            {canManageProjects && (
+            {canMutateProject && (
               <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto]">
                 <AppSelect
                   value={teamToAssign}
@@ -401,7 +434,7 @@ export function ProjectDetailPage() {
                       <Button size="sm" variant="ghost" to={`/app/teams/${team.id}`}>
                         View Team
                       </Button>
-                      {canManageProjects && (
+                      {canMutateProject && (
                         <Button size="sm" variant="danger" onClick={() => setRemoveTeamTarget(team)}>
                           Remove
                         </Button>

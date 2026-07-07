@@ -69,6 +69,10 @@ export function ProjectFormPage() {
     getProjectById(id)
       .then((project) => {
         if (!active) return;
+        if (project.status === "completed" || project.status === "cancelled") {
+          setFatalError("This project is locked because it is completed or cancelled. Reopen it from the project details page before editing.");
+          return;
+        }
         setForm({
           name: project.name,
           description: project.description ?? "",

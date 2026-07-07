@@ -174,6 +174,7 @@ export function ProjectsPage() {
                 const summary = projectTaskSummary.get(project.id);
                 const progress = summary?.progress ?? project.progress;
                 const taskLabel = summary ? `${summary.open}/${summary.total} open` : "No task data";
+                const isClosed = isClosedProject(project);
                 return (
                   <div
                     key={project.id}
@@ -201,7 +202,7 @@ export function ProjectsPage() {
                       >
                         <FiEye size={15} />
                       </Link>
-                      {canManageProjects && (
+                      {canManageProjects && !isClosed && (
                         <Link
                           to={`/app/projects/${project.id}/edit`}
                           title="Edit project"
@@ -211,6 +212,11 @@ export function ProjectsPage() {
                         >
                           <FiEdit2 size={15} />
                         </Link>
+                      )}
+                      {canManageProjects && isClosed && (
+                        <span className="text-xs font-medium" style={{ color: "var(--text-tertiary)" }}>
+                          Locked
+                        </span>
                       )}
                     </div>
                   </div>
@@ -222,6 +228,7 @@ export function ProjectsPage() {
               {filtered.map((project) => {
                 const summary = projectTaskSummary.get(project.id);
                 const progress = summary?.progress ?? project.progress;
+                const isClosed = isClosedProject(project);
 
                 return (
                   <article
@@ -246,7 +253,12 @@ export function ProjectsPage() {
                     </div>
                     <div className="mt-4 flex flex-wrap gap-2">
                       <Button variant="ghost" size="sm" to={`/app/projects/${project.id}`}>View</Button>
-                      {canManageProjects && <Button variant="outline" size="sm" to={`/app/projects/${project.id}/edit`}>Edit</Button>}
+                      {canManageProjects && !isClosed && <Button variant="outline" size="sm" to={`/app/projects/${project.id}/edit`}>Edit</Button>}
+                      {canManageProjects && isClosed && (
+                        <span className="inline-flex items-center rounded-xl px-3 py-2 text-xs font-semibold" style={{ color: "var(--text-tertiary)", backgroundColor: "var(--bg-muted)" }}>
+                          Locked
+                        </span>
+                      )}
                     </div>
                   </article>
                 );
@@ -262,4 +274,8 @@ export function ProjectsPage() {
 
 function getProjectTeamCount(project: Project): number {
   return project.teamCount ?? project.teamIds.length;
+}
+
+function isClosedProject(project: Project): boolean {
+  return project.status === "completed" || project.status === "cancelled";
 }
