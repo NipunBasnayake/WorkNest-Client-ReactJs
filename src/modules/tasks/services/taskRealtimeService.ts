@@ -2,7 +2,6 @@ import { readRealtimeDestinations, subscribeRealtime, type RealtimeListener } fr
 import { tokenStorage } from "@/services/http/client";
 
 const TASKS_REALTIME_DESTINATIONS = readRealtimeDestinations("VITE_TASKS_TOPICS", [
-  "/topic/tenant/tasks",
   "/topic/tasks",
 ]);
 

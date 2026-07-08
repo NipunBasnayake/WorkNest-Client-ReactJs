@@ -116,7 +116,12 @@ function preferenceStorageKey(tenantKey: string, userId: string): string {
 }
 
 function readTenantPreferences(tenantKey: string, userId: string): PreferenceSettings {
-  const raw = localStorage.getItem(preferenceStorageKey(tenantKey, userId));
+  let raw: string | null = null;
+  try {
+    raw = localStorage.getItem(preferenceStorageKey(tenantKey, userId));
+  } catch {
+    return defaultTenantPreferences();
+  }
   if (!raw) return defaultTenantPreferences();
 
   try {
@@ -128,7 +133,11 @@ function readTenantPreferences(tenantKey: string, userId: string): PreferenceSet
 }
 
 function writeTenantPreferences(tenantKey: string, userId: string, preferences: PreferenceSettings) {
-  localStorage.setItem(preferenceStorageKey(tenantKey, userId), JSON.stringify(preferences));
+  try {
+    localStorage.setItem(preferenceStorageKey(tenantKey, userId), JSON.stringify(preferences));
+  } catch {
+    // Local preferences should not break settings when browser storage is blocked.
+  }
 }
 
 function defaultPlatformSettings(): PlatformSettings {
@@ -141,7 +150,12 @@ function defaultPlatformSettings(): PlatformSettings {
 }
 
 function readPlatformSettings(): PlatformSettings {
-  const raw = localStorage.getItem(PLATFORM_SETTINGS_KEY);
+  let raw: string | null = null;
+  try {
+    raw = localStorage.getItem(PLATFORM_SETTINGS_KEY);
+  } catch {
+    return defaultPlatformSettings();
+  }
   if (!raw) return defaultPlatformSettings();
 
   try {
@@ -153,7 +167,11 @@ function readPlatformSettings(): PlatformSettings {
 }
 
 function writePlatformSettings(data: PlatformSettings) {
-  localStorage.setItem(PLATFORM_SETTINGS_KEY, JSON.stringify(data));
+  try {
+    localStorage.setItem(PLATFORM_SETTINGS_KEY, JSON.stringify(data));
+  } catch {
+    // Local platform settings are best-effort only.
+  }
 }
 
 async function getCurrentAuthUser(): Promise<AuthUser> {
