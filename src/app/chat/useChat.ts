@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  createHrConversation,
-  createTeamConversation,
-  getOrCreateTeamConversationByTeam,
+  createOrGetMyHrSupportConversation,
+  getRealtimeConversationHint,
   listConversationMessages,
   listMyHrConversations,
   listMyTeamConversations,
@@ -13,7 +12,7 @@ import {
 } from "@/modules/chat/services/chatService";
 import { getMyEmployeeProfile } from "@/modules/employees/services/employeeService";
 import type { ChatConversation, ChatMessage, ChatType } from "@/modules/chat/types";
-import { buildConversationKey, sortMessages } from "@/app/chat/chatUtils";
+import { buildConversationKey, sortMessages, toRole } from "@/app/chat/chatUtils";
 import {
   areMessagesEquivalent,
   clearUnread,
@@ -29,8 +28,7 @@ interface RefreshOptions {
   force?: boolean;
 }
 
-export function useChat(currentUserId: string | undefined) {
-  const [activeTab, setActiveTab] = useState<ChatType>("TEAM");
+export function useChat(currentUserId: string | undefined, currentUserRole: string | undefined) {
   const [teamConversations, setTeamConversations] = useState<ChatConversation[]>([]);
   const [hrConversations, setHrConversations] = useState<ChatConversation[]>([]);
   const [selectedConversationKey, setSelectedConversationKey] = useState<string | null>(null);
@@ -43,7 +41,6 @@ export function useChat(currentUserId: string | undefined) {
   const [error, setError] = useState<string | null>(null);
 
   const mountedRef = useRef<boolean>(false);
-  const activeTabRef = useRef<ChatType>(activeTab);
   const viewerEmployeeIdRef = useRef<string | undefined>(viewerEmployeeId);
   const selectedConversationRef = useRef<ChatConversation | null>(null);
   const selectedConversationKeyRef = useRef<string | null>(selectedConversationKey);
@@ -60,10 +57,9 @@ export function useChat(currentUserId: string | undefined) {
   const silentRefreshTimerRef = useRef<number | null>(null);
   const pollingIntervalRef = useRef<number | null>(null);
 
-  const activeConversations = useMemo(
-    () => (activeTab === "TEAM" ? teamConversations : hrConversations),
-    [activeTab, hrConversations, teamConversations]
-  );
+  const normalizedRole = useMemo(() => toRole(currentUserRole), [currentUserRole]);
+  const isAdminObserver = normalizedRole === "TENANT_ADMIN" || normalizedRole === "ADMIN";
+  const canOpenHrSupport = Boolean(viewerEmployeeId && !isAdminObserver && normalizedRole !== "HR");
 
   const allConversations = useMemo(
     () => [...teamConversations, ...hrConversations],
@@ -85,6 +81,12 @@ export function useChat(currentUserId: string | undefined) {
     return allConversations.find((conversation) => buildConversationKey(conversation) === selectedConversationKey) ?? null;
   }, [allConversations, selectedConversationKey]);
 
+  const canSendSelectedConversation = useMemo(() => {
+    if (!viewerEmployeeId || !selectedConversation) return false;
+    if (selectedConversation.type === "TEAM") return true;
+    return !isAdminObserver;
+  }, [isAdminObserver, selectedConversation, viewerEmployeeId]);
+
   useEffect(() => {
     mountedRef.current = true;
     return () => {
@@ -99,10 +101,6 @@ export function useChat(currentUserId: string | undefined) {
       }
     };
   }, []);
-
-  useEffect(() => {
-    activeTabRef.current = activeTab;
-  }, [activeTab]);
 
   useEffect(() => {
     selectedConversationRef.current = selectedConversation;
@@ -206,8 +204,7 @@ export function useChat(currentUserId: string | undefined) {
             return target;
           }
 
-          const nextByTab = activeTabRef.current === "TEAM" ? nextTeam[0] : nextHr[0];
-          const fallback = nextByTab ?? available[0] ?? null;
+          const fallback = nextTeam[0] ?? nextHr[0] ?? available[0] ?? null;
           return fallback ? buildConversationKey(fallback) : null;
         });
 
@@ -374,6 +371,10 @@ export function useChat(currentUserId: string | undefined) {
       const selected = selectedConversationRef.current;
       const resolvedViewerId = viewerEmployeeIdRef.current;
       if (!selected || !selected.id) return;
+      if (selected.type === "HR" && isAdminObserver) {
+        setError("Admins can observe HR support conversations but cannot reply.");
+        return;
+      }
       if (!resolvedViewerId) {
         setError("Current employee profile could not be resolved.");
         return;
@@ -438,83 +439,33 @@ export function useChat(currentUserId: string | undefined) {
         }
       }
     },
-    [refreshConversations]
+    [isAdminObserver, refreshConversations]
   );
 
-  const startTeamConversation = useCallback(
-    async (teamId: string): Promise<ChatConversation> => {
-      const normalizedTeamId = teamId.trim();
-      if (!normalizedTeamId) {
-        throw new Error("A valid team id is required.");
-      }
+  const openHrSupportConversation = useCallback(async (): Promise<ChatConversation> => {
+    if (!canOpenHrSupport) {
+      throw new Error("HR support chat is only available to employees.");
+    }
 
-      setError(null);
-      let created = await createTeamConversation(normalizedTeamId);
-      if (!created.id) {
-        created = await getOrCreateTeamConversationByTeam(normalizedTeamId);
-      }
+    setError(null);
+    const conversation = await createOrGetMyHrSupportConversation();
+    if (!conversation.id) {
+      throw new Error("Unable to open HR support.");
+    }
 
-      if (!created.id) {
-        throw new Error("Unable to resolve the team conversation.");
-      }
+    messageLoadVersionRef.current += 1;
+    setHrConversations((previous) => placeConversationOnTop(previous, conversation));
+    setSelectedConversationKey(buildConversationKey(conversation));
+    setMessages([]);
+    return conversation;
+  }, [canOpenHrSupport]);
 
-      messageLoadVersionRef.current += 1;
-      setActiveTab("TEAM");
-      setTeamConversations((previous) => placeConversationOnTop(previous, created));
-      setSelectedConversationKey(buildConversationKey(created));
-      setMessages([]);
-      return created;
-    },
-    []
-  );
-
-  const startHrConversation = useCallback(
-    async (employeeId: string, hrId: string): Promise<ChatConversation> => {
-      const normalizedEmployeeId = employeeId.trim();
-      const normalizedHrId = hrId.trim();
-      if (!normalizedEmployeeId || !normalizedHrId) {
-        throw new Error("Both employee and HR ids are required.");
-      }
-
-      setError(null);
-      let created = await createHrConversation(normalizedEmployeeId, normalizedHrId);
-
-      if (!created.id) {
-        const refreshed = await listMyHrConversations();
-        created =
-          refreshed.find((conversation) => {
-            const pairA = conversation.employeeId === normalizedEmployeeId && conversation.hrId === normalizedHrId;
-            const pairB = conversation.employeeId === normalizedHrId && conversation.hrId === normalizedEmployeeId;
-            return pairA || pairB;
-          }) ??
-          refreshed[0] ??
-          created;
-      }
-
-      if (!created.id) {
-        throw new Error("Unable to resolve the HR conversation.");
-      }
-
-      messageLoadVersionRef.current += 1;
-      setActiveTab("HR");
-      setHrConversations((previous) => placeConversationOnTop(previous, created));
-      setSelectedConversationKey(buildConversationKey(created));
-      setMessages([]);
-      return created;
-    },
-    []
-  );
-
-  const selectConversation = useCallback(
-    (conversationId: string) => {
-      const target = activeConversations.find((conversation) => conversation.id === conversationId);
-      if (!target) return;
-      const nextKey = buildConversationKey(target);
-      if (nextKey === selectedConversationKeyRef.current) return;
-      setSelectedConversationKey(nextKey);
-    },
-    [activeConversations]
-  );
+  const selectConversation = useCallback((conversation: Pick<ChatConversation, "id" | "type">) => {
+    if (!conversation.id) return;
+    const nextKey = buildConversationKey(conversation);
+    if (nextKey === selectedConversationKeyRef.current) return;
+    setSelectedConversationKey(nextKey);
+  }, []);
 
   const clearError = useCallback(() => {
     setError(null);
@@ -537,13 +488,6 @@ export function useChat(currentUserId: string | undefined) {
   }, [loadSelectedConversationMessages, selectedConversationKey]);
 
   useEffect(() => {
-    if (selectedConversation && selectedConversation.type === activeTab) return;
-
-    const firstConversation = activeConversations[0] ?? null;
-    setSelectedConversationKey(firstConversation ? buildConversationKey(firstConversation) : null);
-  }, [activeConversations, activeTab, selectedConversation]);
-
-  useEffect(() => {
     if (!conversationSubKey) return;
 
     const refs = conversationSubKey
@@ -555,14 +499,15 @@ export function useChat(currentUserId: string | undefined) {
       });
     if (refs.length === 0) return;
 
-    const unsubscribe = subscribeChatRealtime(refs, (payload) => {
+    const unsubscribe = subscribeChatRealtime(refs, (payload, message) => {
       const selected = selectedConversationRef.current;
-      const conversationHint = selected
+      const selectedConversationHint = selected
         ? {
             id: selected.id,
             type: selected.type,
           }
         : null;
+      const conversationHint = getRealtimeConversationHint(message) ?? selectedConversationHint;
       const incoming = parseRealtimeMessage(payload, conversationHint);
 
       if (incoming) {
@@ -669,12 +614,11 @@ export function useChat(currentUserId: string | undefined) {
   }, [refreshConversations]);
 
   return {
-    activeTab,
-    setActiveTab,
     currentEmployeeId: viewerEmployeeId,
-    conversations: activeConversations,
     teamConversations,
     hrConversations,
+    canOpenHrSupport,
+    canSendSelectedConversation,
     selectedConversation,
     selectedConversationId: selectedConversation?.id ?? null,
     selectedConversationKey,
@@ -685,9 +629,8 @@ export function useChat(currentUserId: string | undefined) {
     error,
     refreshConversations,
     selectConversation,
+    openHrSupportConversation,
     sendMessage,
-    startTeamConversation,
-    startHrConversation,
     clearError,
   };
 }
