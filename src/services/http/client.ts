@@ -8,7 +8,7 @@ import { ENV } from "@/config/env";
 import { tokenStorage } from "@/services/auth/tokenStorage";
 
 const BASE_URL = ENV.apiBaseUrl;
-const SESSION_EXPIRED_ROUTE = "/session-expired";
+const LOGIN_ROUTE = "/login";
 
 export { tokenStorage };
 
@@ -60,7 +60,7 @@ export function extractTenantSlugFromPath(): string | null {
     const candidate = parts[0];
     const nonTenantRoots = [
       "login", "register", "register-company", "forgot-password", 
-      "reset-password", "force-password-change", "session-expired", 
+      "reset-password", "force-password-change",
       "unauthorized", "platform", "app"
     ];
     if (!nonTenantRoots.includes(candidate)) {
@@ -114,7 +114,7 @@ async function applyTokenRefresh(accessToken: string, tenantKey: string | null) 
   tokenStorage.setContext(tenantKey, sessionType);
 }
 
-async function hardLogout(redirectPath = SESSION_EXPIRED_ROUTE) {
+async function hardLogout(redirectPath = LOGIN_ROUTE) {
   const authStore = await getAuthStoreState();
   if (authStore) {
     authStore.hardLogout(redirectPath);
@@ -173,6 +173,28 @@ publicClient.interceptors.response.use(
   (error: AxiosError) => Promise.reject(applyMappedError(error))
 );
 
+publicClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+  const csrfToken = tokenStorage.getCsrf();
+  if (csrfToken) {
+    config.headers["X-CSRF-Token"] = csrfToken;
+    config.headers["X-CSRF-TOKEN"] = csrfToken;
+  }
+
+  const deviceId = tokenStorage.getDeviceId();
+  config.headers["X-Device-Id"] = deviceId;
+  if (typeof navigator !== "undefined") {
+    config.headers["X-Device-Name"] = navigator.userAgent;
+  }
+
+  const tenantSlug = extractTenantSlugFromPath() || tokenStorage.getTenantKey();
+  if (tenantSlug) {
+    config.headers["X-Tenant-Slug"] = tenantSlug;
+    config.headers["X-Tenant-ID"] = tenantSlug;
+  }
+
+  return config;
+});
+
 apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   const token = tokenStorage.getAccess();
   if (token) {
@@ -220,7 +242,7 @@ apiClient.interceptors.response.use(
     if (originalRequest.url?.includes("/api/auth/refresh")) {
       flushRefreshSubscribers(error, null);
       isRefreshing = false;
-      await hardLogout(SESSION_EXPIRED_ROUTE);
+      await hardLogout(LOGIN_ROUTE);
       return Promise.reject(applyMappedError(error));
     }
 
@@ -281,7 +303,7 @@ apiClient.interceptors.response.use(
       return apiClient(originalRequest);
     } catch (refreshError) {
       flushRefreshSubscribers(refreshError, null);
-      await hardLogout(SESSION_EXPIRED_ROUTE);
+      await hardLogout(LOGIN_ROUTE);
       return Promise.reject(applyMappedError(refreshError));
     } finally {
       isRefreshing = false;

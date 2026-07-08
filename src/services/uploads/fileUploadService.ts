@@ -7,8 +7,7 @@ interface UploadOptions {
   folder: string;
 }
 
-const IMAGE_MAX_SIZE = 5 * 1024 * 1024;
-const DOCUMENT_MAX_SIZE = 10 * 1024 * 1024;
+const MAX_UPLOAD_SIZE = 10 * 1024 * 1024;
 const STORAGE_BUCKET_NAME = "uploads";
 
 function validateFile(file: File, kind: UploadKind): void {
@@ -24,9 +23,8 @@ function validateFile(file: File, kind: UploadKind): void {
     }
   }
 
-  const maxSize = kind === "image" ? IMAGE_MAX_SIZE : DOCUMENT_MAX_SIZE;
-  if (file.size > maxSize) {
-    throw new Error(`File is too large. Maximum size is ${Math.round(maxSize / (1024 * 1024))} MB.`);
+  if (file.size > MAX_UPLOAD_SIZE) {
+    throw new Error("File is too large. Maximum size is 10 MB.");
   }
 }
 

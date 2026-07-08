@@ -31,6 +31,11 @@ function parsePayload(message: IMessage): unknown {
   }
 }
 
+function extractTenantFromDestination(destination: string): string | null {
+  const match = destination.match(/^\/(?:topic|app)\/tenant\/([^/]+)(?:\/|$)/);
+  return match?.[1] ?? null;
+}
+
 export function readRealtimeDestinations(envKey: string, fallback: string[]): string[] {
   const raw = import.meta.env[envKey] as string | undefined;
   if (!raw) return fallback;
@@ -80,7 +85,7 @@ class RealtimeStompClient {
   }
 
   subscribe(destinations: string[], listener: RealtimeListener): () => void {
-    const normalizedDestinations = [...new Set(destinations.map((item) => item.trim()).filter(Boolean))];
+    const normalizedDestinations = this.normalizeDestinations(destinations);
     if (normalizedDestinations.length === 0) return () => {};
 
     const id = `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
@@ -93,23 +98,26 @@ class RealtimeStompClient {
 
     this.entries.set(id, entry);
     this.ensureClient();
-    if (this.connected) this.attach(entry);      return () => {
-        this.detach(entry);
-        this.entries.delete(id);
+    if (this.connected) this.attach(entry);
 
-        if (this.entries.size === 0) {
-          this.connected = false;
-          this.destroyed = true;
-          this.reconnectAttempts = 0;
-          void this.client?.deactivate();
-          this.client = null;
-        }
-      };
+    let cleanedUp = false;
+    return () => {
+      if (cleanedUp) return;
+      cleanedUp = true;
+
+      this.detach(entry);
+      this.entries.delete(id);
+
+      if (this.entries.size === 0) {
+        this.resetClient({ deactivate: true });
+      }
+    };
   }
 
   private ensureClient() {
     if (import.meta.env.VITE_REALTIME_DISABLED === "true") return;
     if (this.client) return;
+    if (!this.hasConnectContext()) return;
 
     const client = new Client({
       webSocketFactory: () => new SockJS(resolveHttpWsUrl()),
@@ -117,11 +125,18 @@ class RealtimeStompClient {
       heartbeatIncoming: this.config.heartbeatIncoming,
       heartbeatOutgoing: this.config.heartbeatOutgoing,
       beforeConnect: () => {
+        if (!this.hasConnectContext()) {
+          this.connected = false;
+          this.destroyed = true;
+          void client.deactivate();
+          return;
+        }
         client.connectHeaders = this.getHeaders();
       },
     });
 
     client.onConnect = () => {
+      if (this.client !== client) return;
       this.connected = true;
       this.reconnectAttempts = 0;
       this.destroyed = false;
@@ -133,10 +148,15 @@ class RealtimeStompClient {
     };
 
     client.onWebSocketClose = () => {
+      if (this.client !== client) return;
       this.connected = false;
       this.entries.forEach((entry) => {
         entry.sockets = [];
       });
+      if (!this.hasConnectContext()) {
+        this.resetClient({ deactivate: true });
+        return;
+      }
       // Drive exponential backoff — this.reconnectAttempts is read by computeDelay()
       if (!this.destroyed && this.reconnectAttempts < this.config.maxReconnectAttempts) {
         this.reconnectAttempts += 1;
@@ -155,7 +175,7 @@ class RealtimeStompClient {
         console.warn("WorkNest realtime STOMP error:", msg);
       }
       console.error(`[WS] STOMP error: ${msg}`);
-      void client.deactivate();
+      this.resetClient({ deactivate: true });
     };
 
     this.client = client;
@@ -198,20 +218,83 @@ class RealtimeStompClient {
     return headers;
   }
 
+  private hasConnectContext(): boolean {
+    return Boolean(tokenStorage.getAccess() && tokenStorage.getTenantKey());
+  }
+
+  private normalizeDestinations(destinations: string[]): string[] {
+    const tenantKey = tokenStorage.getTenantKey();
+    const normalizedTenantKey = tenantKey?.trim().toLowerCase();
+
+    return [...new Set(destinations.map((item) => item.trim()).filter(Boolean))]
+      .filter((destination) => {
+        const destinationTenant = extractTenantFromDestination(destination);
+        if (!destinationTenant) return true;
+
+        const matchesTenant = Boolean(normalizedTenantKey && destinationTenant.toLowerCase() === normalizedTenantKey);
+        if (!matchesTenant && import.meta.env.DEV) {
+          console.warn(`Skipping realtime destination outside current tenant: ${destination}`);
+        }
+        return matchesTenant;
+      });
+  }
+
   private attach(entry: SubscriptionEntry) {
     if (!this.client || !this.connected) return;
     if (entry.sockets.length > 0) return;
 
-    entry.sockets = entry.destinations.map((destination) =>
-      this.client!.subscribe(destination, (message) => {
-        entry.listener(parsePayload(message), message);
-      })
-    );
+    const sockets: StompSubscription[] = [];
+    entry.destinations.forEach((destination) => {
+      try {
+        const socket = this.client!.subscribe(destination, (message) => {
+          try {
+            entry.listener(parsePayload(message), message);
+          } catch (error) {
+            if (import.meta.env.DEV) {
+              console.warn("WorkNest realtime listener failed:", error);
+            }
+          }
+        });
+        sockets.push(socket);
+      } catch (error) {
+        if (import.meta.env.DEV) {
+          console.warn(`Unable to subscribe to realtime destination ${destination}:`, error);
+        }
+      }
+    });
+    entry.sockets = sockets;
   }
 
   private detach(entry: SubscriptionEntry) {
-    entry.sockets.forEach((socket) => socket.unsubscribe());
+    entry.sockets.forEach((socket) => {
+      try {
+        socket.unsubscribe();
+      } catch (error) {
+        if (import.meta.env.DEV) {
+          console.warn("Unable to unsubscribe from realtime destination:", error);
+        }
+      }
+    });
     entry.sockets = [];
+  }
+
+  private resetClient(options: { deactivate: boolean }) {
+    const client = this.client;
+    this.connected = false;
+    this.destroyed = true;
+    this.reconnectAttempts = 0;
+    this.entries.forEach((entry) => {
+      entry.sockets = [];
+    });
+    this.client = null;
+
+    if (client && options.deactivate) {
+      void client.deactivate().catch((error) => {
+        if (import.meta.env.DEV) {
+          console.warn("Unable to deactivate realtime client:", error);
+        }
+      });
+    }
   }
 }
 
