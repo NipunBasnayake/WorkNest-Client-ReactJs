@@ -7,6 +7,8 @@ import { AppSelect } from "@/components/common/AppSelect";
 import { Input } from "@/components/common/Input";
 import { EmptyState, ErrorBanner, SkeletonRow } from "@/components/common/AppUI";
 import { usePageMeta } from "@/hooks/usePageMeta";
+import { usePermission } from "@/hooks/usePermission";
+import { PERMISSIONS } from "@/constants/permissions";
 import { useTeamsQuery } from "@/hooks/queries/useCoreQueries";
 import { useRecruitmentJobsQuery, useRecruitmentPipelineQuery } from "@/modules/recruitment/hooks/useRecruitment";
 import { RecruitmentPipelineBoard } from "@/modules/recruitment/components/RecruitmentPipelineBoard";
@@ -59,6 +61,8 @@ function buildHireDefaults(application?: RecruitmentApplication): RecruitmentHir
 export function RecruitmentPipelinePage() {
   usePageMeta({ title: "Recruitment Pipeline", breadcrumb: ["Workspace", "Recruitment", "Pipeline"] });
   const queryClient = useQueryClient();
+  const { hasPermission } = usePermission();
+  const canManageRecruitment = hasPermission(PERMISSIONS.RECRUITMENT_MANAGE);
   const jobsQuery = useRecruitmentJobsQuery();
   const [jobPositionId, setJobPositionId] = useState<string>("ALL");
   const pipelineQuery = useRecruitmentPipelineQuery(jobPositionId === "ALL" ? undefined : jobPositionId);
@@ -81,6 +85,10 @@ export function RecruitmentPipelinePage() {
 
   async function handleMove(applicationId: string, stage: string) {
     setFeedback(null);
+    if (!canManageRecruitment) {
+      setFeedback("You do not have permission to update the recruitment pipeline.");
+      return;
+    }
     if (stage === "HIRED") {
       const application = applicationsById.get(applicationId);
       if (!application) {
@@ -109,6 +117,10 @@ export function RecruitmentPipelinePage() {
 
   async function handleHireSubmit() {
     if (!hireTarget) return;
+    if (!canManageRecruitment) {
+      setFeedback("You do not have permission to hire candidates.");
+      return;
+    }
     setFeedback(null);
 
     if (!hireValues.designation.trim() || !hireValues.department.trim() || !hireValues.joinedDate) {
@@ -166,7 +178,7 @@ export function RecruitmentPipelinePage() {
 
       {feedback ? <div className="rounded-xl border px-4 py-3 text-sm" style={{ borderColor: "var(--border-default)", backgroundColor: "var(--bg-surface)" }}>{feedback}</div> : null}
 
-      {hireTarget ? (
+      {hireTarget && canManageRecruitment ? (
         <SectionCard
           title={`Hire ${hireTarget.candidate.fullName}`}
           subtitle="Create the employee record, login account, and optional team assignment from this selected candidate."
@@ -299,7 +311,7 @@ export function RecruitmentPipelinePage() {
         ) : pipelineQuery.data.columns.length === 0 ? (
           <EmptyState title="No pipeline data" description="Create applications to populate the hiring pipeline." />
         ) : (
-          <RecruitmentPipelineBoard pipeline={pipelineQuery.data} onMove={handleMove} />
+          <RecruitmentPipelineBoard pipeline={pipelineQuery.data} editable={canManageRecruitment} onMove={handleMove} />
         )}
       </SectionCard>
     </div>

@@ -7,6 +7,8 @@ import { Input } from "@/components/common/Input";
 import { AppSelect } from "@/components/common/AppSelect";
 import { EmptyState, ErrorBanner, SkeletonRow } from "@/components/common/AppUI";
 import { usePageMeta } from "@/hooks/usePageMeta";
+import { usePermission } from "@/hooks/usePermission";
+import { PERMISSIONS } from "@/constants/permissions";
 import { useRecruitmentApplicationsQuery, useRecruitmentInterviewsQuery } from "@/modules/recruitment/hooks/useRecruitment";
 import { scheduleInterview } from "@/modules/recruitment/services/recruitmentService";
 import type { RecruitmentInterviewFormValues } from "@/modules/recruitment/types";
@@ -26,12 +28,18 @@ export function RecruitmentInterviewsPage() {
   usePageMeta({ title: "Recruitment Interviews", breadcrumb: ["Workspace", "Recruitment", "Interviews"] });
   const interviewsQuery = useRecruitmentInterviewsQuery();
   const applicationsQuery = useRecruitmentApplicationsQuery();
+  const { hasPermission } = usePermission();
+  const canScheduleInterview = hasPermission(PERMISSIONS.RECRUITMENT_SCHEDULE);
   const [form, setForm] = useState<RecruitmentInterviewFormValues>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
+    if (!canScheduleInterview) {
+      setFeedback("You do not have permission to schedule interviews.");
+      return;
+    }
     setSaving(true);
     setFeedback(null);
     try {
@@ -53,8 +61,9 @@ export function RecruitmentInterviewsPage() {
       {feedback ? <div className="rounded-xl border px-4 py-3 text-sm" style={{ borderColor: "var(--border-default)", backgroundColor: "var(--bg-surface)" }}>{feedback}</div> : null}
 
       <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-        <SectionCard title="Schedule interview" subtitle="Create a new interview against an existing application.">
-          <form className="space-y-4" onSubmit={handleSubmit}>
+        {canScheduleInterview ? (
+          <SectionCard title="Schedule interview" subtitle="Create a new interview against an existing application.">
+            <form className="space-y-4" onSubmit={handleSubmit}>
             <AppSelect value={form.applicationId} onChange={(event) => setForm((prev) => ({ ...prev, applicationId: event.target.value }))}>
               <option value="">Select application</option>
               {(applicationsQuery.data?.items ?? []).map((application) => (
@@ -77,8 +86,15 @@ export function RecruitmentInterviewsPage() {
               <CalendarPlus size={16} />
               Schedule Interview
             </Button>
-          </form>
-        </SectionCard>
+            </form>
+          </SectionCard>
+        ) : (
+          <SectionCard title="Interview access" subtitle="Interview scheduling is available to HR and tenant administrators.">
+            <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+              You can review upcoming interviews, but you do not have permission to schedule interviews.
+            </p>
+          </SectionCard>
+        )}
 
         <SectionCard title="Upcoming interviews" subtitle="Interviews scheduled in the tenant workspace." variant="table">
           {interviewsQuery.isError ? (
