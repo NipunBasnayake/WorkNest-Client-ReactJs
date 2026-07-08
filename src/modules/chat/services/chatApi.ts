@@ -133,6 +133,16 @@ export async function postHrConversation(
   );
 }
 
+export async function postMyHrSupportConversation(config?: AxiosRequestConfig): Promise<HrConversationDto> {
+  return unwrap(
+    apiClient.post<ApiResponse<HrConversationDto> | HrConversationDto>(
+      "/api/tenant/chats/hr/conversations/support",
+      {},
+      config
+    )
+  );
+}
+
 export async function getMyHrConversations(config?: AxiosRequestConfig): Promise<HrConversationDto[] | { conversations: HrConversationDto[] }> {
   return unwrap(
     apiClient.get<ApiResponse<HrConversationDto[] | { conversations: HrConversationDto[] }> | HrConversationDto[] | { conversations: HrConversationDto[] }>(
