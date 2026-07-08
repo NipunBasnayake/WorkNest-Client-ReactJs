@@ -1,5 +1,4 @@
-import { useMemo, useState } from "react";
-import { MessageSquarePlus, RefreshCcw } from "lucide-react";
+import { useState } from "react";
 import { ErrorBanner } from "@/components/common/AppUI";
 import { PageHeader } from "@/components/common/PageHeader";
 import { useAuth } from "@/hooks/useAuth";
@@ -7,7 +6,6 @@ import { usePageMeta } from "@/hooks/usePageMeta";
 import { ConversationList } from "@/app/chat/ConversationList";
 import { MessageInput } from "@/app/chat/MessageInput";
 import { MessageThread } from "@/app/chat/MessageThread";
-import { NewConversationModal } from "@/app/chat/NewConversationModal";
 import { useChat } from "@/app/chat/useChat";
 import { buildConversationKey } from "@/app/chat/chatUtils";
 
@@ -16,10 +14,11 @@ export function ChatPage() {
 
   const { user } = useAuth();
   const {
-    activeTab,
-    setActiveTab,
     currentEmployeeId,
-    conversations,
+    teamConversations,
+    hrConversations,
+    canOpenHrSupport,
+    canSendSelectedConversation,
     selectedConversation,
     selectedConversationKey,
     messages,
@@ -29,69 +28,34 @@ export function ChatPage() {
     error,
     refreshConversations,
     selectConversation,
+    openHrSupportConversation,
     sendMessage,
-    startTeamConversation,
-    startHrConversation,
     clearError,
-  } = useChat(user?.id);
+  } = useChat(user?.id, typeof user?.role === "string" ? user.role : undefined);
 
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [mobileThreadOpen, setMobileThreadOpen] = useState<boolean>(false);
-  const [newConversationOpen, setNewConversationOpen] = useState<boolean>(false);
-
-  const filteredConversations = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-    if (!query) return conversations;
-
-    return conversations.filter((conversation) => {
-      return [conversation.title, conversation.subtitle, conversation.lastMessage]
-        .join(" ")
-        .toLowerCase()
-        .includes(query);
-    });
-  }, [conversations, searchQuery]);
+  const [isOpeningHrSupport, setIsOpeningHrSupport] = useState<boolean>(false);
 
   const effectiveSelectedKey = selectedConversation ? buildConversationKey(selectedConversation) : selectedConversationKey;
   const showMobileThread = mobileThreadOpen && Boolean(selectedConversation);
+
+  async function handleOpenHrSupport() {
+    setIsOpeningHrSupport(true);
+    clearError();
+    try {
+      await openHrSupportConversation();
+      setMobileThreadOpen(true);
+    } finally {
+      setIsOpeningHrSupport(false);
+    }
+  }
 
   return (
     <div className="flex min-h-0 flex-col gap-4">
       <PageHeader
         title="Workspace Chat"
-        description="Team channels and HR support with live updates."
-        actions={(
-          <>
-            <button
-              type="button"
-              onClick={() => {
-                clearError();
-                void refreshConversations();
-              }}
-              className="inline-flex h-10 items-center gap-2 rounded-xl border px-3 text-sm font-medium"
-              style={{
-                borderColor: "var(--border-default)",
-                color: "var(--text-secondary)",
-                backgroundColor: "var(--bg-surface)",
-              }}
-              disabled={isLoadingConversations}
-            >
-              <RefreshCcw size={14} className={isLoadingConversations ? "animate-spin" : ""} />
-              Refresh
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setNewConversationOpen(true)}
-              className="inline-flex h-10 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-white"
-              style={{
-                background: "linear-gradient(135deg, #9332EA 0%, #7C1FD1 100%)",
-              }}
-            >
-              <MessageSquarePlus size={14} />
-              New Chat
-            </button>
-          </>
-        )}
+        description="Team chats and HR support in one focused workspace."
       />
 
       {error && (
@@ -108,22 +72,21 @@ export function ChatPage() {
         <div className="grid h-full min-h-0 grid-cols-1 gap-3 lg:grid-cols-[340px_minmax(0,1fr)]">
           <div className={`${showMobileThread ? "hidden" : "block"} min-h-0 lg:block`}>
             <ConversationList
-              activeTab={activeTab}
               searchQuery={searchQuery}
-              conversations={filteredConversations}
+              teamConversations={teamConversations}
+              hrConversations={hrConversations}
               selectedConversationKey={effectiveSelectedKey}
               isLoading={isLoadingConversations}
-              onTabChange={(tab) => {
-                setActiveTab(tab);
-                setSearchQuery("");
-                setMobileThreadOpen(false);
-              }}
+              canOpenHrSupport={canOpenHrSupport}
+              isOpeningHrSupport={isOpeningHrSupport}
               onSearchChange={setSearchQuery}
               onSelect={(conversation) => {
-                selectConversation(conversation.id);
+                selectConversation(conversation);
                 setMobileThreadOpen(true);
               }}
-              onRequestNewConversation={() => setNewConversationOpen(true)}
+              onOpenHrSupport={() => {
+                void handleOpenHrSupport();
+              }}
             />
           </div>
 
@@ -140,7 +103,12 @@ export function ChatPage() {
 
               <MessageInput
                 key={effectiveSelectedKey ?? "no-conversation"}
-                disabled={!selectedConversation || !currentEmployeeId}
+                disabled={!selectedConversation || !currentEmployeeId || !canSendSelectedConversation}
+                disabledReason={
+                  selectedConversation?.type === "HR" && !canSendSelectedConversation
+                    ? "Admins can observe HR support conversations but cannot reply."
+                    : undefined
+                }
                 isSending={isSending}
                 onSend={sendMessage}
               />
@@ -148,24 +116,6 @@ export function ChatPage() {
           </div>
         </div>
       </section>
-
-      <NewConversationModal
-        open={newConversationOpen}
-        defaultType={activeTab}
-        currentEmployeeId={currentEmployeeId}
-        currentUserRole={typeof user?.role === "string" ? user.role : undefined}
-        onClose={() => setNewConversationOpen(false)}
-        onCreateTeamConversation={async (teamId) => {
-          await startTeamConversation(teamId);
-          setNewConversationOpen(false);
-          setMobileThreadOpen(true);
-        }}
-        onCreateHrConversation={async (employeeId, hrId) => {
-          await startHrConversation(employeeId, hrId);
-          setNewConversationOpen(false);
-          setMobileThreadOpen(true);
-        }}
-      />
     </div>
   );
 }

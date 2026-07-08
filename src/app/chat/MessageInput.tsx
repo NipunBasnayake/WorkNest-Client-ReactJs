@@ -3,13 +3,14 @@ import { SendHorizontal } from "lucide-react";
 
 interface MessageInputProps {
   disabled: boolean;
+  disabledReason?: string;
   isSending: boolean;
   onSend: (text: string) => Promise<void>;
 }
 
 const MAX_TEXTAREA_HEIGHT = 164;
 
-export function MessageInput({ disabled, isSending, onSend }: MessageInputProps) {
+export function MessageInput({ disabled, disabledReason, isSending, onSend }: MessageInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const [value, setValue] = useState<string>("");
 
@@ -60,7 +61,7 @@ export function MessageInput({ disabled, isSending, onSend }: MessageInputProps)
               void handleSend();
             }
           }}
-          placeholder={disabled ? "Select a conversation to start typing" : "Type your message..."}
+          placeholder={disabled ? (disabledReason ?? "Select a conversation to start typing") : "Type your message..."}
           disabled={disabled || isSending}
           className="max-h-40 min-h-11 flex-1 resize-none rounded-xl border px-3 py-2.5 text-sm leading-5 outline-none transition-all focus:ring-2 focus:ring-primary-500/35 disabled:opacity-60"
           style={{
@@ -88,7 +89,7 @@ export function MessageInput({ disabled, isSending, onSend }: MessageInputProps)
       </div>
 
       <p className="mt-2 text-[11px]" style={{ color: "var(--text-tertiary)" }}>
-        Press Enter to send, Shift+Enter for a new line.
+        {disabled && disabledReason ? disabledReason : "Press Enter to send, Shift+Enter for a new line."}
       </p>
     </div>
   );
