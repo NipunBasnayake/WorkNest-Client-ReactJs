@@ -1,17 +1,17 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
+import { type ReactNode } from "react";
+import { NavLink } from "react-router-dom";
 import {
-  LayoutDashboard, Users, User, Settings, Building2,
-  LogOut, ChevronLeft, ChevronRight, X,
+  LayoutDashboard, Users, Settings, Building2,
+  ChevronLeft, ChevronRight, X,
   ClipboardList, CalendarCheck, Bell, MessageSquare, Briefcase, BarChart3, CheckSquare, BellRing,
   Lock,
   FileText,
 } from "lucide-react";
-import { FaUser } from "react-icons/fa6";
 import { useAuth } from "@/hooks/useAuth";
 import { type Permission, PERMISSIONS } from "@/constants/permissions";
 import { usePermission } from "@/hooks/usePermission";
 import { tenantRoutes, platformRoutes } from "@/utils/tenantRoutes";
+import { Separator } from "@/components/ui/separator";
 
 interface SidebarNavDef {
   label: string;
@@ -212,13 +212,10 @@ function NavGroup({
   tenantSlug?: string;
 }) {
   return (
-    <div className={isFirst ? "space-y-1" : "space-y-1 pt-2"}>
-      {!collapsed && (
-        <div
-          className="px-3.5 pb-1 text-[10px] font-semibold uppercase tracking-[0.18em]"
-          style={{ color: "rgba(255,255,255,0.42)" }}
-        >
-          {group.label}
+    <div className="space-y-1">
+      {!isFirst && (
+        <div className={collapsed ? "px-2 py-2" : "px-3.5 py-2"}>
+          <Separator className="bg-white/10" decorative />
         </div>
       )}
       {group.items.map((item) => (
@@ -234,81 +231,9 @@ function NavGroup({
   );
 }
 
-/* ── Account dropdown submenu ── */
-
-interface AccountDropdownMenuProps {
-  collapsed: boolean;
-  onItemClick: () => void;
-  onLogout: () => Promise<void> | void;
-}
-
-function AccountDropdownMenu({ collapsed, onItemClick, onLogout }: AccountDropdownMenuProps) {
-  const navigate = useNavigate();
-
-  return (
-    <div
-      className={`${collapsed ? "absolute left-full ml-2 top-0" : "relative mt-1"} w-48 rounded-xl border py-1 shadow-xl z-50`}
-      style={{
-        backgroundColor: "#1a0f2e",
-        borderColor: "rgba(255,255,255,0.08)",
-        boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
-      }}
-      role="menu"
-      aria-label="Account menu"
-    >
-      {ACCOUNT_DROPDOWN_ITEMS.map((item) => (
-        <button
-          key={item.label}
-          type="button"
-          onClick={() => {
-            navigate(item.getTo());
-            onItemClick();
-          }}
-          className="flex w-full items-center gap-2.5 px-3 py-2 text-xs font-medium transition-colors hover:bg-white/8"
-          style={{ color: "rgba(255,255,255,0.72)" }}
-          role="menuitem"
-        >
-          {item.icon}
-          {item.label}
-        </button>
-      ))}
-      <div className="mx-2 border-t" style={{ borderColor: "rgba(255,255,255,0.06)" }} />
-      <button
-        type="button"
-        onClick={async () => {
-          onItemClick();
-          await onLogout();
-          /* Navigation to /login is handled by handleLogout passed as onLogout */
-        }}
-        className="flex w-full items-center gap-2.5 px-3 py-2 text-xs font-medium transition-colors hover:bg-red-500/15 hover:text-red-300"
-        style={{ color: "rgba(255,255,255,0.45)" }}
-        role="menuitem"
-      >
-        <LogOut size={15} />
-        Log out
-      </button>
-    </div>
-  );
-}
-
-/* ── Sidebar component ── */
-
-const ACCOUNT_DROPDOWN_ITEMS: {
-  label: string;
-  icon: ReactNode;
-  getTo: () => string;
-}[] = [
-  { label: "Profile", icon: <User size={15} />, getTo: () => tenantRoutes.profile() },
-  { label: "Settings", icon: <Settings size={15} />, getTo: () => tenantRoutes.settings() },
-  { label: "Security", icon: <Lock size={15} />, getTo: () => tenantRoutes.settingsSecurity() },
-];
-
 export function AppSidebar({ area, collapsed, mobileOpen, onToggleCollapse, onMobileClose }: AppSidebarProps) {
-  const { user, logout, role, tenantKey } = useAuth();
+  const { tenantKey } = useAuth();
   const { hasPermission } = usePermission();
-  const navigate = useNavigate();
-  const accountMenuRef = useRef<HTMLDivElement | null>(null);
-  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
 
   const resolvedTenantSlug = tenantKey ?? "app";
 
@@ -320,38 +245,6 @@ export function AppSidebar({ area, collapsed, mobileOpen, onToggleCollapse, onMo
       }))
       .filter((group) => group.items.length > 0)
     : PLATFORM_NAV_GROUPS;
-
-  /* ── Close account menu on outside click ── */
-  useEffect(() => {
-    if (!accountMenuOpen) return;
-
-    function handleClick(e: MouseEvent) {
-      if (accountMenuRef.current && !accountMenuRef.current.contains(e.target as Node)) {
-        setAccountMenuOpen(false);
-      }
-    }
-
-    function handleEscape(e: KeyboardEvent) {
-      if (e.key === "Escape") setAccountMenuOpen(false);
-    }
-
-    // Delay listener registration to avoid the same click that opened it
-    const raf = requestAnimationFrame(() => {
-      document.addEventListener("mousedown", handleClick);
-      document.addEventListener("keydown", handleEscape);
-    });
-
-    return () => {
-      cancelAnimationFrame(raf);
-      document.removeEventListener("mousedown", handleClick);
-      document.removeEventListener("keydown", handleEscape);
-    };
-  }, [accountMenuOpen]);
-
-  async function handleLogout() {
-    await logout();
-    navigate("/login");
-  }
 
   const sidebarContent = (
     <div
@@ -437,114 +330,6 @@ export function AppSidebar({ area, collapsed, mobileOpen, onToggleCollapse, onMo
         ))}
       </nav>
 
-      {/* Divider */}
-      <div className="mx-3 border-t border-white/8" />
-
-      {/* Account section with dropdown submenu */}
-      {user && (
-        <div className="px-3 py-3 space-y-1" ref={accountMenuRef}>
-          {!collapsed && (
-            <div
-              className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-[0.18em]"
-              style={{ color: "rgba(255,255,255,0.42)" }}
-            >
-              Account
-            </div>
-          )}
-
-          {/* Clickable user card that toggles the dropdown */}
-          <button
-            type="button"
-            onClick={() => setAccountMenuOpen((prev) => !prev)}
-            className={`flex w-full items-center gap-3 rounded-xl border border-white/8 text-left transition-all duration-150 ${
-              collapsed ? "px-2 py-2 justify-center" : "px-3 py-2.5"
-            } ${accountMenuOpen ? "bg-white/10" : "hover:bg-white/6"}`}
-            style={{ background: accountMenuOpen ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.04)" }}
-            aria-haspopup="menu"
-            aria-expanded={accountMenuOpen}
-            title={collapsed ? user.name : undefined}
-          >
-            {collapsed ? (
-              <div className="relative">
-                {user.avatarUrl ? (
-                  <img
-                    src={user.avatarUrl}
-                    alt={user.name}
-                    className="h-8 w-8 shrink-0 rounded-full object-cover"
-                  />
-                ) : (
-                  <div
-                    className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-white"
-                    style={{ backgroundColor: "#6b7280" }}
-                  >
-                    <FaUser size={12} />
-                  </div>
-                )}
-                {/* Dropdown in collapsed mode appears to the right */}
-                {accountMenuOpen && (
-                  <div className="absolute left-full ml-2 top-0">
-                    <AccountDropdownMenu collapsed onItemClick={() => setAccountMenuOpen(false)} onLogout={handleLogout} />
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="flex w-full items-center gap-2.5">
-                {user.avatarUrl ? (
-                  <img
-                    src={user.avatarUrl}
-                    alt={user.name}
-                    className="h-8 w-8 shrink-0 rounded-full object-cover"
-                  />
-                ) : (
-                  <div
-                    className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-white"
-                    style={{ backgroundColor: "#6b7280" }}
-                  >
-                    <FaUser size={12} />
-                  </div>
-                )}
-                <div className="min-w-0 flex-1">
-                  <div className="text-xs font-semibold text-white/90 truncate">{user.name}</div>
-                  <div className="text-[10px] text-white/40 truncate">{user.email}</div>
-                  <div className="mt-1 text-[10px] uppercase tracking-[0.18em] text-white/30 truncate">{role ?? "workspace"}</div>
-                </div>
-                {/* Chevron indicator */}
-                <ChevronRight
-                  size={14}
-                  className={`shrink-0 transition-transform duration-200 ${accountMenuOpen ? "rotate-90" : ""}`}
-                  style={{ color: "rgba(255,255,255,0.3)" }}
-                />
-              </div>
-            )}
-          </button>
-
-          {/* Dropdown menu in expanded mode */}
-          {accountMenuOpen && !collapsed && (
-            <AccountDropdownMenu collapsed={false} onItemClick={() => setAccountMenuOpen(false)} onLogout={handleLogout} />
-          )}
-        </div>
-      )}
-
-      {/* Direct logout button at the very bottom (always visible shortcut) */}
-      <div className="px-3 pb-3">
-        <button
-          onClick={handleLogout}
-          className={`flex items-center gap-3 px-3 py-2.5 w-full rounded-xl text-sm font-medium transition-colors cursor-pointer hover:bg-red-500/15 hover:text-red-300 group relative`}
-          style={{ color: "rgba(255,255,255,0.45)" }}
-          title="Log out"
-        >
-          <LogOut size={18} className="shrink-0" />
-          {!collapsed && <span>Log out</span>}
-          {collapsed && (
-            <div
-              className="absolute left-full ml-2 px-2 py-1 rounded-lg text-xs font-medium opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50 transition-opacity"
-              style={{ backgroundColor: "var(--bg-surface)", color: "var(--text-primary)", boxShadow: "0 4px 12px rgba(0,0,0,0.2)" }}
-            >
-              Log out
-            </div>
-          )}
-        </button>
-      </div>
     </div>
   );
 

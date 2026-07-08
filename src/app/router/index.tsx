@@ -287,7 +287,7 @@ const router = createBrowserRouter([
               { path: "security", element: appSettingsSecurityPage },
             ],
           },
-          { path: "*", element: <ComingSoonPage /> },
+          { path: "*", element: notFoundPage },
         ],
       },
     ],
@@ -311,34 +311,12 @@ const router = createBrowserRouter([
           { path: "platform/tenants/:tenantKey", element: tenantDetailPlatformPage },
           { path: "platform/profile", element: profilePage },
           { path: "platform/settings", element: platformSettingsPage },
-          { path: "platform/*", element: <ComingSoonPage /> },
+          { path: "platform/*", element: notFoundPage },
         ],
       },
     ],
   },
 ]);
-
-function ComingSoonPage() {
-  return (
-    <div className="flex flex-col items-center justify-center py-24 text-center">
-      <div
-        className="mb-4 h-16 w-16 rounded-2xl flex items-center justify-center"
-        style={{ background: "rgba(147,50,234,0.08)", border: "1px solid rgba(147,50,234,0.15)", color: "var(--color-primary-500)" }}
-      >
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="10" />
-          <path d="M12 8v4l3 3" />
-        </svg>
-      </div>
-      <h2 className="mb-2 text-lg font-semibold" style={{ color: "var(--text-primary)" }}>
-        Coming Soon
-      </h2>
-      <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-        This module is being built and will be available in a future phase.
-      </p>
-    </div>
-  );
-}
 
 function LegacyTenantPathRedirect() {
   const location = useLocation();
