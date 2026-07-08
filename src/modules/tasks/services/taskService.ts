@@ -288,7 +288,7 @@ function buildTaskBasePayload(
     assignedEmployeeId: payload.assignedEmployeeId || payload.assigneeId || undefined,
     assigneeId: payload.assigneeId || undefined,
     dueDate: payload.dueDate || undefined,
-    attachmentUrls: payload.attachments.map((attachment) => attachment.url),
+    attachmentUrls: payload.attachments.map((attachment) => attachment.path ?? attachment.url),
   };
 }
 

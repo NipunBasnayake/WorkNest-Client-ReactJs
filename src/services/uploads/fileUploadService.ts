@@ -59,7 +59,13 @@ async function uploadFile(file: File, kind: UploadKind, options: UploadOptions):
 }
 
 export async function resolveStorageUrl(_bucket: string, path: string): Promise<string> {
+  if (path.startsWith("/api/public/") || /^https?:\/\//i.test(path)) {
+    return path;
+  }
   const normalizedPath = path.replace(/^\/+/, "");
+  if (normalizedPath.startsWith("uploads/")) {
+    return `/${normalizedPath}`;
+  }
   return `/uploads/${normalizedPath}`;
 }
 
