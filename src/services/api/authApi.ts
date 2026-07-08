@@ -1,5 +1,5 @@
 import axios from "axios";
-import { publicClient, apiClient } from "@/services/http/client";
+import { publicClient, apiClient, tokenStorage } from "@/services/http/client";
 import { readApiEnvelope, unwrapApiData } from "@/services/http/response";
 import type { LoginPayload, AuthTokens, AuthUser, ApiResponse, AuthSession } from "@/types";
 import { asRecord, firstDefined, getBoolean, getId, getNumber, getString } from "@/services/http/parsers";
@@ -322,6 +322,7 @@ export async function getMeApi(): Promise<AuthUser> {
 export async function logoutApi(tenantKey?: string | null): Promise<void> {
   await apiClient.post("/api/auth/logout", {
     ...(tenantKey ? { tenantKey } : {}),
+    ...(tokenStorage.getRefresh() ? { refreshToken: tokenStorage.getRefresh() } : {}),
   });
 }
 
@@ -330,6 +331,7 @@ export async function refreshTokenApi(tenantKey?: string | null): Promise<Refres
     ApiResponse<{ accessToken: string; csrfToken?: string; sessionId?: number }> | TokenPayload
   >("/api/auth/refresh", {
     ...(tenantKey ? { tenantKey } : {}),
+    ...(tokenStorage.getRefresh() ? { refreshToken: tokenStorage.getRefresh() } : {}),
   });
 
   const parsed = unwrapApiData<TokenPayload>(data);
