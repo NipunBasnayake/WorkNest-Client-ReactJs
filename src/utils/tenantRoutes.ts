@@ -67,6 +67,8 @@ export const tenantRoutes = {
   /* ── Overview ── */
   dashboard: (tenantOverride?: string) => tenantRoutes.path("/dashboard", tenantOverride),
   analytics: (tenantOverride?: string) => tenantRoutes.path("/analytics", tenantOverride),
+  reports: (tenantOverride?: string) => tenantRoutes.path("/reports", tenantOverride),
+  auditLogs: (tenantOverride?: string) => tenantRoutes.path("/audit-logs", tenantOverride),
 
   /* ── People ── */
   employees: (tenantOverride?: string) => tenantRoutes.path("/employees", tenantOverride),
@@ -137,7 +139,6 @@ export const authRoutes = {
   resetPassword: "/reset-password",
   resetPasswordWithToken: (token: string) => `/reset-password/${token}`,
   forcePasswordChange: "/force-password-change",
-  sessionExpired: "/session-expired",
   unauthorized: "/unauthorized",
 };
 

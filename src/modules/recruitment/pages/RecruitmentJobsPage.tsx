@@ -9,6 +9,8 @@ import { AppSelect } from "@/components/common/AppSelect";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { EmptyState, ErrorBanner, SkeletonRow } from "@/components/common/AppUI";
 import { usePageMeta } from "@/hooks/usePageMeta";
+import { usePermission } from "@/hooks/usePermission";
+import { PERMISSIONS } from "@/constants/permissions";
 import { useRecruitmentJobsQuery } from "@/modules/recruitment/hooks/useRecruitment";
 import { RecruitmentStatusBadge } from "@/modules/recruitment/components/RecruitmentStatusBadge";
 import { createJobPosition, deleteJobPosition, updateJobPosition } from "@/modules/recruitment/services/recruitmentService";
@@ -29,6 +31,8 @@ const EMPTY_FORM: RecruitmentJobFormValues = {
 export function RecruitmentJobsPage() {
   usePageMeta({ title: "Recruitment Jobs", breadcrumb: ["Workspace", "Recruitment", "Jobs"] });
   const jobsQuery = useRecruitmentJobsQuery();
+  const { hasPermission } = usePermission();
+  const canManageRecruitment = hasPermission(PERMISSIONS.RECRUITMENT_MANAGE);
   const [form, setForm] = useState<RecruitmentJobFormValues>(EMPTY_FORM);
   const [editingJobId, setEditingJobId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -58,6 +62,10 @@ export function RecruitmentJobsPage() {
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
+    if (!canManageRecruitment) {
+      setFeedback("You do not have permission to manage recruitment jobs.");
+      return;
+    }
     setSaving(true);
     setFeedback(null);
     try {
@@ -80,6 +88,10 @@ export function RecruitmentJobsPage() {
 
   async function handleDelete() {
     if (!deleteTarget) return;
+    if (!canManageRecruitment) {
+      setFeedback("You do not have permission to delete recruitment jobs.");
+      return;
+    }
     setSaving(true);
     try {
       await deleteJobPosition(deleteTarget.id);
@@ -103,19 +115,20 @@ export function RecruitmentJobsPage() {
       <PageHeader
         title="Job Openings"
         description="Create and manage tenant-scoped job positions."
-        actions={(
+        actions={canManageRecruitment ? (
           <Button variant="outline" onClick={startCreate}>
             <PlusCircle size={16} />
             New Job
           </Button>
-        )}
+        ) : undefined}
       />
 
       {feedback ? <div className="rounded-xl border px-4 py-3 text-sm" style={{ borderColor: "var(--border-default)", backgroundColor: "var(--bg-surface)" }}>{feedback}</div> : null}
 
       <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-        <SectionCard title={editingJobId ? "Edit job" : "Create job"} subtitle="Use this form to publish or update a vacancy.">
-          <form className="space-y-4" onSubmit={handleSubmit}>
+        {canManageRecruitment ? (
+          <SectionCard title={editingJobId ? "Edit job" : "Create job"} subtitle="Use this form to publish or update a vacancy.">
+            <form className="space-y-4" onSubmit={handleSubmit}>
             <Input id="job-title" label="Title" value={form.title} onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))} required />
             <Input id="job-department" label="Department" value={form.department} onChange={(event) => setForm((prev) => ({ ...prev, department: event.target.value }))} />
             <TextareaField id="job-description" label="Description" rows={5} value={form.description} onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))} />
@@ -146,8 +159,15 @@ export function RecruitmentJobsPage() {
               <Button type="submit" loading={saving}>{editingJobId ? "Update" : "Create"}</Button>
               {editingJobId ? <Button type="button" variant="outline" onClick={startCreate}>Cancel</Button> : null}
             </div>
-          </form>
-        </SectionCard>
+            </form>
+          </SectionCard>
+        ) : (
+          <SectionCard title="Recruitment access" subtitle="Job management is available to HR and tenant administrators.">
+            <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+              You can review job openings, but you do not have permission to create, edit, or delete recruitment jobs.
+            </p>
+          </SectionCard>
+        )}
 
         <SectionCard title="Jobs" subtitle="Open positions and their application counts." variant="table">
           {jobsQuery.isError ? (
@@ -169,16 +189,18 @@ export function RecruitmentJobsPage() {
                       {job.department || "General"} · {job.location || "Remote"} · {job.applicationCount ?? 0} application{(job.applicationCount ?? 0) === 1 ? "" : "s"}
                     </p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" onClick={() => setEditingJobId(job.id)}>
-                      <Pencil size={14} />
-                      Edit
-                    </Button>
-                    <Button variant="danger" size="sm" onClick={() => setDeleteTarget(job)}>
-                      <Trash2 size={14} />
-                      Delete
-                    </Button>
-                  </div>
+                  {canManageRecruitment ? (
+                    <div className="flex items-center gap-2">
+                      <Button variant="outline" size="sm" onClick={() => setEditingJobId(job.id)}>
+                        <Pencil size={14} />
+                        Edit
+                      </Button>
+                      <Button variant="danger" size="sm" onClick={() => setDeleteTarget(job)}>
+                        <Trash2 size={14} />
+                        Delete
+                      </Button>
+                    </div>
+                  ) : null}
                 </div>
               ))}
             </div>

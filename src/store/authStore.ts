@@ -4,7 +4,7 @@ import { loginApi, getMeApi, logoutApi, isPasswordChangeRequiredApiError } from 
 import type { AuthUser, LoginPayload, SessionType } from "@/types";
 import type { ChangeRequiredPasswordResult, PasswordChangeRequirement } from "@/services/api/authApi";
 
-const SESSION_EXPIRED_ROUTE = "/session-expired";
+const LOGIN_ROUTE = "/login";
 let bootstrapInFlight: Promise<void> | null = null;
 
 /**
@@ -236,7 +236,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         });
       } catch (err: unknown) {
         // /me failed and refresh recovery did not produce a valid session.
-        // Clear local auth state and redirect to session-expired
+        // Clear local auth state and redirect to login.
         tokenStorage.clear();
         set({
           user:            null,
@@ -249,10 +249,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           passwordChangeRequired: false,
           passwordChangeChallenge: null,
         });
-        /* Redirect to session-expired so the user sees a clear message
-           instead of an ambiguous blank page. */
         if (typeof window !== "undefined") {
-          redirectTo(SESSION_EXPIRED_ROUTE);
+          redirectTo(LOGIN_ROUTE);
         }
       }
     })();
@@ -345,7 +343,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       passwordChangeChallenge: null,
     });
   },
-  hardLogout: (redirectToPath = SESSION_EXPIRED_ROUTE) => {
+  hardLogout: (redirectToPath = LOGIN_ROUTE) => {
     tokenStorage.clear();
     set({
       user:            null,
@@ -354,7 +352,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       tenantKey:       null,
       isLoading:       false,
       isBootstrapping: false,
-      authReady:       false,
+      authReady:       true,
       error:           null,
       passwordChangeRequired: false,
       passwordChangeChallenge: null,
@@ -368,14 +366,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 /* ── Cross-tab logout synchronisation ── */
 /* Set up a BroadcastChannel listener once after the store module is loaded.
    When another tab logs out, this tab receives the signal and clears its
-   session too, redirecting to session-expired. */
+   session too, redirecting to login. */
 if (typeof window !== "undefined") {
   queueMicrotask(() => {
     listenForBroadcastLogout(() => {
       const state = useAuthStore.getState();
       if (!state.isAuthenticated) return;
       tokenStorage.clear();
-      state.hardLogout(SESSION_EXPIRED_ROUTE);
+      state.hardLogout(LOGIN_ROUTE);
     });
   });
 }

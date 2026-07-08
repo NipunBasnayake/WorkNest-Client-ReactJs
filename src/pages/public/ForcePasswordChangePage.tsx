@@ -25,7 +25,6 @@ const AUTH_ONLY_PATHS = [
   "/forgot-password",
   "/reset-password",
   "/force-password-change",
-  "/session-expired",
 ];
 
 function readFromLocationState(state: unknown): Location | undefined {

@@ -46,7 +46,6 @@ const registerPage = lazyElement(() => import("@/pages/public/RegisterPage"), "R
 const forgotPasswordPage = lazyElement(() => import("@/pages/public/ForgotPasswordPage"), "ForgotPasswordPage");
 const resetPasswordPage = lazyElement(() => import("@/pages/public/ResetPasswordPage"), "ResetPasswordPage");
 const forcePasswordChangePage = lazyElement(() => import("@/pages/public/ForcePasswordChangePage"), "ForcePasswordChangePage");
-const sessionExpiredPage = lazyElement(() => import("@/pages/public/SessionExpiredPage"), "SessionExpiredPage");
 const unauthorizedPage = lazyElement(() => import("@/pages/public/UnauthorizedPage"), "UnauthorizedPage");
 const notFoundPage = lazyElement(() => import("@/pages/public/NotFoundPage"), "NotFoundPage");
 
@@ -74,6 +73,8 @@ const announcementFormPage = lazyElement(() => import("@/pages/app/AnnouncementF
 const notificationsPage = lazyElement(() => import("@/pages/app/NotificationsPage"), "NotificationsPage");
 const chatPage = lazyElement(() => import("@/pages/app/ChatPage"), "ChatPage");
 const analyticsPage = lazyElement(() => import("@/pages/app/AnalyticsPage"), "AnalyticsPage");
+const reportsPage = lazyElement(() => import("@/pages/app/ReportsPage"), "ReportsPage");
+const auditLogsPage = lazyElement(() => import("@/pages/app/AuditLogsPage"), "AuditLogsPage");
 const profilePage = lazyElement(() => import("@/pages/app/ProfilePage"), "ProfilePage");
 const recruitmentDashboardPage = lazyElement(() => import("@/modules/recruitment/pages/RecruitmentDashboardPage"), "RecruitmentDashboardPage");
 const recruitmentJobsPage = lazyElement(() => import("@/modules/recruitment/pages/RecruitmentJobsPage"), "RecruitmentJobsPage");
@@ -116,7 +117,6 @@ const router = createBrowserRouter([
           { path: "reset-password", element: resetPasswordPage },
           { path: "reset-password/:token", element: resetPasswordPage },
           { path: "force-password-change", element: forcePasswordChangePage },
-          { path: "session-expired", element: sessionExpiredPage },
         ],
       },
     ],
@@ -251,6 +251,16 @@ const router = createBrowserRouter([
           {
             element: <PermissionGuard permission={PERMISSIONS.ANALYTICS_VIEW} />,
             children: [{ path: "analytics", element: analyticsPage }],
+          },
+
+          {
+            element: <PermissionGuard permission={PERMISSIONS.REPORTS_VIEW} />,
+            children: [{ path: "reports", element: reportsPage }],
+          },
+
+          {
+            element: <PermissionGuard permission={PERMISSIONS.AUDIT_LOGS_VIEW} />,
+            children: [{ path: "audit-logs", element: auditLogsPage }],
           },
 
           {

@@ -24,7 +24,6 @@ const AUTH_ONLY_PATHS = [
   "/forgot-password",
   "/reset-password",
   "/force-password-change",
-  "/session-expired",
 ];
 
 function readLoginRouteState(value: unknown): LoginRouteState {

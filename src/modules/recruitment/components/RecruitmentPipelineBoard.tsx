@@ -1,7 +1,15 @@
 import type { RecruitmentPipeline } from "@/modules/recruitment/types";
 import { RecruitmentStatusBadge } from "@/modules/recruitment/components/RecruitmentStatusBadge";
 
-export function RecruitmentPipelineBoard({ pipeline, onMove }: { pipeline: RecruitmentPipeline; onMove?: (applicationId: string, stage: string) => void }) {
+export function RecruitmentPipelineBoard({
+  pipeline,
+  editable = false,
+  onMove,
+}: {
+  pipeline: RecruitmentPipeline;
+  editable?: boolean;
+  onMove?: (applicationId: string, stage: string) => void;
+}) {
   return (
     <div className="grid gap-4 lg:grid-cols-4">
       {pipeline.columns.map((column) => (
@@ -24,25 +32,27 @@ export function RecruitmentPipelineBoard({ pipeline, onMove }: { pipeline: Recru
                   </div>
                   <RecruitmentStatusBadge value={application.status} />
                 </div>
-                <div className="mt-3">
-                  <label className="mb-1 block text-[11px] font-medium" style={{ color: "var(--text-secondary)" }}>Move to</label>
-                  <select
-                    className="w-full rounded-lg border px-3 py-2 text-sm"
-                    style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)", color: "var(--text-primary)" }}
-                    value={application.status}
-                    disabled={application.status === "HIRED"}
-                    onChange={(event) => onMove?.(application.id, event.target.value)}
-                  >
-                    <option value={column.stage}>{column.stage}</option>
-                    <option value="SCREENING">SCREENING</option>
-                    <option value="INTERVIEW">INTERVIEW</option>
-                    <option value="TECHNICAL">TECHNICAL</option>
-                    <option value="HR_REVIEW">HR_REVIEW</option>
-                    <option value="OFFERED">OFFERED</option>
-                    <option value="HIRED">HIRED</option>
-                    <option value="REJECTED">REJECTED</option>
-                  </select>
-                </div>
+                {editable ? (
+                  <div className="mt-3">
+                    <label className="mb-1 block text-[11px] font-medium" style={{ color: "var(--text-secondary)" }}>Move to</label>
+                    <select
+                      className="w-full rounded-lg border px-3 py-2 text-sm"
+                      style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)", color: "var(--text-primary)" }}
+                      value={application.status}
+                      disabled={application.status === "HIRED"}
+                      onChange={(event) => onMove?.(application.id, event.target.value)}
+                    >
+                      <option value={column.stage}>{column.stage}</option>
+                      <option value="SCREENING">SCREENING</option>
+                      <option value="INTERVIEW">INTERVIEW</option>
+                      <option value="TECHNICAL">TECHNICAL</option>
+                      <option value="HR_REVIEW">HR_REVIEW</option>
+                      <option value="OFFERED">OFFERED</option>
+                      <option value="HIRED">HIRED</option>
+                      <option value="REJECTED">REJECTED</option>
+                    </select>
+                  </div>
+                ) : null}
               </article>
             ))}
           </div>

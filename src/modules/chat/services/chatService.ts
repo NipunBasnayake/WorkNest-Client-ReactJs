@@ -9,6 +9,7 @@ import {
   patchHrConversationRead,
   postHrConversation,
   postHrConversationMessage,
+  postMyHrSupportConversation,
   postReadReceipt,
   postTeamConversation,
   postTeamConversationMessage,
@@ -31,6 +32,11 @@ import { tokenStorage } from "@/services/http/client";
 import { useAuthStore } from "@/store/authStore";
 
 const conversationTypeById = new Map<string, ChatType>();
+
+function normalizeRole(value: unknown): string {
+  const normalized = getString(value)?.trim().toUpperCase() ?? "";
+  return normalized.startsWith("ROLE_") ? normalized.slice(5) : normalized;
+}
 
 function parseChatType(value: unknown): ChatType | undefined {
   const parsed = getString(value)?.toUpperCase();
@@ -93,14 +99,19 @@ function normalizeHrConversation(input: unknown): ChatConversation {
   const hr = asRecord(value.hr);
 
   const currentUserId = useAuthStore.getState().user?.id;
+  const currentUserRole = normalizeRole(useAuthStore.getState().user?.role);
   const id = getId(firstDefined(value.id, value.conversationId, value.chatId));
   const employeeId = getId(firstDefined(value.employeeId, employee.id));
   const hrId = getId(firstDefined(value.hrId, hr.id));
+  const employeePlatformUserId = getId(employee.platformUserId);
+  const hrPlatformUserId = getId(hr.platformUserId);
 
   const employeeName = firstDefined(getString(employee.fullName), getString(employee.name), getString(value.employeeName), "Employee") ?? "Employee";
-  const hrName = firstDefined(getString(hr.fullName), getString(hr.name), getString(value.hrName), "HR") ?? "HR";
 
-  const counterpartName = currentUserId && currentUserId === employeeId ? hrName : employeeName;
+  const currentUserIsEmployee = Boolean(currentUserId && (currentUserId === employeeId || currentUserId === employeePlatformUserId));
+  const currentUserIsHr = Boolean(currentUserId && (currentUserId === hrId || currentUserId === hrPlatformUserId));
+  const isHrQueueViewer = currentUserRole === "HR" || currentUserRole === "TENANT_ADMIN" || currentUserRole === "ADMIN";
+  const counterpartName = currentUserIsEmployee ? "HR Support" : (isHrQueueViewer || currentUserIsHr) ? employeeName : "HR Support";
   const title =
     firstDefined(getString(value.name), getString(value.conversationName), counterpartName, "HR Conversation") ?? "HR Conversation";
 
@@ -113,7 +124,7 @@ function normalizeHrConversation(input: unknown): ChatConversation {
   const unreadCount = firstDefined(getNumber(value.unreadCount), getNumber(value.unreadMessages)) ?? 0;
   const lastMessage = firstDefined(getString(value.lastMessage), getString(value.preview), getString(value.message)) ?? "";
   const lastMessageAt = toIsoDateTime(firstDefined(value.lastMessageAt, value.updatedAt, value.createdAt));
-  const subtitle = `HR chat${participants.length > 0 ? ` - ${participants.length} participant${participants.length > 1 ? "s" : ""}` : ""}`;
+  const subtitle = isHrQueueViewer ? "HR support request" : "HR support";
 
   const conversation: ChatConversation = {
     id,
@@ -245,6 +256,11 @@ export async function createOrGetHrConversation(employeeId: ChatId, hrId: ChatId
 
 export async function createHrConversation(employeeId: ChatId, hrId: ChatId): Promise<ChatConversation> {
   return createOrGetHrConversation(employeeId, hrId);
+}
+
+export async function createOrGetMyHrSupportConversation(): Promise<ChatConversation> {
+  const dto = await postMyHrSupportConversation();
+  return normalizeHrConversation(dto);
 }
 
 export async function listMyHrConversations(): Promise<ChatConversation[]> {
@@ -465,6 +481,21 @@ export function subscribeChatRealtime(
   const destinations = buildRealtimeDestinations(conversations);
   if (destinations.length === 0) return () => {};
   return subscribeRealtime(destinations, listener);
+}
+
+export function getRealtimeConversationHint(
+  message: { headers?: Record<string, string | undefined> } | null | undefined
+): { id: string; type: ChatType } | null {
+  const destination = message?.headers?.destination;
+  if (!destination) return null;
+
+  const match = destination.match(/^\/topic\/tenant\/[^/]+\/(hr-chat|team-chat)\/([^/]+)(?:\/|$)/);
+  if (!match) return null;
+
+  return {
+    id: match[2],
+    type: match[1] === "hr-chat" ? "HR" : "TEAM",
+  };
 }
 
 function tryNormalizeRealtimeCandidate(

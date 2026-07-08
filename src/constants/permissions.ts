@@ -36,6 +36,8 @@ export const PERMISSIONS = {
   CHAT_VIEW: "chat.view",
   HR_CHAT_START: "chat.hr.start",
   ANALYTICS_VIEW: "analytics.view",
+  REPORTS_VIEW: "reports.view",
+  AUDIT_LOGS_VIEW: "audit-logs.view",
   PROFILE_VIEW: "profile.view",
   PROFILE_MANAGE: "profile.manage",
   SETTINGS_VIEW: "settings.view",

@@ -7,6 +7,8 @@ import { Input } from "@/components/common/Input";
 import { TextareaField } from "@/components/common/TextareaField";
 import { EmptyState, ErrorBanner, SkeletonRow } from "@/components/common/AppUI";
 import { usePageMeta } from "@/hooks/usePageMeta";
+import { usePermission } from "@/hooks/usePermission";
+import { PERMISSIONS } from "@/constants/permissions";
 import { useRecruitmentCandidatesQuery } from "@/modules/recruitment/hooks/useRecruitment";
 import { createCandidate, uploadCandidateResume } from "@/modules/recruitment/services/recruitmentService";
 import type { RecruitmentCandidate, RecruitmentCandidateFormValues } from "@/modules/recruitment/types";
@@ -25,6 +27,8 @@ const EMPTY_FORM: RecruitmentCandidateFormValues = {
 export function RecruitmentCandidatesPage() {
   usePageMeta({ title: "Recruitment Candidates", breadcrumb: ["Workspace", "Recruitment", "Candidates"] });
   const candidatesQuery = useRecruitmentCandidatesQuery();
+  const { hasPermission } = usePermission();
+  const canManageRecruitment = hasPermission(PERMISSIONS.RECRUITMENT_MANAGE);
   const [form, setForm] = useState<RecruitmentCandidateFormValues>(EMPTY_FORM);
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
@@ -48,6 +52,10 @@ export function RecruitmentCandidatesPage() {
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
+    if (!canManageRecruitment) {
+      setFeedback("You do not have permission to manage candidates.");
+      return;
+    }
     setSaving(true);
     setFeedback(null);
     try {
@@ -72,14 +80,15 @@ export function RecruitmentCandidatesPage() {
       <PageHeader
         title="Candidates"
         description="Maintain a tenant-specific candidate pool with resume uploads and recruiter notes."
-        actions={<Button onClick={() => setSelectedCandidate(null)}><PlusCircle size={16} />New Candidate</Button>}
+        actions={canManageRecruitment ? <Button onClick={() => setSelectedCandidate(null)}><PlusCircle size={16} />New Candidate</Button> : undefined}
       />
 
       {feedback ? <div className="rounded-xl border px-4 py-3 text-sm" style={{ borderColor: "var(--border-default)", backgroundColor: "var(--bg-surface)" }}>{feedback}</div> : null}
 
       <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-        <SectionCard title="Candidate form" subtitle="Store candidate details and optionally upload a resume.">
-          <form className="space-y-4" onSubmit={handleSubmit}>
+        {canManageRecruitment ? (
+          <SectionCard title="Candidate form" subtitle="Store candidate details and optionally upload a resume.">
+            <form className="space-y-4" onSubmit={handleSubmit}>
             <Input id="candidate-name" label="Full name" value={form.fullName} onChange={(event) => setForm((prev) => ({ ...prev, fullName: event.target.value }))} required />
             <Input id="candidate-email" label="Email" type="email" value={form.email} onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))} required />
             <Input id="candidate-phone" label="Phone" value={form.phone} onChange={(event) => setForm((prev) => ({ ...prev, phone: event.target.value }))} />
@@ -97,8 +106,15 @@ export function RecruitmentCandidatesPage() {
               <Paperclip size={16} />
               Save Candidate
             </Button>
-          </form>
-        </SectionCard>
+            </form>
+          </SectionCard>
+        ) : (
+          <SectionCard title="Recruitment access" subtitle="Candidate management is available to HR and tenant administrators.">
+            <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+              You can review candidates, but you do not have permission to create candidates or upload resumes.
+            </p>
+          </SectionCard>
+        )}
 
         <SectionCard title="Candidate pool" subtitle="Recently added talent and attached resumes." variant="table">
           {candidatesQuery.isError ? (
@@ -113,7 +129,9 @@ export function RecruitmentCandidatesPage() {
                 <button
                   key={candidate.id}
                   type="button"
-                  onClick={() => setSelectedCandidate(candidate)}
+                  onClick={() => {
+                    if (canManageRecruitment) setSelectedCandidate(candidate);
+                  }}
                   className="flex w-full items-center justify-between px-5 py-4 text-left transition hover:bg-[var(--bg-muted)]"
                 >
                   <div>

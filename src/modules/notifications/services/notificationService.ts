@@ -1,30 +1,43 @@
 import { apiClient, buildTenantApiUrl } from "@/services/http/client";
 import { unwrapApiData } from "@/services/http/response";
 import { asRecord, extractList, firstDefined, getBoolean, getId, getNumber, getString, toIsoDateTime } from "@/services/http/parsers";
+import { tokenStorage } from "@/services/auth/tokenStorage";
 import { readRealtimeDestinations, subscribeRealtime } from "@/services/realtime/stompService";
 import type { AppNotification, CreateNotificationPayload } from "@/modules/notifications/types";
 import type { ApiResponse } from "@/types";
 
 const NOTIFICATION_EVENT = "worknest:notifications:updated";
-const NOTIFICATION_REALTIME_DESTINATIONS = readRealtimeDestinations("VITE_NOTIFICATIONS_TOPICS", [
+const NOTIFICATION_REALTIME_FALLBACKS = readRealtimeDestinations("VITE_NOTIFICATIONS_TOPICS", [
   "/user/queue/notifications",
-  "/topic/tenant/notifications",
   "/topic/notifications",
 ]);
-let realtimeBridgeInitialized = false;
+const notificationListeners = new Set<() => void>();
+let realtimeBridgeUnsubscribe: (() => void) | null = null;
 
 function emitUpdated() {
   if (typeof window === "undefined") return;
   window.dispatchEvent(new CustomEvent(NOTIFICATION_EVENT));
 }
 
-function ensureRealtimeBridge() {
-  if (realtimeBridgeInitialized) return;
-  realtimeBridgeInitialized = true;
+function buildRealtimeDestinations(): string[] {
+  const tenantKey = tokenStorage.getTenantKey();
+  const tenantDestinations = tenantKey ? [`/topic/tenant/${tenantKey}/notifications`] : [];
+  return [...new Set([...tenantDestinations, ...NOTIFICATION_REALTIME_FALLBACKS])];
+}
 
-  subscribeRealtime(NOTIFICATION_REALTIME_DESTINATIONS, () => {
+function ensureRealtimeBridge() {
+  if (realtimeBridgeUnsubscribe) return;
+
+  const unsubscribe = subscribeRealtime(buildRealtimeDestinations(), () => {
     emitUpdated();
   });
+  realtimeBridgeUnsubscribe = unsubscribe;
+}
+
+function releaseRealtimeBridge() {
+  if (notificationListeners.size > 0) return;
+  realtimeBridgeUnsubscribe?.();
+  realtimeBridgeUnsubscribe = null;
 }
 
 function buildReferenceLink(referenceType?: string, referenceId?: string): string | undefined {
@@ -105,11 +118,27 @@ function toReadableType(type: string): string {
 
 export function subscribeNotifications(listener: () => void): () => void {
   if (typeof window === "undefined") return () => {};
+  const safeListener = () => {
+    try {
+      listener();
+    } catch (error) {
+      if (import.meta.env.DEV) {
+        console.warn("Notification realtime listener failed:", error);
+      }
+    }
+  };
+
+  notificationListeners.add(safeListener);
   ensureRealtimeBridge();
 
-  window.addEventListener(NOTIFICATION_EVENT, listener);
+  window.addEventListener(NOTIFICATION_EVENT, safeListener);
+  let cleanedUp = false;
   return () => {
-    window.removeEventListener(NOTIFICATION_EVENT, listener);
+    if (cleanedUp) return;
+    cleanedUp = true;
+    window.removeEventListener(NOTIFICATION_EVENT, safeListener);
+    notificationListeners.delete(safeListener);
+    releaseRealtimeBridge();
   };
 }
 

@@ -5,6 +5,7 @@ import {
   LogOut, ChevronLeft, ChevronRight, X,
   ClipboardList, CalendarCheck, Bell, MessageSquare, Briefcase, BarChart3, CheckSquare, BellRing,
   Lock,
+  FileText,
 } from "lucide-react";
 import { FaUser } from "react-icons/fa6";
 import { useAuth } from "@/hooks/useAuth";
@@ -46,6 +47,7 @@ const TENANT_NAV_GROUPS: SidebarNavGroup[] = [
     items: [
       { label: "Dashboard", to: (t: string) => tenantRoutes.dashboard(t), icon: <LayoutDashboard size={18} /> },
       { label: "Analytics", to: (t: string) => tenantRoutes.analytics(t), icon: <BarChart3 size={18} />, permission: PERMISSIONS.ANALYTICS_VIEW },
+      { label: "Reports", to: (t: string) => tenantRoutes.reports(t), icon: <FileText size={18} />, permission: PERMISSIONS.REPORTS_VIEW },
     ],
   },
   {
@@ -76,6 +78,12 @@ const TENANT_NAV_GROUPS: SidebarNavGroup[] = [
       { label: "Announcements", to: (t: string) => tenantRoutes.announcements(t), icon: <Bell size={18} />, permission: PERMISSIONS.ANNOUNCEMENTS_VIEW },
       { label: "Notifications", to: (t: string) => tenantRoutes.notifications(t), icon: <BellRing size={18} />, permission: PERMISSIONS.NOTIFICATIONS_VIEW },
       { label: "Chat", to: (t: string) => tenantRoutes.chat(t), icon: <MessageSquare size={18} />, permission: PERMISSIONS.CHAT_VIEW },
+    ],
+  },
+  {
+    label: "Administration",
+    items: [
+      { label: "Audit Logs", to: (t: string) => tenantRoutes.auditLogs(t), icon: <Lock size={18} />, permission: PERMISSIONS.AUDIT_LOGS_VIEW },
     ],
   },
 ];

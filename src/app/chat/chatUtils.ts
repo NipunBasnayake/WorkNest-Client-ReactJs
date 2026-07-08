@@ -1,7 +1,8 @@
 import type { ChatConversation, ChatMessage, ChatParticipant } from "@/modules/chat/types";
 
 export function toRole(value: string | undefined): string {
-  return value?.trim().toUpperCase() ?? "";
+  const normalized = value?.trim().toUpperCase() ?? "";
+  return normalized.startsWith("ROLE_") ? normalized.slice(5) : normalized;
 }
 
 export function buildConversationKey(conversation: Pick<ChatConversation, "id" | "type">): string {
