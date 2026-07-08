@@ -125,7 +125,7 @@ export async function createLeaveRequest(payload: LeavePayload): Promise<LeaveRe
     endDate: payload.endDate,
     reason: payload.reason.trim(),
     attachments: payload.attachments.map<LeaveAttachmentRequest>((attachment) => ({
-      fileUrl: attachment.url,
+      fileUrl: attachment.path ?? attachment.url,
       fileName: attachment.name,
       fileType: inferAttachmentType(attachment),
       fileSize: attachment.size ?? 1,
@@ -141,7 +141,7 @@ export async function updateLeaveRequest(id: string, payload: Omit<LeavePayload,
     endDate: payload.endDate,
     reason: payload.reason.trim(),
     attachments: payload.attachments.map<LeaveAttachmentRequest>((attachment) => ({
-      fileUrl: attachment.url,
+      fileUrl: attachment.path ?? attachment.url,
       fileName: attachment.name,
       fileType: inferAttachmentType(attachment),
       fileSize: attachment.size ?? 1,

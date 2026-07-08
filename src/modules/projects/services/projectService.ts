@@ -115,9 +115,9 @@ function toProjectPayload(values: ProjectFormValues) {
     startDate: values.startDate || undefined,
     endDate: values.endDate || undefined,
     status: toApiStatus(values.status),
-    documentUrls: values.documents.map((document) => document.url),
+    documentUrls: values.documents.map((document) => document.path ?? document.url),
     documents: values.documents.map((document) => ({
-      url: document.url,
+      url: document.path ?? document.url,
       name: document.name,
       mimeType: document.mimeType,
       size: document.size,
