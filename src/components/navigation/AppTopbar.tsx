@@ -1,11 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BellRing, Menu } from "lucide-react";
-import { FaUser } from "react-icons/fa6";
-import { Link } from "react-router-dom";
-import { ThemeToggle } from "@/components/common/ThemeToggle";
+import { Bell, BellRing, ChevronDown, LogOut, Menu, Moon, Settings, Shield, Sun, User } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { useTheme } from "@/hooks/useTheme";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Separator } from "@/components/ui/separator";
 import { NotificationItem } from "@/modules/notifications/components/NotificationItem";
-import { tenantRoutes } from "@/utils/tenantRoutes";
+import { authRoutes, platformRoutes, tenantRoutes } from "@/utils/tenantRoutes";
 import {
   getNotifications,
   getUnreadNotificationCount,
@@ -22,8 +31,28 @@ interface AppTopbarProps {
   onMobileMenuToggle: () => void;
 }
 
+function getInitials(name?: string | null, email?: string | null): string {
+  const source = (name && name.trim()) || (email && email.trim()) || "WorkNest User";
+  const parts = source.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) {
+    return `${parts[0][0] ?? ""}${parts[1][0] ?? ""}`.toUpperCase();
+  }
+  return source.slice(0, 2).toUpperCase();
+}
+
+function formatRoleLabel(role?: string | null): string {
+  if (!role) return "Workspace";
+  return role
+    .replace(/^ROLE_/, "")
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(" ");
+}
+
 export function AppTopbar({ area, pageTitle, breadcrumb, onMobileMenuToggle }: AppTopbarProps) {
-  const { user } = useAuth();
+  const { user, logout, role, tenantKey } = useAuth();
+  const { theme, toggleTheme } = useTheme();
+  const navigate = useNavigate();
   const dropdownRef = useRef<HTMLDivElement | null>(null);
   const notificationButtonRef = useRef<HTMLButtonElement | null>(null);
   const notificationPanelRef = useRef<HTMLDivElement | null>(null);
@@ -35,6 +64,10 @@ export function AppTopbar({ area, pageTitle, breadcrumb, onMobileMenuToggle }: A
 
   const isTenantArea = area === "tenant";
   const notificationPanelId = "topbar-notifications-panel";
+  const displayName = user?.name?.trim() || user?.email || "WorkNest user";
+  const displayEmail = user?.email || "No email available";
+  const roleLabel = formatRoleLabel(role ?? user?.role);
+  const tenantSlug = tenantKey ?? undefined;
 
   const refreshNotifications = useCallback(async () => {
     if (!isTenantArea) return;
@@ -95,6 +128,11 @@ export function AppTopbar({ area, pageTitle, breadcrumb, onMobileMenuToggle }: A
   }, [open]);
 
   const previewItems = useMemo(() => items.slice(0, 5), [items]);
+
+  async function handleLogout() {
+    await logout();
+    navigate(authRoutes.login);
+  }
 
   async function handleMarkRead(id: string) {
     await markNotificationAsRead(id);
@@ -273,28 +311,95 @@ export function AppTopbar({ area, pageTitle, breadcrumb, onMobileMenuToggle }: A
           </div>
         )}
 
-        <ThemeToggle />
-
-        {/* User avatar */}
+        {/* User menu */}
         {user && (
-          <div className="flex items-center gap-2">
-            {user.avatarUrl ? (
-              <img
-                src={user.avatarUrl}
-                alt={user.name}
-                className="h-8 w-8 rounded-full object-cover"
-                title={user.name}
-              />
-            ) : (
-              <div
-                className="w-8 h-8 rounded-full flex items-center justify-center text-white cursor-default"
-                style={{ backgroundColor: "#6b7280" }}
-                title={user.name}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className="group inline-flex h-9 items-center gap-2 rounded-xl border px-1.5 pr-2 transition-colors hover:bg-primary-50 dark:hover:bg-primary-950/20"
+                style={{ borderColor: "var(--border-default)", color: "var(--text-secondary)" }}
+                aria-label="Open user menu"
               >
-                <FaUser size={12} />
+                <Avatar className="h-7 w-7">
+                  <AvatarImage src={user.avatarUrl} alt={displayName} />
+                  <AvatarFallback className="bg-primary-100 text-[11px] text-primary-700 dark:bg-primary-950 dark:text-primary-200">
+                    {getInitials(displayName, displayEmail)}
+                  </AvatarFallback>
+                </Avatar>
+                <ChevronDown size={14} className="hidden text-inherit opacity-60 transition-transform group-data-[state=open]:rotate-180 sm:block" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" sideOffset={10} className="w-72 p-2 bg-[var(--bg-surface)] text-[var(--text-primary)] border-[var(--border-default)]">
+              <div className="flex items-start gap-3 px-2 py-2.5">
+                <Avatar className="h-10 w-10">
+                  <AvatarImage src={user.avatarUrl} alt={displayName} />
+                  <AvatarFallback className="bg-primary-100 text-sm text-primary-700 dark:bg-primary-950 dark:text-primary-200">
+                    {getInitials(displayName, displayEmail)}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold leading-5" style={{ color: "var(--text-primary)" }}>
+                    {displayName}
+                  </p>
+                  <p className="truncate text-xs" style={{ color: "var(--text-tertiary)" }}>
+                    {displayEmail}
+                  </p>
+                  <span
+                    className="mt-2 inline-flex max-w-full items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em]"
+                    style={{
+                      borderColor: "rgba(147,50,234,0.28)",
+                      backgroundColor: "rgba(147,50,234,0.10)",
+                      color: "var(--color-primary-600)",
+                    }}
+                  >
+                    {roleLabel}
+                  </span>
+                </div>
               </div>
-            )}
-          </div>
+
+              <Separator className="my-1 bg-[var(--border-default)]" decorative />
+
+              <DropdownMenuGroup>
+                <DropdownMenuItem onSelect={() => navigate(isTenantArea ? tenantRoutes.profile(tenantSlug) : platformRoutes.profile())}>
+                  <User size={16} />
+                  My Profile
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => navigate(isTenantArea ? tenantRoutes.settingsProfile(tenantSlug) : platformRoutes.settings())}>
+                  <Settings size={16} />
+                  Account Settings
+                </DropdownMenuItem>
+                {isTenantArea && (
+                  <DropdownMenuItem onSelect={() => navigate(tenantRoutes.settingsSecurity(tenantSlug))}>
+                    <Shield size={16} />
+                    Change Password
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem onSelect={() => toggleTheme()}>
+                  {theme === "light" ? <Moon size={16} /> : <Sun size={16} />}
+                  Appearance / Theme
+                </DropdownMenuItem>
+                {isTenantArea && (
+                  <DropdownMenuItem onSelect={() => navigate(tenantRoutes.settingsPreferences(tenantSlug))}>
+                    <Bell size={16} />
+                    Notification Preferences
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuGroup>
+
+              <DropdownMenuSeparator />
+
+              <DropdownMenuItem
+                onSelect={() => {
+                  void handleLogout();
+                }}
+                className="text-danger-600 focus:bg-danger-50 focus:text-danger-700 dark:text-danger-300 dark:focus:bg-danger-900/30 dark:focus:text-danger-200"
+              >
+                <LogOut size={16} />
+                Logout
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
       </div>
     </header>
