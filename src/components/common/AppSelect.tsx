@@ -1,5 +1,6 @@
 import { forwardRef, type SelectHTMLAttributes } from "react";
 import { ChevronDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface AppSelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
   error?: boolean;
@@ -7,14 +8,20 @@ interface AppSelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
 
 export const AppSelect = forwardRef<HTMLSelectElement, AppSelectProps>(
   ({ className = "", children, error = false, disabled, ...rest }, ref) => {
+    const { ["aria-describedby"]: ariaDescribedBy, ...selectProps } = rest;
+
     return (
-      <div className={`relative ${className}`}>
+      <div className={cn("relative", className)}>
         <select
           ref={ref}
-          className={`app-select h-[42px] w-full rounded-xl border px-4 pr-10 text-sm outline-none ${error ? "app-select--error" : ""}`}
+          className={cn(
+            "app-select h-10 w-full rounded-xl border px-4 pr-10 text-sm outline-none transition-colors",
+            error && "app-select--error",
+          )}
           disabled={disabled}
           aria-invalid={error ? true : rest["aria-invalid"]}
-          {...rest}
+          aria-describedby={ariaDescribedBy}
+          {...selectProps}
         >
           {children}
         </select>
