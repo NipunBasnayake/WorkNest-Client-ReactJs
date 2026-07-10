@@ -41,6 +41,8 @@ function lazyElement<TModule extends Record<string, unknown>>(
 }
 
 const landingPage = lazyElement(() => import("@/pages/public/LandingPage"), "LandingPage");
+const careersPage = lazyElement(() => import("@/pages/public/CareersPage"), "CareersPage");
+const careerDetailPage = lazyElement(() => import("@/pages/public/CareerDetailPage"), "CareerDetailPage");
 const loginPage = lazyElement(() => import("@/pages/public/LoginPage"), "LoginPage");
 const registerPage = lazyElement(() => import("@/pages/public/RegisterPage"), "RegisterPage");
 const forgotPasswordPage = lazyElement(() => import("@/pages/public/ForgotPasswordPage"), "ForgotPasswordPage");
@@ -99,6 +101,8 @@ const router = createBrowserRouter([
     element: <PublicLayout />,
     children: [
       { index: true, element: landingPage },
+      { path: ":tenantSlug/careers", element: careersPage },
+      { path: ":tenantSlug/careers/:jobSlug", element: careerDetailPage },
       { path: "unauthorized", element: unauthorizedPage },
       { path: "*", element: notFoundPage },
     ],

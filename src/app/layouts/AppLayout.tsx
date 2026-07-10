@@ -3,6 +3,7 @@ import { Outlet } from "react-router-dom";
 import { AppSidebar } from "@/components/navigation/AppSidebar";
 import { AppTopbar } from "@/components/navigation/AppTopbar";
 import { NetworkStatusBanner } from "@/components/common/NetworkStatusBanner";
+import { PageContainer } from "@/components/common/PageContainer";
 import { PageContext } from "@/app/layouts/PageMetaContext";
 
 /* ── Layout ── */
@@ -19,14 +20,14 @@ export function AppLayout({ area }: AppLayoutProps) {
   return (
     <PageContext.Provider
       value={{
-        setTitle:      setPageTitle,
+        setTitle: setPageTitle,
         setBreadcrumb: setBreadcrumb,
       }}
     >
       <div
-        className="flex h-screen overflow-hidden"
+        className="flex h-dvh overflow-hidden"
         style={{
-          background: "linear-gradient(180deg, rgba(147,50,234,0.04) 0%, rgba(147,50,234,0) 20%), var(--bg-base)",
+          background: "var(--bg-base)",
         }}
       >
         {/* Sidebar */}
@@ -48,14 +49,10 @@ export function AppLayout({ area }: AppLayoutProps) {
             onMobileMenuToggle={() => setMobileOpen(true)}
           />
 
-          {/* Page content */}
-          <main
-            className="flex-1 overflow-y-auto"
-            style={{ backgroundColor: "var(--bg-base)" }}
-          >
-            <div className="mx-auto w-full max-w-[1500px] px-4 py-4 sm:px-6 sm:py-6 xl:px-8 xl:py-8 2xl:px-10">
+          <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain" style={{ backgroundColor: "var(--bg-base)" }}>
+            <PageContainer>
               <Outlet />
-            </div>
+            </PageContainer>
           </main>
         </div>
       </div>

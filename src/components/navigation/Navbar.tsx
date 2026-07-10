@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useLocation } from "react-router-dom";
+import { Link, matchPath, useLocation } from "react-router-dom";
 import { Menu, X } from "lucide-react";
 import { Logo } from "@/components/common/Logo";
 import { Button } from "@/components/common/Button";
@@ -12,6 +12,12 @@ export function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const location = useLocation();
   const isLanding = location.pathname === "/";
+  const careersMatch = matchPath("/:tenantSlug/careers/*", location.pathname)
+    ?? matchPath("/:tenantSlug/careers", location.pathname);
+  const tenantCareersLink = careersMatch?.params.tenantSlug
+    ? [{ label: "Careers", href: `/${careersMatch.params.tenantSlug}/careers` }]
+    : [];
+  const visibleNavLinks = isLanding ? NAV_LINKS : tenantCareersLink;
 
   useEffect(() => {
     const handler = () => setScrolled(window.scrollY > 16);
@@ -38,8 +44,17 @@ export function Navbar() {
 
           {/* Desktop nav links */}
           <div className="hidden md:flex items-center gap-0.5">
-            {isLanding &&
-              NAV_LINKS.map((link) => (
+            {visibleNavLinks.map((link) => (
+              link.href.startsWith("/") ? (
+                <Link
+                  key={link.href}
+                  to={link.href}
+                  className="px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-200 no-underline hover:text-primary-600 dark:hover:text-primary-400"
+                  style={{ color: "var(--text-secondary)" }}
+                >
+                  {link.label}
+                </Link>
+              ) : (
                 <a
                   key={link.href}
                   href={link.href}
@@ -48,7 +63,8 @@ export function Navbar() {
                 >
                   {link.label}
                 </a>
-              ))}
+              )
+            ))}
           </div>
 
           {/* Desktop actions */}
@@ -86,7 +102,7 @@ export function Navbar() {
       <MobileMenu
         open={mobileOpen}
         onClose={() => setMobileOpen(false)}
-        showNavLinks={isLanding}
+        navLinks={visibleNavLinks}
       />
     </>
   );

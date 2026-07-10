@@ -166,7 +166,7 @@ export function AppTopbar({ area, pageTitle, breadcrumb, onMobileMenuToggle }: A
 
   return (
     <header
-      className="sticky top-0 z-30 flex min-h-16 items-center gap-4 border-b px-4 sm:px-6 shrink-0 transition-colors duration-200"
+      className="sticky top-0 z-30 flex min-h-16 shrink-0 items-center gap-4 border-b px-4 transition-colors duration-200 sm:px-6"
       style={{
         backgroundColor: "var(--bg-navbar)",
         borderColor: "var(--border-default)",
@@ -219,7 +219,7 @@ export function AppTopbar({ area, pageTitle, breadcrumb, onMobileMenuToggle }: A
               ref={notificationButtonRef}
               type="button"
               onClick={() => setOpen((prev) => !prev)}
-              className="relative h-9 w-9 rounded-xl border flex items-center justify-center cursor-pointer transition-colors hover:bg-primary-50 dark:hover:bg-primary-950/20"
+              className="relative flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl border transition-colors hover:bg-primary-50 dark:hover:bg-primary-950/20"
               style={{ borderColor: "var(--border-default)", color: "var(--text-secondary)" }}
               aria-label="Notifications"
               aria-haspopup="dialog"

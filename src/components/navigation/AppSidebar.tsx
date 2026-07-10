@@ -134,7 +134,7 @@ function NavItem({
   const isDisabled = COMING_SOON.includes(resolvedTo);
 
   const base =
-    "group relative flex items-center gap-3 rounded-2xl px-3.5 py-2.5 text-sm font-medium transition-all duration-150";
+    "group relative flex items-center gap-3 rounded-2xl px-3.5 py-2.5 text-sm font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/35 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent";
   const active =
     "text-white";
   const inactive =
@@ -248,14 +248,14 @@ export function AppSidebar({ area, collapsed, mobileOpen, onToggleCollapse, onMo
 
   const sidebarContent = (
     <div
-      className="flex flex-col h-full relative"
+      className="relative flex h-full flex-col"
       style={{
-        background: "linear-gradient(180deg, #180a29 0%, #12081f 38%, #0b0716 100%)",
+        background: "linear-gradient(180deg, #160a27 0%, #12081f 44%, #0b0716 100%)",
         boxShadow: "16px 0 40px rgba(15, 8, 32, 0.18)",
       }}
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-4 h-16 shrink-0 border-b border-white/8">
+      <div className="flex h-16 shrink-0 items-center justify-between border-b border-white/8 px-4">
         <div className="inline-flex items-center gap-2.5 min-w-0">
           <div
             className="flex h-8 w-8 items-center justify-center rounded-xl shrink-0"
@@ -317,7 +317,7 @@ export function AppSidebar({ area, collapsed, mobileOpen, onToggleCollapse, onMo
       </div>
 
       {/* Main nav */}
-      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1 scrollbar-hide">
+      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4 scrollbar-hide">
         {mainNavGroups.map((group, index) => (
           <NavGroup
             key={group.label}
@@ -346,7 +346,7 @@ export function AppSidebar({ area, collapsed, mobileOpen, onToggleCollapse, onMo
 
       {/* Sidebar panel */}
       <aside
-        className={`fixed lg:relative inset-y-0 left-0 z-40 flex flex-col transition-all duration-300 lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-40 flex flex-col transition-[transform,width] duration-300 lg:relative lg:translate-x-0 ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         } ${collapsed ? "w-[5rem]" : "w-72"}`}
         style={{ height: "100vh" }}
