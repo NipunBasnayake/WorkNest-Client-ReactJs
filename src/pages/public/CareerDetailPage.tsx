@@ -8,7 +8,9 @@ import { PageContainer } from "@/components/common/PageContainer";
 import { PageHeader } from "@/components/common/PageHeader";
 import { SectionCard } from "@/components/common/SectionCard";
 import { useSeoMeta } from "@/hooks/useSeoMeta";
+import { PublicShareMenu } from "@/modules/careers/components/PublicShareMenu";
 import { getPublicCareerDetail } from "@/modules/careers/services/publicCareersService";
+import { buildCareersUrl, buildVacancyUrl } from "@/modules/careers/share";
 import type { PublicCareerJobDetail } from "@/modules/careers/types";
 import { formatEmploymentType, formatPublicDate, splitRichText } from "@/modules/careers/utils";
 
@@ -67,6 +69,9 @@ export function CareerDetailPage() {
     );
   }
 
+  const careersUrl = buildCareersUrl(tenantSlug);
+  const vacancyUrl = buildVacancyUrl(tenantSlug, job.slug);
+
   return (
     <PageContainer className="space-y-7">
       <PageHeader
@@ -79,6 +84,19 @@ export function CareerDetailPage() {
           </Link>
         }
         status={<Badge variant="success">Public vacancy</Badge>}
+        actions={
+          <>
+            <Button variant="primary" size="md" to={`/${tenantSlug}/careers/${job.slug}/apply`}>
+              Apply
+            </Button>
+            <PublicShareMenu
+              careersUrl={careersUrl}
+              vacancyUrl={vacancyUrl}
+              vacancyTitle={job.title}
+              companyName={job.company.companyName}
+            />
+          </>
+        }
       />
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
@@ -122,11 +140,11 @@ export function CareerDetailPage() {
 
           <SectionCard variant="dense">
             <div className="space-y-3">
-              <Button variant="primary" size="md" className="w-full" disabled>
-                Coming in Sprint 02
+              <Button variant="primary" size="md" className="w-full" to={`/${tenantSlug}/careers/${job.slug}/apply`}>
+                Apply
               </Button>
               <p className="text-xs leading-5" style={{ color: "var(--text-secondary)" }}>
-                Applications are intentionally disabled in Sprint 01. This page is for public vacancy browsing only.
+                Submit your profile and resume for this vacancy.
               </p>
             </div>
           </SectionCard>

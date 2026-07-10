@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
-import { BriefcaseBusiness, Building2, CalendarDays, MapPin, Search } from "lucide-react";
+import { BriefcaseBusiness, Building2, CalendarDays, Link2, MapPin, Search } from "lucide-react";
 import { Badge } from "@/components/common/Badge";
 import { Button } from "@/components/common/Button";
 import { EmptyState, ErrorBanner } from "@/components/common/AppUI";
@@ -8,18 +8,22 @@ import { PageContainer } from "@/components/common/PageContainer";
 import { PageHeader } from "@/components/common/PageHeader";
 import { SectionCard } from "@/components/common/SectionCard";
 import { useSeoMeta } from "@/hooks/useSeoMeta";
+import { useToast } from "@/hooks/useToast";
 import { getPublicCareers } from "@/modules/careers/services/publicCareersService";
-import type { PublicCareerJobSummary, PublicCareersResponse } from "@/modules/careers/types";
+import { buildCareersUrl, copyPublicUrl } from "@/modules/careers/share";
+import type { PublicCareerJobSummary, PublicCareersResponse, PublicEmploymentType } from "@/modules/careers/types";
 import { formatEmploymentType, formatPublicDate } from "@/modules/careers/utils";
 
 export function CareersPage() {
   const { tenantSlug = "" } = useParams();
+  const toast = useToast();
   const [data, setData] = useState<PublicCareersResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [department, setDepartment] = useState("all");
   const [employmentType, setEmploymentType] = useState("all");
+  const careersUrl = tenantSlug ? buildCareersUrl(tenantSlug) : "";
 
   useSeoMeta({
     title: data?.company.companyName ? `${data.company.companyName} Careers` : "Careers",
@@ -51,8 +55,8 @@ export function CareersPage() {
   }, [tenantSlug]);
 
   const jobs = data?.jobs ?? [];
-  const departments = useMemo(() => uniqueOptions(jobs.map((job) => job.department)), [jobs]);
-  const employmentTypes = useMemo(() => uniqueOptions(jobs.map((job) => job.employmentType)), [jobs]);
+  const departments = useMemo(() => uniqueOptions<string>(jobs.map((job) => job.department)), [jobs]);
+  const employmentTypes = useMemo(() => uniqueOptions<PublicEmploymentType>(jobs.map((job) => job.employmentType)), [jobs]);
   const filteredJobs = useMemo(() => {
     const query = search.trim().toLowerCase();
     return jobs.filter((job) => {
@@ -64,6 +68,16 @@ export function CareersPage() {
       return matchesSearch && matchesDepartment && matchesType;
     });
   }, [department, employmentType, jobs, search]);
+
+  async function handleShareCareers() {
+    if (!careersUrl) return;
+    const outcome = await copyPublicUrl(careersUrl);
+    if (outcome === "copied") {
+      toast.success({ title: "Careers page copied" });
+    } else if (outcome === "prompt") {
+      toast.info({ title: "Copy the public link", description: "Use the selectable URL dialog to copy the careers page." });
+    }
+  }
 
   if (loading) {
     return (
@@ -90,7 +104,12 @@ export function CareersPage() {
 
   return (
     <PageContainer className="space-y-8">
-      <CompanyHeader companyName={data.company.companyName} about={data.company.about} logoUrl={data.company.logoUrl} />
+      <CompanyHeader
+        companyName={data.company.companyName}
+        about={data.company.about}
+        logoUrl={data.company.logoUrl}
+        onShareCareers={handleShareCareers}
+      />
 
       <PageHeader
         title="Open Positions"
@@ -141,28 +160,51 @@ export function CareersPage() {
   );
 }
 
-function CompanyHeader({ companyName, about, logoUrl }: { companyName: string; about?: string; logoUrl?: string }) {
+function CompanyHeader({
+  companyName,
+  about,
+  logoUrl,
+  onShareCareers,
+}: {
+  companyName: string;
+  about?: string;
+  logoUrl?: string;
+  onShareCareers: () => void;
+}) {
   return (
     <section className="rounded-2xl border p-6 sm:p-8" style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)", boxShadow: "var(--shadow-sm)" }}>
-      <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
-        <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl border" style={{ backgroundColor: "var(--bg-muted)", borderColor: "var(--border-default)" }}>
-          {logoUrl ? (
-            <img src={logoUrl} alt={`${companyName} logo`} className="h-full w-full object-cover" />
-          ) : (
-            <Building2 size={28} style={{ color: "var(--color-primary-500)" }} aria-hidden="true" />
-          )}
+      <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex min-w-0 flex-col gap-5 sm:flex-row sm:items-center">
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl border" style={{ backgroundColor: "var(--bg-muted)", borderColor: "var(--border-default)" }}>
+            {logoUrl ? (
+              <img src={logoUrl} alt={`${companyName} logo`} className="h-full w-full object-cover" />
+            ) : (
+              <Building2 size={28} style={{ color: "var(--color-primary-500)" }} aria-hidden="true" />
+            )}
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold" style={{ color: "var(--color-primary-600)" }}>Careers</p>
+            <h1 className="mt-1 text-3xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>{companyName}</h1>
+            {about ? <p className="mt-2 max-w-3xl text-sm leading-6" style={{ color: "var(--text-secondary)" }}>{about}</p> : null}
+          </div>
         </div>
-        <div className="min-w-0">
-          <p className="text-sm font-semibold" style={{ color: "var(--color-primary-600)" }}>Careers</p>
-          <h1 className="mt-1 text-3xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>{companyName}</h1>
-          {about ? <p className="mt-2 max-w-3xl text-sm leading-6" style={{ color: "var(--text-secondary)" }}>{about}</p> : null}
-        </div>
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={onShareCareers}
+          title="Share Careers"
+          aria-label={`Share ${companyName} careers page`}
+          className="w-full sm:w-auto"
+        >
+          <Link2 size={16} />
+          Share Careers
+        </Button>
       </div>
     </section>
   );
 }
 
-function SelectFilter({
+function SelectFilter<TOption extends string>({
   label,
   value,
   onChange,
@@ -172,8 +214,8 @@ function SelectFilter({
   label: string;
   value: string;
   onChange: (value: string) => void;
-  options: string[];
-  formatLabel?: (value: never) => string;
+  options: TOption[];
+  formatLabel?: (value: TOption) => string;
 }) {
   return (
     <label className="block">
@@ -187,7 +229,7 @@ function SelectFilter({
         <option value="all">{label}</option>
         {options.map((option) => (
           <option key={option} value={option}>
-            {formatLabel ? formatLabel(option as never) : option}
+            {formatLabel ? formatLabel(option) : option}
           </option>
         ))}
       </select>
@@ -219,13 +261,13 @@ function JobCard({ job, tenantSlug }: { job: PublicCareerJobSummary; tenantSlug:
 
       <div className="mt-5 flex flex-wrap items-center gap-2">
         <Button variant="primary" size="sm" to={`/${tenantSlug}/careers/${job.slug}`}>View role</Button>
-        <Button variant="secondary" size="sm" disabled>Apply disabled</Button>
+        <Button variant="secondary" size="sm" to={`/${tenantSlug}/careers/${job.slug}/apply`}>Apply</Button>
       </div>
     </article>
   );
 }
 
-function MetaRow({ icon, value }: { icon: React.ReactNode; value: string }) {
+function MetaRow({ icon, value }: { icon: ReactNode; value: string }) {
   return (
     <div className="flex items-center gap-2">
       <span className="flex h-5 w-5 items-center justify-center" style={{ color: "var(--text-tertiary)" }}>{icon}</span>
@@ -234,6 +276,6 @@ function MetaRow({ icon, value }: { icon: React.ReactNode; value: string }) {
   );
 }
 
-function uniqueOptions(values: Array<string | undefined>) {
-  return Array.from(new Set(values.filter((value): value is string => Boolean(value)))).sort((a, b) => a.localeCompare(b));
+function uniqueOptions<TOption extends string>(values: Array<TOption | undefined>) {
+  return Array.from(new Set(values.filter((value): value is TOption => Boolean(value)))).sort((a, b) => a.localeCompare(b));
 }

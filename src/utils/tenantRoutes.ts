@@ -98,9 +98,10 @@ export const tenantRoutes = {
   leaveNew: (tenantOverride?: string) => tenantRoutes.path("/leave/new", tenantOverride),
   leaveEdit: (id: string, tenantOverride?: string) => tenantRoutes.path(`/leave/${id}/edit`, tenantOverride),
   recruitment: (tenantOverride?: string) => tenantRoutes.path("/recruitment", tenantOverride),
-  recruitmentDashboard: (tenantOverride?: string) => tenantRoutes.path("/recruitment/dashboard", tenantOverride),
+  recruitmentDashboard: (tenantOverride?: string) => tenantRoutes.recruitment(tenantOverride),
   recruitmentPipeline: (tenantOverride?: string) => tenantRoutes.path("/recruitment/pipeline", tenantOverride),
   recruitmentJobs: (tenantOverride?: string) => tenantRoutes.path("/recruitment/jobs", tenantOverride),
+  recruitmentApplications: (tenantOverride?: string) => tenantRoutes.path("/recruitment/applications", tenantOverride),
 
   /* ── Communication ── */
   announcements: (tenantOverride?: string) => tenantRoutes.path("/announcements", tenantOverride),

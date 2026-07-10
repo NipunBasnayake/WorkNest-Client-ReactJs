@@ -1,5 +1,5 @@
 import axios from "axios";
-import { apiClient, tokenStorage } from "@/services/http/client";
+import { apiClient, buildTenantApiUrl, tokenStorage } from "@/services/http/client";
 import { unwrapApiData } from "@/services/http/response";
 import { getMeApi } from "@/services/api/authApi";
 import { getMyEmployeeProfileApi } from "@/services/api/employeeApi";
@@ -83,11 +83,11 @@ async function resolveWorkspace(authUser: AuthUser | null): Promise<WorkspaceSet
   if (!tenantKey) return fallbackWorkspace("");
 
   try {
-    const { data } = await apiClient.get<ApiResponse<unknown> | unknown>(`/api/platform/tenants/${tenantKey}`);
+    const { data } = await apiClient.get<ApiResponse<unknown> | unknown>(buildTenantApiUrl("/settings/workspace"));
     const payload = asRecord(unwrapApiData<unknown>(data));
     return {
       workspaceName:
-        firstDefined(getString(payload.companyName), getString(payload.name), tenantKey.toUpperCase()) ?? "Workspace",
+        firstDefined(getString(payload.companyName), getString(payload.workspaceName), getString(payload.name), tenantKey.toUpperCase()) ?? "Workspace",
       tenantKey: firstDefined(getString(payload.tenantKey), tenantKey) ?? tenantKey,
       status: (getString(payload.status) ?? "ACTIVE").toUpperCase(),
       createdAt: toIsoDate(firstDefined(payload.createdAt, payload.createdDate)),
@@ -95,7 +95,7 @@ async function resolveWorkspace(authUser: AuthUser | null): Promise<WorkspaceSet
       dataSource: "backend",
     };
   } catch (error: unknown) {
-    if (axios.isAxiosError(error) && error.response?.status === 404) {
+    if (axios.isAxiosError(error) && (error.response?.status === 403 || error.response?.status === 404)) {
       return fallbackWorkspace(tenantKey);
     }
     throw error;
@@ -196,7 +196,7 @@ async function updateMyProfile(payload: {
   avatarUrl?: string;
   password?: string;
 }): Promise<unknown> {
-  const { data } = await apiClient.put<ApiResponse<unknown> | unknown>("/api/tenant/employees/me", payload);
+  const { data } = await apiClient.put<ApiResponse<unknown> | unknown>(buildTenantApiUrl("/employees/me"), payload);
   return unwrapApiData<unknown>(data);
 }
 
