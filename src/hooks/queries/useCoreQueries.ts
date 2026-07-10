@@ -9,10 +9,12 @@ import { useAuthStore } from "@/store/authStore";
 export function useEmployeesQuery(enabled = true) {
   const authReady = useAuthStore((s) => s.authReady);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const sessionType = useAuthStore((s) => s.sessionType);
+  const tenantKey = useAuthStore((s) => s.tenantKey);
   return useQuery({
     queryKey: queryKeys.employees(),
     queryFn: getEmployees,
-    enabled: enabled && authReady && isAuthenticated,
+    enabled: enabled && authReady && isAuthenticated && sessionType === "tenant" && Boolean(tenantKey),
     staleTime: 5 * 60_000,
   });
 }
@@ -20,10 +22,12 @@ export function useEmployeesQuery(enabled = true) {
 export function useProjectsQuery(enabled = true) {
   const authReady = useAuthStore((s) => s.authReady);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const sessionType = useAuthStore((s) => s.sessionType);
+  const tenantKey = useAuthStore((s) => s.tenantKey);
   return useQuery({
     queryKey: queryKeys.projects(),
     queryFn: getProjects,
-    enabled: enabled && authReady && isAuthenticated,
+    enabled: enabled && authReady && isAuthenticated && sessionType === "tenant" && Boolean(tenantKey),
     staleTime: 2 * 60_000,
   });
 }
@@ -31,10 +35,12 @@ export function useProjectsQuery(enabled = true) {
 export function useMyProjectsQuery(enabled = true) {
   const authReady = useAuthStore((s) => s.authReady);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const sessionType = useAuthStore((s) => s.sessionType);
+  const tenantKey = useAuthStore((s) => s.tenantKey);
   return useQuery({
     queryKey: queryKeys.myProjects(),
     queryFn: getMyProjects,
-    enabled: enabled && authReady && isAuthenticated,
+    enabled: enabled && authReady && isAuthenticated && sessionType === "tenant" && Boolean(tenantKey),
     staleTime: 2 * 60_000,
   });
 }
@@ -42,10 +48,12 @@ export function useMyProjectsQuery(enabled = true) {
 export function useTeamsQuery(enabled = true) {
   const authReady = useAuthStore((s) => s.authReady);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const sessionType = useAuthStore((s) => s.sessionType);
+  const tenantKey = useAuthStore((s) => s.tenantKey);
   return useQuery({
     queryKey: queryKeys.teams(),
     queryFn: getTeams,
-    enabled: enabled && authReady && isAuthenticated,
+    enabled: enabled && authReady && isAuthenticated && sessionType === "tenant" && Boolean(tenantKey),
     staleTime: 2 * 60_000,
   });
 }
@@ -53,10 +61,12 @@ export function useTeamsQuery(enabled = true) {
 export function useMyTeamsQuery(enabled = true) {
   const authReady = useAuthStore((s) => s.authReady);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const sessionType = useAuthStore((s) => s.sessionType);
+  const tenantKey = useAuthStore((s) => s.tenantKey);
   return useQuery({
     queryKey: queryKeys.myTeams(),
     queryFn: getMyTeams,
-    enabled: enabled && authReady && isAuthenticated,
+    enabled: enabled && authReady && isAuthenticated && sessionType === "tenant" && Boolean(tenantKey),
     staleTime: 2 * 60_000,
   });
 }
@@ -64,10 +74,12 @@ export function useMyTeamsQuery(enabled = true) {
 export function useTasksQuery(enabled = true) {
   const authReady = useAuthStore((s) => s.authReady);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const sessionType = useAuthStore((s) => s.sessionType);
+  const tenantKey = useAuthStore((s) => s.tenantKey);
   return useQuery({
     queryKey: queryKeys.tasks(),
     queryFn: getTasks,
-    enabled: enabled && authReady && isAuthenticated,
+    enabled: enabled && authReady && isAuthenticated && sessionType === "tenant" && Boolean(tenantKey),
     staleTime: 45_000,
   });
 }
@@ -75,10 +87,12 @@ export function useTasksQuery(enabled = true) {
 export function useMyEmployeeProfileQuery(enabled = true) {
   const authReady = useAuthStore((s) => s.authReady);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const sessionType = useAuthStore((s) => s.sessionType);
+  const tenantKey = useAuthStore((s) => s.tenantKey);
   return useQuery({
     queryKey: queryKeys.myEmployeeProfile(),
     queryFn: getMyEmployeeProfile,
-    enabled: enabled && authReady && isAuthenticated,
+    enabled: enabled && authReady && isAuthenticated && sessionType === "tenant" && Boolean(tenantKey),
     staleTime: 5 * 60_000,
   });
 }

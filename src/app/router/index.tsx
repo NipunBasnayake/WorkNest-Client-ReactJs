@@ -1,5 +1,5 @@
 import { lazy, Suspense, type ComponentType } from "react";
-import { createBrowserRouter, Navigate, RouterProvider, useLocation } from "react-router-dom";
+import { createBrowserRouter, Navigate, RouterProvider, useLocation, useParams } from "react-router-dom";
 import { AuthLayout } from "@/app/layouts/AuthLayout";
 import { PublicLayout } from "@/app/layouts/PublicLayout";
 import { PlatformLayout, TenantLayout } from "@/app/layouts/AppLayout";
@@ -43,6 +43,8 @@ function lazyElement<TModule extends Record<string, unknown>>(
 const landingPage = lazyElement(() => import("@/pages/public/LandingPage"), "LandingPage");
 const careersPage = lazyElement(() => import("@/pages/public/CareersPage"), "CareersPage");
 const careerDetailPage = lazyElement(() => import("@/pages/public/CareerDetailPage"), "CareerDetailPage");
+const applicationFormPage = lazyElement(() => import("@/pages/public/ApplicationFormPage"), "ApplicationFormPage");
+const applicationSuccessPage = lazyElement(() => import("@/pages/public/ApplicationSuccessPage"), "ApplicationSuccessPage");
 const loginPage = lazyElement(() => import("@/pages/public/LoginPage"), "LoginPage");
 const registerPage = lazyElement(() => import("@/pages/public/RegisterPage"), "RegisterPage");
 const forgotPasswordPage = lazyElement(() => import("@/pages/public/ForgotPasswordPage"), "ForgotPasswordPage");
@@ -102,7 +104,9 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: landingPage },
       { path: ":tenantSlug/careers", element: careersPage },
+      { path: ":tenantSlug/careers/:jobSlug/apply", element: applicationFormPage },
       { path: ":tenantSlug/careers/:jobSlug", element: careerDetailPage },
+      { path: ":tenantSlug/applications/:referenceNumber/success", element: applicationSuccessPage },
       { path: "unauthorized", element: unauthorizedPage },
       { path: "*", element: notFoundPage },
     ],
@@ -270,10 +274,11 @@ const router = createBrowserRouter([
           {
             element: <PermissionGuard permission={PERMISSIONS.RECRUITMENT_VIEW} />,
             children: [
-              { path: "recruitment", element: <Navigate to="dashboard" replace /> },
-              { path: "recruitment/dashboard", element: recruitmentDashboardPage },
-              { path: "recruitment/pipeline", element: recruitmentPipelinePage },
+              { path: "recruitment", element: recruitmentDashboardPage },
+              { path: "recruitment/dashboard", element: <RecruitmentRouteRedirect target="overview" /> },
+              { path: "recruitment/pipeline", element: <RecruitmentRouteRedirect target="applications" boardView /> },
               { path: "recruitment/jobs", element: recruitmentJobsPage },
+              { path: "recruitment/applications", element: recruitmentPipelinePage },
               { path: "recruitment/candidates", element: recruitmentCandidatesPage },
               { path: "recruitment/interviews", element: recruitmentInterviewsPage },
             ],
@@ -327,6 +332,29 @@ function LegacyTenantPathRedirect() {
   const tenantSlug = useAuthStore.getState().tenantKey ?? "app";
   const remainder = location.pathname.replace(/^\/app\/?/, "");
   const nextPath = remainder ? `/${tenantSlug}/${remainder}${location.search}${location.hash}` : `/${tenantSlug}/dashboard`;
+  return <Navigate to={nextPath} replace />;
+}
+
+function RecruitmentRouteRedirect({
+  target,
+  boardView = false,
+}: {
+  target: "overview" | "applications";
+  boardView?: boolean;
+}) {
+  const { tenantSlug = useAuthStore.getState().tenantKey ?? "app" } = useParams();
+  const location = useLocation();
+  const basePath = target === "overview"
+    ? `/${tenantSlug}/recruitment`
+    : `/${tenantSlug}/recruitment/applications`;
+  const searchParams = new URLSearchParams(location.search);
+
+  if (boardView && !searchParams.has("view")) {
+    searchParams.set("view", "board");
+  }
+
+  const search = searchParams.toString();
+  const nextPath = `${basePath}${search ? `?${search}` : ""}${location.hash}`;
   return <Navigate to={nextPath} replace />;
 }
 

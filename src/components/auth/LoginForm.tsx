@@ -90,6 +90,7 @@ export function LoginForm() {
   } = useAuth();
 
   const routeState = useMemo(() => readLoginRouteState(location.state), [location.state]);
+  const tenantFromQuery = useMemo(() => searchParams.get("tenant")?.trim() || null, [searchParams]);
   const [email, setEmail] = useState(searchParams.get("email") ?? "");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -155,7 +156,7 @@ export function LoginForm() {
     }
 
     try {
-      await login({ email: email.trim(), password, tenantKey: null });
+      await login({ email: email.trim(), password, tenantKey: tenantFromQuery });
     } catch {
       // Store handles server errors.
     }

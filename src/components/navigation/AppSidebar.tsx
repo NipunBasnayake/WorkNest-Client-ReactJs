@@ -67,9 +67,15 @@ const TENANT_NAV_GROUPS: SidebarNavGroup[] = [
   {
     label: "HR",
     items: [
-      { label: "Recruitment", to: (t: string) => tenantRoutes.recruitment(t), icon: <ClipboardList size={18} />, permission: PERMISSIONS.RECRUITMENT_VIEW },
       { label: "Attendance", to: (t: string) => tenantRoutes.attendance(t), icon: <CalendarCheck size={18} />, permission: PERMISSIONS.ATTENDANCE_VIEW },
       { label: "Leave", to: (t: string) => tenantRoutes.leave(t), icon: <CalendarCheck size={18} />, permission: PERMISSIONS.LEAVE_VIEW },
+    ],
+  },
+  {
+    label: "Recruitment",
+    items: [
+      { label: "Recruitment", to: (t: string) => tenantRoutes.recruitment(t), icon: <LayoutDashboard size={18} />, permission: PERMISSIONS.RECRUITMENT_VIEW },
+      { label: "Applications", to: (t: string) => tenantRoutes.recruitmentApplications(t), icon: <ClipboardList size={18} />, permission: PERMISSIONS.RECRUITMENT_VIEW },
     ],
   },
   {
@@ -171,7 +177,7 @@ function NavItem({
     <NavLink
       to={resolvedTo}
       onClick={onMobileClose}
-      end={resolvedTo === tenantRoutes.dashboard(tenantSlug)}
+      end={resolvedTo === tenantRoutes.dashboard(tenantSlug) || resolvedTo === tenantRoutes.recruitment(tenantSlug)}
       className={({ isActive }) =>
         `${base} ${isActive ? active : inactive}`
       }

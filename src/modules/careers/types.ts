@@ -32,3 +32,39 @@ export interface PublicCareersResponse {
   company: PublicCompany;
   jobs: PublicCareerJobSummary[];
 }
+
+export interface PublicApplicationFormValues {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  currentCity: string;
+  country: string;
+  linkedIn: string;
+  portfolio: string;
+  yearsOfExperience: string;
+  currentCompany: string;
+  currentPosition: string;
+  expectedSalary: string;
+  availableFrom: string;
+  coverLetter: string;
+  resume: File | null;
+}
+
+export interface PublicApplicationResponse {
+  referenceNumber: string;
+  vacancyTitle: string;
+  jobSlug: string;
+  company: PublicCompany;
+  submittedDate?: string;
+  message?: string;
+}
+
+export interface PublicApplicationStatus {
+  referenceNumber: string;
+  vacancyTitle: string;
+  jobSlug: string;
+  status?: string;
+  company: PublicCompany;
+  submittedDate?: string;
+}

@@ -45,14 +45,16 @@ function setPropertyMeta(property: string, content: string) {
 
 function setCanonical(path?: string) {
   if (!path) return;
+  const canonicalUrl = `${window.location.origin}${path}`;
   const existing = document.head.querySelector<HTMLLinkElement>('link[rel="canonical"]');
   const element = existing ?? document.createElement("link");
   element.setAttribute("rel", "canonical");
-  element.setAttribute("href", `${window.location.origin}${path}`);
+  element.setAttribute("href", canonicalUrl);
   if (!existing) {
     element.setAttribute("data-worknest-seo", "true");
     document.head.appendChild(element);
   }
+  setPropertyMeta("og:url", canonicalUrl);
 }
 
 export function useSeoMeta({

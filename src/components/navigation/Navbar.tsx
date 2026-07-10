@@ -13,7 +13,8 @@ export function Navbar() {
   const location = useLocation();
   const isLanding = location.pathname === "/";
   const careersMatch = matchPath("/:tenantSlug/careers/*", location.pathname)
-    ?? matchPath("/:tenantSlug/careers", location.pathname);
+    ?? matchPath("/:tenantSlug/careers", location.pathname)
+    ?? matchPath("/:tenantSlug/applications/*", location.pathname);
   const tenantCareersLink = careersMatch?.params.tenantSlug
     ? [{ label: "Careers", href: `/${careersMatch.params.tenantSlug}/careers` }]
     : [];

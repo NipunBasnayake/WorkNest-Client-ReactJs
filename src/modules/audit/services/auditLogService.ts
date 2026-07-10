@@ -18,7 +18,8 @@ export type AuditActionType =
   | "SHORTLIST"
   | "SCHEDULE"
   | "SUBMIT_FEEDBACK"
-  | "LOGIN";
+  | "LOGIN"
+  | "CANDIDATE_APPLIED";
 
 export type AuditEntityType =
   | "EMPLOYEE"

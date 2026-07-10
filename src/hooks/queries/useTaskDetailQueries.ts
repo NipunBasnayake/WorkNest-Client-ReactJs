@@ -18,6 +18,8 @@ import { useAuthStore } from "@/store/authStore";
 export function useTaskDetailQuery(taskId: string | undefined, enabled = true) {
   const authReady = useAuthStore((s) => s.authReady);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const sessionType = useAuthStore((s) => s.sessionType);
+  const tenantKey = useAuthStore((s) => s.tenantKey);
   return useQuery({
     queryKey: queryKeys.taskDetail(taskId),
     queryFn: () => {
@@ -26,7 +28,7 @@ export function useTaskDetailQuery(taskId: string | undefined, enabled = true) {
       }
       return getTaskById(taskId);
     },
-    enabled: enabled && authReady && isAuthenticated && Boolean(taskId),
+    enabled: enabled && authReady && isAuthenticated && sessionType === "tenant" && Boolean(tenantKey) && Boolean(taskId),
     staleTime: 30_000,
   });
 }
@@ -34,6 +36,8 @@ export function useTaskDetailQuery(taskId: string | undefined, enabled = true) {
 export function useTaskCommentsQuery(taskId: string | undefined, enabled = true) {
   const authReady = useAuthStore((s) => s.authReady);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const sessionType = useAuthStore((s) => s.sessionType);
+  const tenantKey = useAuthStore((s) => s.tenantKey);
   return useQuery({
     queryKey: queryKeys.taskComments(taskId),
     queryFn: () => {
@@ -42,7 +46,7 @@ export function useTaskCommentsQuery(taskId: string | undefined, enabled = true)
       }
       return getTaskComments(taskId);
     },
-    enabled: enabled && authReady && isAuthenticated && Boolean(taskId),
+    enabled: enabled && authReady && isAuthenticated && sessionType === "tenant" && Boolean(tenantKey) && Boolean(taskId),
     staleTime: 15_000,
   });
 }
@@ -50,10 +54,12 @@ export function useTaskCommentsQuery(taskId: string | undefined, enabled = true)
 export function useTaskViewerIdentityQuery(enabled: boolean) {
   const authReady = useAuthStore((s) => s.authReady);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const sessionType = useAuthStore((s) => s.sessionType);
+  const tenantKey = useAuthStore((s) => s.tenantKey);
   return useQuery<TaskViewerIdentity>({
     queryKey: queryKeys.taskViewerIdentity(),
     queryFn: resolveTaskViewerIdentity,
-    enabled: enabled && authReady && isAuthenticated,
+    enabled: enabled && authReady && isAuthenticated && sessionType === "tenant" && Boolean(tenantKey),
     staleTime: 5 * 60_000,
   });
 }

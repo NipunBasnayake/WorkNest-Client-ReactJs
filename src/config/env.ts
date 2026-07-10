@@ -4,7 +4,7 @@ interface AppEnv {
   isDevelopment: boolean;
 }
 
-const DEFAULT_TEST_API_BASE_URL = "http://localhost:8080";
+const DEFAULT_LOCAL_API_BASE_URL = "http://localhost:8080";
 
 function normalizeBaseUrl(raw: string): string {
   const trimmed = raw.trim();
@@ -33,8 +33,8 @@ function readApiBaseUrl(): string {
     return normalizeBaseUrl(value);
   }
 
-  if (import.meta.env.MODE === "test") {
-    return DEFAULT_TEST_API_BASE_URL;
+  if (import.meta.env.MODE === "test" || import.meta.env.DEV) {
+    return DEFAULT_LOCAL_API_BASE_URL;
   }
 
   throw new Error(
