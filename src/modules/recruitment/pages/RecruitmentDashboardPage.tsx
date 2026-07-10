@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { BriefcaseBusiness, ChevronRight, LayoutDashboard } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { PageHeader } from "@/components/common/PageHeader";
 import { SectionCard } from "@/components/common/SectionCard";
 import { EmptyState, ErrorBanner, SkeletonRow } from "@/components/common/AppUI";
@@ -8,28 +8,32 @@ import { Button } from "@/components/common/Button";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { useRecruitmentDashboardQuery, useRecruitmentPipelineQuery } from "@/modules/recruitment/hooks/useRecruitment";
 import { RecruitmentStatCards } from "@/modules/recruitment/components/RecruitmentStatCards";
+import { tenantRoutes } from "@/utils/tenantRoutes";
 
 export function RecruitmentDashboardPage() {
-  usePageMeta({ title: "Recruitment", breadcrumb: ["Workspace", "Recruitment"] });
+  usePageMeta({ title: "Recruitment Overview", breadcrumb: ["Workspace", "Recruitment", "Overview"] });
+  const { tenantSlug } = useParams();
   const dashboardQuery = useRecruitmentDashboardQuery();
   const pipelineQuery = useRecruitmentPipelineQuery();
+  const jobsPath = tenantRoutes.recruitmentJobs(tenantSlug);
+  const applicationsPath = tenantRoutes.recruitmentApplications(tenantSlug);
 
   const stageSummary = useMemo(() => dashboardQuery.data?.stageCounts ?? [], [dashboardQuery.data?.stageCounts]);
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Recruitment & Hiring"
+        title="Recruitment Overview"
         description="Track open jobs, candidate flow, interviews, and hiring decisions in one tenant-scoped workspace."
         actions={(
           <>
-            <Button variant="outline" to="/app/recruitment/jobs">
+            <Button variant="outline" to={jobsPath}>
               <BriefcaseBusiness size={16} />
               Jobs
             </Button>
-            <Button variant="primary" to="/app/recruitment/pipeline">
+            <Button variant="primary" to={applicationsPath}>
               <LayoutDashboard size={16} />
-              Pipeline
+              Applications
             </Button>
           </>
         )}
@@ -63,7 +67,7 @@ export function RecruitmentDashboardPage() {
                 {dashboardQuery.data.jobCounts.length === 0 ? (
                   <EmptyState title="No jobs yet" description="Create a job opening to begin tracking applications." />
                 ) : dashboardQuery.data.jobCounts.slice(0, 5).map((job) => (
-                  <Link key={job.jobPositionId} to="/app/recruitment/jobs" className="flex items-center justify-between rounded-xl border p-4 no-underline transition hover:-translate-y-0.5" style={{ borderColor: "var(--border-default)", backgroundColor: "var(--bg-surface)" }}>
+                  <Link key={job.jobPositionId} to={jobsPath} className="flex items-center justify-between rounded-xl border p-4 no-underline transition hover:-translate-y-0.5" style={{ borderColor: "var(--border-default)", backgroundColor: "var(--bg-surface)" }}>
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{job.title}</p>
                       <p className="text-xs" style={{ color: "var(--text-secondary)" }}>{job.count} application{job.count === 1 ? "" : "s"}</p>

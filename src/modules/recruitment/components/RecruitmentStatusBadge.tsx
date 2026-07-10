@@ -25,6 +25,6 @@ function getTone(value: string): "neutral" | "success" | "warning" | "danger" | 
   if (normalized === "HIRED" || normalized === "OPEN" || normalized === "COMPLETED") return "success";
   if (normalized === "OFFERED" || normalized === "INTERVIEW" || normalized === "SCHEDULED" || normalized === "SCREENING") return "info";
   if (normalized === "PAUSED" || normalized === "HR_REVIEW" || normalized === "RESCHEDULED") return "warning";
-  if (normalized === "REJECTED" || normalized === "CANCELLED") return "danger";
+  if (normalized === "REJECTED" || normalized === "WITHDRAWN" || normalized === "CANCELLED") return "danger";
   return "neutral";
 }

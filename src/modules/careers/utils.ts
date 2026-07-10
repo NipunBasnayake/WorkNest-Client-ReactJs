@@ -23,7 +23,7 @@ export function formatPublicDate(value?: string) {
 export function splitRichText(value?: string) {
   if (!value) return [];
   return value
-    .split(/\r?\n|•|-/)
-    .map((item) => item.trim())
+    .split(/\r?\n|\u2022/)
+    .map((item) => item.replace(/^[-*]\s*/, "").trim())
     .filter(Boolean);
 }

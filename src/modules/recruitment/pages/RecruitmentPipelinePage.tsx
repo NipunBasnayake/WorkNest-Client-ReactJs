@@ -59,7 +59,7 @@ function buildHireDefaults(application?: RecruitmentApplication): RecruitmentHir
 }
 
 export function RecruitmentPipelinePage() {
-  usePageMeta({ title: "Recruitment Pipeline", breadcrumb: ["Workspace", "Recruitment", "Pipeline"] });
+  usePageMeta({ title: "Recruitment Applications", breadcrumb: ["Workspace", "Recruitment", "Applications"] });
   const queryClient = useQueryClient();
   const { hasPermission } = usePermission();
   const canManageRecruitment = hasPermission(PERMISSIONS.RECRUITMENT_MANAGE);
@@ -160,8 +160,8 @@ export function RecruitmentPipelinePage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Pipeline"
-        description="Monitor all applications in a kanban-style hiring flow."
+        title="Applications"
+        description="Review applications in a board-style hiring flow."
         actions={(
           <div className="flex items-center gap-2">
             <AppSelect value={jobPositionId} onChange={(event) => setJobPositionId(event.target.value)}>

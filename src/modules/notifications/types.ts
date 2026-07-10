@@ -9,6 +9,7 @@ export type NotificationType =
   | "ANNOUNCEMENT"
   | "HR_MESSAGE"
   | "TEAM_MESSAGE"
+  | "RECRUITMENT_APPLICATION"
   | "PROJECT_UPDATE"
   | "SYSTEM";
 

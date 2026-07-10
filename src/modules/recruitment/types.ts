@@ -8,7 +8,8 @@ export type RecruitmentStage =
   | "HR_REVIEW"
   | "OFFERED"
   | "HIRED"
-  | "REJECTED";
+  | "REJECTED"
+  | "WITHDRAWN";
 export type RecruitmentInterviewMode = "ONSITE" | "REMOTE" | "PHONE";
 export type RecruitmentInterviewStatus = "SCHEDULED" | "COMPLETED" | "CANCELLED" | "RESCHEDULED";
 export type RecruitmentInterviewRecommendation = "STRONG_HIRE" | "HIRE" | "HOLD" | "NO_HIRE";
@@ -33,6 +34,7 @@ export interface PaginatedResult<T> {
 export interface RecruitmentJobPosition {
   id: string;
   title: string;
+  slug?: string;
   department?: string;
   description?: string;
   employmentType?: RecruitmentEmploymentType;
@@ -40,6 +42,8 @@ export interface RecruitmentJobPosition {
   openings?: number;
   status?: RecruitmentJobStatus;
   published?: boolean;
+  visibleToExternalApplicants?: boolean;
+  expiresAt?: string;
   applicationCount?: number;
   createdAt?: string;
   updatedAt?: string;
@@ -142,6 +146,8 @@ export interface RecruitmentJobFormValues {
   openings: number;
   status: RecruitmentJobStatus;
   published: boolean;
+  visibleToExternalApplicants?: boolean;
+  expiresAt?: string;
 }
 
 export interface RecruitmentCandidateFormValues {
