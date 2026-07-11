@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useParams } from "react-router-dom";
 import { Archive, CheckCircle2, Copy, ExternalLink, Link2, Pencil, PlusCircle, Trash2 } from "lucide-react";
 import { Badge } from "@/components/common/Badge";
@@ -11,6 +12,7 @@ import { AppSelect } from "@/components/common/AppSelect";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { EmptyState, ErrorBanner, SkeletonRow } from "@/components/common/AppUI";
 import { usePageMeta } from "@/hooks/usePageMeta";
+import { invalidateWorkflowQueries } from "@/hooks/queries/workflowInvalidation";
 import { usePermission } from "@/hooks/usePermission";
 import { useToast } from "@/hooks/useToast";
 import { PERMISSIONS } from "@/constants/permissions";
@@ -36,6 +38,7 @@ const EMPTY_FORM: RecruitmentJobFormValues = {
 
 export function RecruitmentJobsPage() {
   usePageMeta({ title: "Recruitment Jobs", breadcrumb: ["Workspace", "Recruitment", "Jobs"] });
+  const queryClient = useQueryClient();
   const { tenantSlug = "" } = useParams();
   const toast = useToast();
   const jobsQuery = useRecruitmentJobsQuery();
@@ -75,6 +78,7 @@ export function RecruitmentJobsPage() {
       setEditingJobId(null);
       setForm(EMPTY_FORM);
       await jobsQuery.refetch();
+      await invalidateWorkflowQueries(queryClient, ["recruitment"]);
     } catch (error) {
       setFeedback(getErrorMessage(error, "Failed to save job position."));
     } finally {
@@ -93,6 +97,7 @@ export function RecruitmentJobsPage() {
       await deleteJobPosition(deleteTarget.id);
       setDeleteTarget(null);
       await jobsQuery.refetch();
+      await invalidateWorkflowQueries(queryClient, ["recruitment"]);
       setFeedback("Job deleted successfully.");
     } catch (error) {
       setFeedback(getErrorMessage(error, "Could not delete job position."));
@@ -111,6 +116,7 @@ export function RecruitmentJobsPage() {
     try {
       await updateJobPosition(job.id, toJobFormValues(job, { published }));
       await jobsQuery.refetch();
+      await invalidateWorkflowQueries(queryClient, ["recruitment"]);
       setFeedback(published ? "Vacancy published successfully." : "Vacancy unpublished successfully.");
     } catch (error) {
       setFeedback(getErrorMessage(error, "Could not update vacancy publishing."));
@@ -129,6 +135,7 @@ export function RecruitmentJobsPage() {
     try {
       await updateJobPosition(job.id, toJobFormValues(job, { status: "CLOSED", published: false }));
       await jobsQuery.refetch();
+      await invalidateWorkflowQueries(queryClient, ["recruitment"]);
       setFeedback("Vacancy archived successfully.");
     } catch (error) {
       setFeedback(getErrorMessage(error, "Could not archive vacancy."));

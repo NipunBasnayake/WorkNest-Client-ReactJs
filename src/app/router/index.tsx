@@ -197,7 +197,8 @@ const router = createBrowserRouter([
             children: [
               { path: "tasks", element: tasksPage },
               { path: "tasks/board", element: taskBoardPage },
-              { path: "tasks/new", element: taskFormPage },
+              { path: "tasks/create", element: taskFormPage },
+              { path: "tasks/new", element: <TenantRouteRedirect target="tasks/create" /> },
               { path: "tasks/:id", element: taskDetailPage },
             ],
           },
@@ -329,12 +330,24 @@ const router = createBrowserRouter([
 
 function LegacyTenantPathRedirect() {
   const location = useLocation();
-  const tenantSlug = useAuthStore.getState().tenantKey ?? "app";
+  const suffix = `${location.search}${location.hash}`;
+  const tenantSlug = useAuthStore.getState().tenantKey;
+
+  if (!tenantSlug) {
+    return <Navigate to={`/login${suffix}`} replace />;
+  }
+
   const remainder = location.pathname.replace(/^\/app\/?/, "");
-  const nextPath = remainder ? `/${tenantSlug}/${remainder}${location.search}${location.hash}` : `/${tenantSlug}/dashboard`;
+  const nextPath = remainder ? `/${tenantSlug}/${remainder}${suffix}` : `/${tenantSlug}/dashboard${suffix}`;
   return <Navigate to={nextPath} replace />;
 }
 
+function TenantRouteRedirect({ target }: { target: string }) {
+  const { tenantSlug = useAuthStore.getState().tenantKey ?? "app" } = useParams();
+  const location = useLocation();
+  const cleanTarget = target.replace(/^\/+/, "");
+  return <Navigate to={`/${tenantSlug}/${cleanTarget}${location.search}${location.hash}`} replace />;
+}
 function RecruitmentRouteRedirect({
   target,
   boardView = false,

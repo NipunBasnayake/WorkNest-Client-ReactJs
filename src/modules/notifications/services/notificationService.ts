@@ -5,6 +5,7 @@ import { tokenStorage } from "@/services/auth/tokenStorage";
 import { readRealtimeDestinations, subscribeRealtime } from "@/services/realtime/stompService";
 import type { AppNotification, CreateNotificationPayload } from "@/modules/notifications/types";
 import type { ApiResponse } from "@/types";
+import { tenantRoutes } from "@/utils/tenantRoutes";
 
 const NOTIFICATION_EVENT = "worknest:notifications:updated";
 const NOTIFICATION_REALTIME_FALLBACKS = readRealtimeDestinations("VITE_NOTIFICATIONS_TOPICS", [
@@ -17,6 +18,10 @@ let realtimeBridgeUnsubscribe: (() => void) | null = null;
 function emitUpdated() {
   if (typeof window === "undefined") return;
   window.dispatchEvent(new CustomEvent(NOTIFICATION_EVENT));
+}
+
+export function notifyNotificationsUpdated() {
+  emitUpdated();
 }
 
 function buildRealtimeDestinations(): string[] {
@@ -43,10 +48,10 @@ function releaseRealtimeBridge() {
 function buildReferenceLink(referenceType?: string, referenceId?: string): string | undefined {
   if (!referenceType || !referenceId) return undefined;
   const type = referenceType.toUpperCase();
-  if (type === "TASK") return `/app/tasks/${referenceId}`;
-  if (type === "LEAVE" || type === "LEAVE_REQUEST") return `/app/leave/${referenceId}`;
-  if (type === "PROJECT") return `/app/projects/${referenceId}`;
-  if (type === "ANNOUNCEMENT") return `/app/announcements/${referenceId}`;
+  if (type === "TASK") return tenantRoutes.taskDetail(referenceId);
+  if (type === "LEAVE" || type === "LEAVE_REQUEST") return tenantRoutes.leaveDetail(referenceId);
+  if (type === "PROJECT") return tenantRoutes.projectDetail(referenceId);
+  if (type === "ANNOUNCEMENT") return tenantRoutes.announcementDetail(referenceId);
   return undefined;
 }
 
@@ -88,7 +93,7 @@ function normalizeNotification(input: unknown): AppNotification {
   );
   const link = firstDefined(
     getString(value.link),
-    resolvedAnnouncementId ? `/app/announcements/${resolvedAnnouncementId}` : undefined,
+    resolvedAnnouncementId ? tenantRoutes.announcementDetail(resolvedAnnouncementId) : undefined,
     buildReferenceLink(relatedEntityType ?? referenceType, relatedEntityId ?? referenceId)
   );
 

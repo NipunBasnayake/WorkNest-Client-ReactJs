@@ -13,6 +13,7 @@ import {
 } from "@/modules/tasks/services/taskService";
 import type { TaskPayload, TaskPriority, TaskStatus } from "@/modules/tasks/types";
 import { queryKeys } from "@/hooks/queries/queryKeys";
+import { invalidateWorkflowQueries } from "@/hooks/queries/workflowInvalidation";
 import { useAuthStore } from "@/store/authStore";
 
 export function useTaskDetailQuery(taskId: string | undefined, enabled = true) {
@@ -69,7 +70,7 @@ interface UseTaskMutationsOptions {
 }
 
 function invalidateTaskQueries(queryClient: ReturnType<typeof useQueryClient>, taskId: string | undefined) {
-  void queryClient.invalidateQueries({ queryKey: queryKeys.tasks() });
+  void invalidateWorkflowQueries(queryClient, ["tasks"]);
   if (taskId) {
     void queryClient.invalidateQueries({ queryKey: queryKeys.taskDetail(taskId) });
     void queryClient.invalidateQueries({ queryKey: queryKeys.taskComments(taskId) });

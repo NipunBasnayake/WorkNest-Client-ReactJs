@@ -7,6 +7,7 @@ import { AppSelect } from "@/components/common/AppSelect";
 import { Input } from "@/components/common/Input";
 import { EmptyState, ErrorBanner, SkeletonRow } from "@/components/common/AppUI";
 import { usePageMeta } from "@/hooks/usePageMeta";
+import { invalidateWorkflowQueries } from "@/hooks/queries/workflowInvalidation";
 import { usePermission } from "@/hooks/usePermission";
 import { PERMISSIONS } from "@/constants/permissions";
 import { useTeamsQuery } from "@/hooks/queries/useCoreQueries";
@@ -109,6 +110,7 @@ export function RecruitmentPipelinePage() {
       await updateApplicationStatus(applicationId, stage as never);
       await queryClient.invalidateQueries({ queryKey: ["recruitment", "pipeline"] });
       await queryClient.invalidateQueries({ queryKey: ["recruitment", "applications"] });
+      await invalidateWorkflowQueries(queryClient, ["recruitment"]);
       setFeedback("Pipeline stage updated.");
     } catch (error) {
       setFeedback(getErrorMessage(error, "Could not update the pipeline stage."));
@@ -145,6 +147,7 @@ export function RecruitmentPipelinePage() {
       await queryClient.invalidateQueries({ queryKey: ["recruitment"] });
       await queryClient.invalidateQueries({ queryKey: ["employees"] });
       await queryClient.invalidateQueries({ queryKey: ["teams"] });
+      await invalidateWorkflowQueries(queryClient, ["recruitment", "employees", "teams"]);
       setHireTarget(null);
       setHireValues(buildHireDefaults());
       setFeedback(
