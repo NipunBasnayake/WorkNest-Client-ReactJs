@@ -1,6 +1,6 @@
-import { getTenantByKeyApi, getTenantsApi } from "@/services/api/platformApi";
+import { getTenantByKeyApi, getTenantsApi, updateTenantStatusApi } from "@/services/api/platformApi";
 import { asRecord, firstDefined, getId, getString, toIsoDate } from "@/services/http/parsers";
-import type { Tenant } from "@/types";
+import type { PlatformTenantStatus, Tenant } from "@/types";
 
 function normalizeTenant(input: unknown): Tenant {
   const value = asRecord(input);
@@ -33,6 +33,8 @@ function normalizeTenant(input: unknown): Tenant {
     ),
     status: status.toLowerCase(),
     createdAt: toIsoDate(firstDefined(value.createdAt, value.createdDate)),
+    updatedAt: getString(firstDefined(value.updatedAt, value.updatedDate)),
+    active: value.active === true,
   };
 }
 
@@ -44,4 +46,8 @@ export async function getPlatformTenants(): Promise<Tenant[]> {
 export async function getPlatformTenantByKey(tenantKey: string): Promise<Tenant> {
   const tenant = await getTenantByKeyApi(tenantKey);
   return normalizeTenant(tenant);
+}
+
+export async function updatePlatformTenantStatus(tenantKey: string, status: PlatformTenantStatus): Promise<Tenant> {
+  return normalizeTenant(await updateTenantStatusApi(tenantKey, status));
 }
