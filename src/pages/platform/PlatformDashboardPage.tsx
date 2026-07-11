@@ -2,11 +2,14 @@ import { useMemo } from "react";
 import { Activity, BarChart3, Building2, Settings, ShieldAlert, TrendingUp } from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { useAuth } from "@/hooks/useAuth";
-import { usePlatformAnalyticsQuery } from "@/hooks/queries/usePlatformQueries";
+import { usePlatformDashboardQuery } from '@/hooks/queries/usePlatformQueries';
 import { EmptyState, ErrorState, LoadingSkeleton } from "@/components/common/AsyncStates";
 import { PageSection, QuickNavCard, StatCard } from "@/components/common/AppUI";
 import { SectionCard } from "@/components/common/SectionCard";
 import { getErrorMessage } from "@/utils/errorHandler";
+
+import { DonutChart } from '@/modules/analytics/components/DonutChart';
+import { InsightPanel } from '@/modules/analytics/components/InsightPanel';
 
 const PLATFORM_NAV = [
   { label: "Manage Tenants", description: "View and manage workspaces", icon: <Building2 size={18} />, to: "/platform/tenants", disabled: false },
@@ -17,7 +20,7 @@ const PLATFORM_NAV = [
 export function PlatformDashboardPage() {
   usePageMeta({ title: "Platform Dashboard", breadcrumb: ["Platform", "Dashboard"] });
   const { user } = useAuth();
-  const { data, error, isLoading, refetch } = usePlatformAnalyticsQuery(true);
+  const { data, error, isLoading, refetch } = usePlatformDashboardQuery(true);
   const errorMessage = useMemo(
     () => (error ? getErrorMessage(error, "Could not load platform dashboard metrics.") : null),
     [error]
@@ -75,7 +78,15 @@ export function PlatformDashboardPage() {
             </div>
           </PageSection>
 
-          <PageSection title="Platform Tools" description="Navigate to operational platform modules.">
+          <div className='grid gap-4 xl:grid-cols-[1.1fr_.9fr]'>
+            <DonutChart title='Tenant portfolio health' subtitle='Workspace lifecycle distribution' data={data.tenantStatusDistribution} drillDownTo='/platform/tenants' />
+            <InsightPanel insights={[
+              data.suspendedTenants ? { id: 'suspended', severity: 'critical' as const, title: `${data.suspendedTenants} suspended workspace${data.suspendedTenants === 1 ? '' : 's'}`, description: 'Review access, billing, or compliance conditions before reactivation.', actionTo: '/platform/tenants' } : { id: 'healthy', severity: 'positive' as const, title: 'No suspended workspaces', description: 'The tenant portfolio has no active suspension risk.' },
+              { id: 'growth', severity: 'info' as const, title: `${data.newlyAddedThisMonth} new this month`, description: 'Track onboarding completion and early adoption for new tenants.' },
+            ]} />
+          </div>
+
+          <PageSection title='Platform Tools' description='Navigate to operational platform modules.'>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {PLATFORM_NAV.map((item) => (
                 <QuickNavCard key={item.label} {...item} />

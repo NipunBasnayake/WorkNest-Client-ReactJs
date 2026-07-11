@@ -90,13 +90,17 @@ export interface ApiResponse<T> {
   path?: string;
 }
 
+export type PlatformTenantStatus = "ACTIVE" | "INACTIVE" | "SUSPENDED";
+
 export interface Tenant {
   id: string;
   tenantKey: string;
   companyName: string;
   adminEmail?: string;
   status?: "active" | "inactive" | "suspended" | string;
+  active?: boolean;
   createdAt?: string;
+  updatedAt?: string;
   [key: string]: unknown;
 }
 
