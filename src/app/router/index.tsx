@@ -259,12 +259,18 @@ const router = createBrowserRouter([
 
           {
             element: <PermissionGuard permission={PERMISSIONS.ANALYTICS_VIEW} />,
-            children: [{ path: "analytics", element: analyticsPage }],
+            children: [
+              { path: 'analytics', element: analyticsPage },
+              { path: 'analytics/:domain', element: analyticsPage },
+            ],
           },
 
           {
             element: <PermissionGuard permission={PERMISSIONS.REPORTS_VIEW} />,
-            children: [{ path: "reports", element: reportsPage }],
+            children: [
+              { path: 'reports', element: reportsPage },
+              { path: 'reports/:domain', element: reportsPage },
+            ],
           },
 
           {
