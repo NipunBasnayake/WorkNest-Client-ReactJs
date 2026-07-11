@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { CalendarDays, Clock3, LogIn, LogOut, UserCheck, Users2, UserRoundPen, BadgeCheck } from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
+import { invalidateWorkflowQueries } from "@/hooks/queries/workflowInvalidation";
 import { PERMISSIONS } from "@/constants/permissions";
 import { usePermission } from "@/hooks/usePermission";
 import { checkIn, checkOut, getAttendanceRecords, getAttendanceSummary, summarizeAttendance } from "@/modules/attendance/services/attendanceService";
@@ -30,6 +32,7 @@ function formatMinutes(value?: number): string {
 
 export function AttendancePage() {
   usePageMeta({ title: "Attendance", breadcrumb: ["Workspace", "Attendance"] });
+  const queryClient = useQueryClient();
   const { hasPermission } = usePermission();
 
   const [selectedDate, setSelectedDate] = useState(today());
@@ -147,6 +150,7 @@ export function AttendancePage() {
       await checkIn({ employeeId: myEmployee.id });
       setFeedback("Checked in successfully.");
       await fetchAttendance(selectedDate);
+      await invalidateWorkflowQueries(queryClient, ["attendance"]);
     } catch (actionError: unknown) {
       setFeedback(getErrorMessage(actionError, "Unable to check in right now."));
     } finally {
@@ -162,6 +166,7 @@ export function AttendancePage() {
       await checkOut({ employeeId: myEmployee.id });
       setFeedback("Checked out successfully.");
       await fetchAttendance(selectedDate);
+      await invalidateWorkflowQueries(queryClient, ["attendance"]);
     } catch (actionError: unknown) {
       setFeedback(getErrorMessage(actionError, "Unable to check out right now."));
     } finally {
@@ -178,6 +183,7 @@ export function AttendancePage() {
       setFeedback("Manual check-in recorded.");
       setManualNote("");
       await fetchAttendance(selectedDate);
+      await invalidateWorkflowQueries(queryClient, ["attendance"]);
     } catch (actionError: unknown) {
       setFeedback(getErrorMessage(actionError, "Unable to record manual check-in right now."));
     } finally {
@@ -194,6 +200,7 @@ export function AttendancePage() {
       setFeedback("Manual check-out recorded.");
       setManualNote("");
       await fetchAttendance(selectedDate);
+      await invalidateWorkflowQueries(queryClient, ["attendance"]);
     } catch (actionError: unknown) {
       setFeedback(getErrorMessage(actionError, "Unable to record manual check-out right now."));
     } finally {

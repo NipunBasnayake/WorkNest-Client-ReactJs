@@ -35,7 +35,7 @@ describe("NotificationsPage", () => {
         type: "ANNOUNCEMENT",
         title: "Announcement",
         message: "New policy published",
-        link: "/app/announcements/55",
+        link: "/demo/announcements/55",
         relatedEntityType: "ANNOUNCEMENT",
         relatedEntityId: "55",
         announcementId: "55",
@@ -48,7 +48,7 @@ describe("NotificationsPage", () => {
       <MemoryRouter initialEntries={["/"]}>
         <Routes>
           <Route path="/" element={<NotificationsPage />} />
-          <Route path="/app/announcements/:id" element={<div>Announcement Detail Page</div>} />
+          <Route path="/:tenantSlug/announcements/:id" element={<div>Announcement Detail Page</div>} />
         </Routes>
       </MemoryRouter>
     );
@@ -80,7 +80,7 @@ describe("NotificationsPage", () => {
       <MemoryRouter initialEntries={["/"]}>
         <Routes>
           <Route path="/" element={<NotificationsPage />} />
-          <Route path="/app/announcements/:id" element={<div>Announcement Detail Page</div>} />
+          <Route path="/:tenantSlug/announcements/:id" element={<div>Announcement Detail Page</div>} />
         </Routes>
       </MemoryRouter>
     );

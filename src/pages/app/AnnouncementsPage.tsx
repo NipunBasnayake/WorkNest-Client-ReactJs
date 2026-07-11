@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Megaphone, PlusCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { usePageMeta } from "@/hooks/usePageMeta";
+import { invalidateWorkflowQueries } from "@/hooks/queries/workflowInvalidation";
 import { useAuth } from "@/hooks/useAuth";
 import { canCreateAnnouncements, canDeleteAnnouncement, canEditAnnouncement } from "@/modules/announcements/access";
 import { deleteAnnouncement, getAnnouncements } from "@/modules/announcements/services/announcementService";
@@ -15,9 +17,11 @@ import { SearchField } from "@/components/common/SearchField";
 import { EmptyState, ErrorBanner } from "@/components/common/AppUI";
 import type { Announcement } from "@/modules/announcements/types";
 import { getErrorMessage } from "@/utils/errorHandler";
+import { tenantRoutes } from "@/utils/tenantRoutes";
 
 export function AnnouncementsPage() {
   usePageMeta({ title: "Announcements", breadcrumb: ["Workspace", "Announcements"] });
+  const queryClient = useQueryClient();
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -64,6 +68,7 @@ export function AnnouncementsPage() {
     try {
       await deleteAnnouncement(deleteTarget.id);
       setAnnouncements((prev) => prev.filter((item) => item.id !== deleteTarget.id));
+      await invalidateWorkflowQueries(queryClient, ["announcements"]);
       setDeleteTarget(null);
       setFeedback("Announcement deleted successfully.");
     } catch (err: unknown) {
@@ -79,7 +84,7 @@ export function AnnouncementsPage() {
         title="Announcements"
         description={loading ? "Loading announcements..." : `${announcements.length} announcement${announcements.length === 1 ? "" : "s"} published.`}
         actions={canCreate ? (
-          <Button variant="primary" to="/app/announcements/new">
+          <Button variant="primary" to={tenantRoutes.announcementNew()}>
             <PlusCircle size={16} />
             New Announcement
           </Button>
@@ -114,7 +119,7 @@ export function AnnouncementsPage() {
           icon={<Megaphone size={28} />}
           title={search ? "No matching announcements" : "No announcements yet"}
           description={search ? "Try another search term." : "Share updates and policy changes with your workspace."}
-          action={canCreate ? <Button variant="outline" to="/app/announcements/new">Create Announcement</Button> : undefined}
+          action={canCreate ? <Button variant="outline" to={tenantRoutes.announcementNew()}>Create Announcement</Button> : undefined}
         />
       )}
 
@@ -124,7 +129,7 @@ export function AnnouncementsPage() {
             <AnnouncementCard
               key={announcement.id}
               announcement={announcement}
-              onEdit={canEditAnnouncement(announcement) ? (ann) => navigate(`/app/announcements/${ann.id}/edit`) : undefined}
+              onEdit={canEditAnnouncement(announcement) ? (ann) => navigate(tenantRoutes.announcementEdit(ann.id)) : undefined}
               onDelete={canDeleteAnnouncement(announcement) ? setDeleteTarget : undefined}
             />
           ))}

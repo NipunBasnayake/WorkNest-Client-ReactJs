@@ -1,6 +1,7 @@
 import { Input } from "@/components/common/Input";
 import { Button } from "@/components/common/Button";
 import { AppSelect } from "@/components/common/AppSelect";
+import { AvatarInitials } from "@/components/common/AvatarInitials";
 import { FileUploadField } from "@/components/common/FileUploadField";
 import { TextareaField } from "@/components/common/TextareaField";
 import { TASK_PRIORITY_OPTIONS, TASK_STATUS_OPTIONS, type TaskFormErrors, type TaskFormValues } from "@/modules/tasks/types";
@@ -8,6 +9,8 @@ import { TASK_PRIORITY_OPTIONS, TASK_STATUS_OPTIONS, type TaskFormErrors, type T
 interface Option {
   id: string;
   label: string;
+  subtitle?: string;
+  avatarUrl?: string;
 }
 
 interface TaskFormProps {
@@ -17,6 +20,7 @@ interface TaskFormProps {
   assignees: Option[];
   projects: Option[];
   submitting: boolean;
+  assigneeLoading?: boolean;
   submitDisabled?: boolean;
   submitLabel: string;
   onChange: (next: TaskFormValues) => void;
@@ -32,6 +36,10 @@ function toLabel(value: string): string {
     .join(" ");
 }
 
+function getAssigneeOptionLabel(assignee: Option): string {
+  return assignee.subtitle ? `${assignee.label} - ${assignee.subtitle}` : assignee.label;
+}
+
 export function TaskForm({
   values,
   errors,
@@ -39,12 +47,15 @@ export function TaskForm({
   assignees,
   projects,
   submitting,
+  assigneeLoading = false,
   submitDisabled = false,
   submitLabel,
   onChange,
   onSubmit,
   onCancel,
 }: TaskFormProps) {
+  const selectedAssignee = assignees.find((assignee) => assignee.id === values.assigneeId);
+
   return (
     <form
       className="space-y-4"
@@ -54,6 +65,79 @@ export function TaskForm({
         onSubmit();
       }}
     >
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="task-project" className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
+            Project
+          </label>
+          <AppSelect
+            id="task-project"
+            value={values.projectId}
+            onChange={(event) => onChange({ ...values, projectId: event.target.value, assignedTeamId: "", assigneeId: "" })}
+            error={Boolean(errors.projectId)}
+          >
+            <option value="">Select project</option>
+            {projects.map((project) => (
+              <option key={project.id} value={project.id}>
+                {project.label}
+              </option>
+            ))}
+          </AppSelect>
+          {errors.projectId && <p className="text-xs text-red-500">{errors.projectId}</p>}
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="task-assigned-team" className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
+            Team
+          </label>
+          <AppSelect
+            id="task-assigned-team"
+            value={values.assignedTeamId}
+            onChange={(event) => onChange({ ...values, assignedTeamId: event.target.value, assigneeId: "" })}
+            error={Boolean(errors.assignedTeamId)}
+            disabled={!values.projectId}
+          >
+            <option value="">Select team</option>
+            {teams.map((team) => (
+              <option key={team.id} value={team.id}>
+                {team.label}
+              </option>
+            ))}
+          </AppSelect>
+          {errors.assignedTeamId && <p className="text-xs text-red-500">{errors.assignedTeamId}</p>}
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="task-assignee" className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
+            Assignee
+          </label>
+          <AppSelect
+            id="task-assignee"
+            value={values.assigneeId}
+            onChange={(event) => onChange({ ...values, assigneeId: event.target.value })}
+            error={Boolean(errors.assigneeId)}
+            disabled={!values.assignedTeamId || assigneeLoading}
+          >
+            <option value="">{assigneeLoading ? "Loading active members..." : "Select active team member"}</option>
+            {assignees.map((assignee) => (
+              <option key={assignee.id} value={assignee.id}>
+                {getAssigneeOptionLabel(assignee)}
+              </option>
+            ))}
+          </AppSelect>
+          {selectedAssignee && (
+            <div className="mt-1 flex min-h-10 items-center gap-2 rounded-lg border px-3 py-2" style={{ borderColor: "var(--border)", backgroundColor: "var(--surface-subtle)" }}>
+              <AvatarInitials name={selectedAssignee.label} size="sm" src={selectedAssignee.avatarUrl} />
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium" style={{ color: "var(--text-primary)" }}>{selectedAssignee.label}</p>
+                <p className="truncate text-xs" style={{ color: "var(--text-tertiary)" }}>{selectedAssignee.subtitle || "No designation"}</p>
+              </div>
+            </div>
+          )}
+          {errors.assigneeId && <p className="text-xs text-red-500">{errors.assigneeId}</p>}
+        </div>
+      </div>
+
       <Input
         id="task-title"
         label="Task Title"
@@ -116,68 +200,6 @@ export function TaskForm({
           error={errors.dueDate}
           onChange={(event) => onChange({ ...values, dueDate: event.target.value })}
         />
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="task-assigned-team" className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
-            Assigned Team
-          </label>
-          <AppSelect
-            id="task-assigned-team"
-            value={values.assignedTeamId}
-            onChange={(event) => onChange({ ...values, assignedTeamId: event.target.value, assigneeId: "" })}
-            error={Boolean(errors.assignedTeamId)}
-          >
-            <option value="">Select team</option>
-            {teams.map((team) => (
-              <option key={team.id} value={team.id}>
-                {team.label}
-              </option>
-            ))}
-          </AppSelect>
-          {errors.assignedTeamId && <p className="text-xs text-red-500">{errors.assignedTeamId}</p>}
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="task-assignee" className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
-            Assignee (Optional)
-          </label>
-          <AppSelect
-            id="task-assignee"
-            value={values.assigneeId}
-            onChange={(event) => onChange({ ...values, assigneeId: event.target.value })}
-            error={Boolean(errors.assigneeId)}
-          >
-            <option value="">Team-level task (no individual assignee)</option>
-            {assignees.map((assignee) => (
-              <option key={assignee.id} value={assignee.id}>
-                {assignee.label}
-              </option>
-            ))}
-          </AppSelect>
-          {errors.assigneeId && <p className="text-xs text-red-500">{errors.assigneeId}</p>}
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="task-project" className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
-            Project
-          </label>
-          <AppSelect
-            id="task-project"
-            value={values.projectId}
-            onChange={(event) => onChange({ ...values, projectId: event.target.value, assignedTeamId: "", assigneeId: "" })}
-            error={Boolean(errors.projectId)}
-          >
-            <option value="">Select project</option>
-            {projects.map((project) => (
-              <option key={project.id} value={project.id}>
-                {project.label}
-              </option>
-            ))}
-          </AppSelect>
-          {errors.projectId && <p className="text-xs text-red-500">{errors.projectId}</p>}
-        </div>
       </div>
 
       <FileUploadField

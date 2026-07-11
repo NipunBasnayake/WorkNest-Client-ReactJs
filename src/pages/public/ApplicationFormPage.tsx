@@ -42,6 +42,7 @@ export function ApplicationFormPage() {
   const [job, setJob] = useState<PublicCareerJobDetail | null>(null);
   const [loadingJob, setLoadingJob] = useState(true);
   const [jobError, setJobError] = useState<string | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
   const [form, setForm] = useState<PublicApplicationFormValues>(EMPTY_FORM);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -73,7 +74,7 @@ export function ApplicationFormPage() {
     return () => {
       active = false;
     };
-  }, [jobSlug, tenantSlug]);
+  }, [jobSlug, retryKey, tenantSlug]);
 
   const isSubmitDisabled = submitting;
   const selectedFileLabel = useMemo(() => {
@@ -129,7 +130,7 @@ export function ApplicationFormPage() {
   if (jobError || !job) {
     return (
       <PageContainer size="lg" className="space-y-5">
-        <ErrorBanner message={jobError ?? "Unable to load this vacancy."} onRetry={() => window.location.reload()} />
+        <ErrorBanner message={jobError ?? "Unable to load this vacancy."} onRetry={() => setRetryKey((value) => value + 1)} />
         <Button variant="secondary" size="sm" to={`/${tenantSlug}/careers`}>Back to careers</Button>
       </PageContainer>
     );

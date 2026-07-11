@@ -3,8 +3,21 @@ import type { TeamMemberFunctionalRole } from "@/modules/teams/types";
 
 export type TaskActorRole = string | null | undefined;
 
-const TEAM_WORKFLOW_ROLES = new Set<TeamMemberFunctionalRole>(["TEAM_LEAD", "PROJECT_MANAGER"]);
-const FINAL_REVIEW_STATUS: TaskStatus = "IN_REVIEW";
+const TEAM_ASSIGNMENT_ROLES = new Set<TeamMemberFunctionalRole>(["TEAM_LEAD", "PROJECT_MANAGER"]);
+
+const ADMIN_TRANSITIONS: Partial<Record<TaskStatus, TaskStatus[]>> = {
+  TODO: ["TODO", "IN_PROGRESS"],
+  IN_PROGRESS: ["IN_PROGRESS", "TODO", "IN_REVIEW"],
+  IN_REVIEW: ["IN_REVIEW", "IN_PROGRESS", "DONE", "BLOCKED"],
+  BLOCKED: ["BLOCKED", "IN_REVIEW"],
+  DONE: ["DONE", "IN_REVIEW"],
+};
+
+const ASSIGNEE_TRANSITIONS: Partial<Record<TaskStatus, TaskStatus[]>> = {
+  TODO: ["TODO", "IN_PROGRESS"],
+  IN_PROGRESS: ["IN_PROGRESS", "TODO", "IN_REVIEW"],
+  IN_REVIEW: ["IN_REVIEW", "IN_PROGRESS"],
+};
 
 export function isTeamTask(task: Task): boolean {
   return Boolean(task.assignedTeamId);
@@ -16,18 +29,22 @@ export function isTaskDirectAssignee(task: Task, employeeId?: string | null): bo
 }
 
 export function hasTeamWorkflowAccess(teamRoles: TeamMemberFunctionalRole[]): boolean {
-  return teamRoles.some((role) => TEAM_WORKFLOW_ROLES.has(role));
+  return teamRoles.some((role) => TEAM_ASSIGNMENT_ROLES.has(role));
+}
+
+function hasProjectManagerAccess(teamRoles: TeamMemberFunctionalRole[]): boolean {
+  return teamRoles.includes("PROJECT_MANAGER");
 }
 
 export function getTaskStatusLabel(status: TaskStatus): string {
-  if (status === FINAL_REVIEW_STATUS) {
-    return "Waiting for Admin Review";
-  }
-  return status
-    .toLowerCase()
-    .split("_")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
+  const labels: Record<TaskStatus, string> = {
+    TODO: "To Do",
+    IN_PROGRESS: "In Progress",
+    IN_REVIEW: "Review",
+    BLOCKED: "Blocked",
+    DONE: "Done",
+  };
+  return labels[status];
 }
 
 export function getTaskAllowedStatuses(
@@ -36,47 +53,15 @@ export function getTaskAllowedStatuses(
   teamRoles: TeamMemberFunctionalRole[],
   isDirectAssignee: boolean
 ): TaskStatus[] {
-  if (actorRole === "TENANT_ADMIN" || actorRole === "ADMIN") {
-    return task.status === "TODO"
-      ? ["TODO", "IN_PROGRESS"]
-      : task.status === "IN_PROGRESS"
-        ? ["IN_PROGRESS", "TODO", "IN_REVIEW"]
-        : task.status === "IN_REVIEW"
-          ? ["IN_REVIEW", "DONE", "BLOCKED"]
-          : task.status === "DONE"
-            ? ["DONE", "IN_REVIEW"]
-            : task.status === "BLOCKED"
-              ? ["BLOCKED", "IN_REVIEW"]
-          : [task.status];
+  if (actorRole === "TENANT_ADMIN" || actorRole === "ADMIN" || hasProjectManagerAccess(teamRoles)) {
+    return ADMIN_TRANSITIONS[task.status] ?? [task.status];
   }
 
-  if (isTeamTask(task)) {
-    if (!hasTeamWorkflowAccess(teamRoles)) {
-      return [task.status];
-    }
-
-    return task.status === "TODO"
-      ? ["TODO", "IN_PROGRESS"]
-      : task.status === "IN_PROGRESS"
-        ? ["IN_PROGRESS", "TODO", "IN_REVIEW"]
-        : task.status === "IN_REVIEW"
-          ? ["IN_REVIEW", "IN_PROGRESS"]
-          : task.status === "DONE"
-            ? ["DONE", "IN_REVIEW"]
-        : [task.status];
+  if (isDirectAssignee) {
+    return ASSIGNEE_TRANSITIONS[task.status] ?? [task.status];
   }
 
-  if (!isDirectAssignee) {
-    return [task.status];
-  }
-
-  return task.status === "TODO"
-    ? ["TODO", "IN_PROGRESS"]
-    : task.status === "IN_PROGRESS"
-      ? ["IN_PROGRESS", "IN_REVIEW"]
-      : task.status === "IN_REVIEW"
-        ? ["IN_REVIEW", "DONE"]
-        : [task.status];
+  return [task.status];
 }
 
 export function canMoveTaskToStatus(

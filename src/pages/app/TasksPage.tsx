@@ -1,15 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { LayoutGrid, PlusCircle, Trash2 } from "lucide-react";
 import { FiEdit2, FiEye, FiTrash2 } from "react-icons/fi";
 import { Link } from "react-router-dom";
 import { usePageMeta } from "@/hooks/usePageMeta";
+import { invalidateWorkflowQueries } from "@/hooks/queries/workflowInvalidation";
 import { PERMISSIONS } from "@/constants/permissions";
 import { usePermission } from "@/hooks/usePermission";
 import { useAuth } from "@/hooks/useAuth";
 import { useMyEmployeeProfileQuery, useMyTeamsQuery } from "@/hooks/queries/useCoreQueries";
 import {
   deleteTask,
-  getMyTasks,
   getTasks,
   isTaskAssignedToViewer,
   updateTaskStatus,
@@ -31,6 +32,7 @@ import { InlineAlert } from "@/components/common/InlineAlert";
 import { SearchField } from "@/components/common/SearchField";
 import { EmptyState, ErrorBanner, SkeletonRow } from "@/components/common/AppUI";
 import { getErrorMessage } from "@/utils/errorHandler";
+import { tenantRoutes } from "@/utils/tenantRoutes";
 
 interface Option {
   id: string;
@@ -47,14 +49,15 @@ function toLabel(value: string): string {
 
 export function TasksPage() {
   usePageMeta({ title: "Tasks", breadcrumb: ["Workspace", "Tasks"] });
+  const queryClient = useQueryClient();
   const { role, user } = useAuth();
   const { hasPermission } = usePermission();
-
-  const canManageTasks = hasPermission(PERMISSIONS.TASKS_MANAGE);
   const canViewEmployeeDirectory = hasPermission(PERMISSIONS.EMPLOYEES_VIEW);
-  const isEmployeeOnly = role === "EMPLOYEE" && !canManageTasks;
-  const viewerProfileQuery = useMyEmployeeProfileQuery(isEmployeeOnly);
-  const myTeamsQuery = useMyTeamsQuery(isEmployeeOnly);
+  const roleValue = String(role ?? "");
+  const hasGlobalTaskManagement = roleValue === "TENANT_ADMIN" || roleValue === "ADMIN";
+  const needsScopedTaskContext = role === "EMPLOYEE" || role === "MANAGER";
+  const viewerProfileQuery = useMyEmployeeProfileQuery(needsScopedTaskContext);
+  const myTeamsQuery = useMyTeamsQuery(needsScopedTaskContext);
 
   const [tasks, setTasks] = useState<Task[]>([]);
   const [assignees, setAssignees] = useState<Option[]>([]);
@@ -67,6 +70,7 @@ export function TasksPage() {
   const [priorityFilter, setPriorityFilter] = useState<"ALL" | typeof TASK_PRIORITY_OPTIONS[number]>("ALL");
   const [assigneeFilter, setAssigneeFilter] = useState<string>("ALL");
   const [projectFilter, setProjectFilter] = useState<string>("ALL");
+  const [teamFilter, setTeamFilter] = useState<string>("ALL");
   const [deleteTarget, setDeleteTarget] = useState<Task | null>(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -77,7 +81,7 @@ export function TasksPage() {
     try {
       const employeePromise = canViewEmployeeDirectory ? getEmployees().catch(() => []) : Promise.resolve([]);
       const [taskRes, employeeRes, projectRes] = await Promise.all([
-        isEmployeeOnly ? getMyTasks() : getTasks(),
+        getTasks(),
         employeePromise,
         getProjects().catch(() => []),
       ]);
@@ -90,7 +94,7 @@ export function TasksPage() {
     } finally {
       setLoading(false);
     }
-  }, [canViewEmployeeDirectory, isEmployeeOnly]);
+  }, [canViewEmployeeDirectory]);
 
   useEffect(() => {
     void fetchData();
@@ -105,25 +109,34 @@ export function TasksPage() {
   );
 
   const employeeTeams = myTeamsQuery.data ?? [];
+  const viewerScopedTeamRoles = resolveViewerTeamRoles(employeeTeams, viewerIdentity);
+  const hasScopedCoordinatorAccess = hasTeamWorkflowAccess(viewerScopedTeamRoles);
+  const isSelfOnlyTaskView = role === "EMPLOYEE" && !hasGlobalTaskManagement && !hasScopedCoordinatorAccess;
+  const canCreateScopedTask = hasGlobalTaskManagement || hasScopedCoordinatorAccess;
 
-  const hasTeamLeadAccess = (task: Task): boolean => {
-    if (!isEmployeeOnly || !task.assignedTeamId) return false;
-    const teamRoles = resolveViewerTeamRoles(employeeTeams, viewerIdentity, [task.assignedTeamId]);
-    return hasTeamWorkflowAccess(teamRoles);
-  };
+  const getTaskTeamRoles = (task: Task) => task.assignedTeamId
+    ? resolveViewerTeamRoles(employeeTeams, viewerIdentity, [task.assignedTeamId])
+    : [];
 
-  const canEmployeeUpdateStatus = (task: Task): boolean => {
-    if (!isEmployeeOnly) return false;
-    if (task.assignedTeamId) {
-      return hasTeamLeadAccess(task);
-    }
-    return isTaskAssignedToViewer(task, viewerIdentity);
+  const isTaskProjectManager = (task: Task): boolean => getTaskTeamRoles(task).includes("PROJECT_MANAGER");
+
+  const canManageTaskRecord = (task: Task): boolean => hasGlobalTaskManagement || isTaskProjectManager(task);
+
+  const canUpdateTaskStatus = (task: Task): boolean => {
+    const teamRoles = getTaskTeamRoles(task);
+    const statusOptions = getTaskAllowedStatuses(
+      task,
+      hasGlobalTaskManagement ? "TENANT_ADMIN" : role,
+      teamRoles,
+      isTaskAssignedToViewer(task, viewerIdentity)
+    );
+    return statusOptions.some((status) => status !== task.status);
   };
 
   const scopedTasks = tasks;
 
   const filtered = useMemo(() => {
-    const effectiveAssigneeFilter = isEmployeeOnly ? "ALL" : assigneeFilter;
+    const effectiveAssigneeFilter = isSelfOnlyTaskView ? "ALL" : assigneeFilter;
     const query = search.trim().toLowerCase();
 
     return scopedTasks.filter((task) => {
@@ -139,17 +152,31 @@ export function TasksPage() {
         task.assigneeEmployeeId === effectiveAssigneeFilter ||
         task.assigneeUserId === effectiveAssigneeFilter;
       const matchesProject = projectFilter === "ALL" || task.projectId === projectFilter;
-      return matchesQuery && matchesStatus && matchesPriority && matchesAssignee && matchesProject;
+      const matchesTeam = teamFilter === "ALL" || task.assignedTeamId === teamFilter;
+      return matchesQuery && matchesStatus && matchesPriority && matchesAssignee && matchesProject && matchesTeam;
     });
   }, [
     assigneeFilter,
-    isEmployeeOnly,
+    isSelfOnlyTaskView,
     priorityFilter,
     projectFilter,
     scopedTasks,
     search,
     statusFilter,
+    teamFilter,
   ]);
+
+  const teamOptions = useMemo<Option[]>(() => {
+    const optionMap = new Map<string, Option>();
+    tasks.forEach((task) => {
+      if (!task.assignedTeamId) return;
+      optionMap.set(task.assignedTeamId, {
+        id: task.assignedTeamId,
+        label: task.assignedTeamName || `Team ${task.assignedTeamId}`,
+      });
+    });
+    return Array.from(optionMap.values()).sort((left, right) => left.label.localeCompare(right.label));
+  }, [tasks]);
 
   async function handleDelete() {
     if (!deleteTarget) return;
@@ -163,6 +190,7 @@ export function TasksPage() {
     try {
       await deleteTask(deleteTarget.id);
       setTasks((prev) => prev.filter((task) => task.id !== deleteTarget.id));
+      await invalidateWorkflowQueries(queryClient, ["tasks"]);
       setDeleteTarget(null);
       setFeedback("Task deleted successfully.");
     } catch (err: unknown) {
@@ -176,12 +204,13 @@ export function TasksPage() {
     const target = tasks.find((task) => task.id === taskId);
     if (!target) return;
 
-    const canUpdate = canManageTasks || canEmployeeUpdateStatus(target);
+    const canUpdate = canUpdateTaskStatus(target);
     if (!canUpdate) return;
 
     try {
       const updated = await updateTaskStatus(taskId, status);
       setTasks((prev) => prev.map((task) => (task.id === taskId ? updated : task)));
+      await invalidateWorkflowQueries(queryClient, ["tasks"]);
       setFeedback(`Task moved to ${toLabel(status)}.`);
     } catch (err: unknown) {
       setFeedback(getErrorMessage(err, "Unable to update task status."));
@@ -191,16 +220,16 @@ export function TasksPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title={isEmployeeOnly ? "My Tasks" : "Task Management"}
+        title={isSelfOnlyTaskView ? "My Tasks" : "Task Management"}
         description={loading ? "Loading tasks..." : `${filtered.length} task${filtered.length === 1 ? "" : "s"} in workflow.`}
         actions={(
           <>
-            <Button variant="outline" to="/app/tasks/board">
+            <Button variant="outline" to={tenantRoutes.taskBoard()}>
               <LayoutGrid size={16} />
               Board View
             </Button>
-            {canManageTasks && (
-              <Button variant="primary" to="/app/tasks/new">
+            {canCreateScopedTask && (
+              <Button variant="primary" to={tenantRoutes.taskCreate()}>
                 <PlusCircle size={16} />
                 Add Task
               </Button>
@@ -210,7 +239,7 @@ export function TasksPage() {
       />
 
       <SectionCard>
-        <div className="grid grid-cols-1 gap-3 xl:grid-cols-[1.4fr_0.8fr_0.8fr_1fr_1fr]">
+        <div className="grid grid-cols-1 gap-3 xl:grid-cols-[1.4fr_0.8fr_0.8fr_1fr_1fr_1fr]">
           <SearchField
             label="Search tasks"
             value={search}
@@ -245,11 +274,11 @@ export function TasksPage() {
           <AppSelect
             value={assigneeFilter}
             onChange={(event) => setAssigneeFilter(event.target.value)}
-            disabled={isEmployeeOnly}
+            disabled={isSelfOnlyTaskView}
           >
-            {isEmployeeOnly && <option value="ALL">My Assigned Tasks</option>}
-            {!isEmployeeOnly && <option value="ALL">All Assignees</option>}
-            {!isEmployeeOnly && assignees.map((assignee) => (
+            {isSelfOnlyTaskView && <option value="ALL">My Assigned Tasks</option>}
+            {!isSelfOnlyTaskView && <option value="ALL">All Assignees</option>}
+            {!isSelfOnlyTaskView && assignees.map((assignee) => (
               <option key={assignee.id} value={assignee.id}>
                 {assignee.label}
               </option>
@@ -264,6 +293,18 @@ export function TasksPage() {
             {projects.map((project) => (
               <option key={project.id} value={project.id}>
                 {project.label}
+              </option>
+            ))}
+          </AppSelect>
+
+          <AppSelect
+            value={teamFilter}
+            onChange={(event) => setTeamFilter(event.target.value)}
+          >
+            <option value="ALL">All Teams</option>
+            {teamOptions.map((team) => (
+              <option key={team.id} value={team.id}>
+                {team.label}
               </option>
             ))}
           </AppSelect>
@@ -294,15 +335,15 @@ export function TasksPage() {
 
           {!loading && !error && filtered.length === 0 && (
             <EmptyState
-              title={search || statusFilter !== "ALL" || priorityFilter !== "ALL" || assigneeFilter !== "ALL" || projectFilter !== "ALL" ? "No matching tasks" : "No tasks yet"}
+              title={search || statusFilter !== "ALL" || priorityFilter !== "ALL" || assigneeFilter !== "ALL" || projectFilter !== "ALL" || teamFilter !== "ALL" ? "No matching tasks" : "No tasks yet"}
               description={
-                search || statusFilter !== "ALL" || priorityFilter !== "ALL" || assigneeFilter !== "ALL" || projectFilter !== "ALL"
+                search || statusFilter !== "ALL" || priorityFilter !== "ALL" || assigneeFilter !== "ALL" || projectFilter !== "ALL" || teamFilter !== "ALL"
                   ? "Adjust filters to find tasks."
-                  : isEmployeeOnly
+                  : isSelfOnlyTaskView
                     ? "No tasks are currently assigned to you."
                     : "Create your first task to start tracking workflow."
               }
-              action={canManageTasks ? <Button variant="outline" to="/app/tasks/new">Create Task</Button> : undefined}
+              action={canCreateScopedTask ? <Button variant="outline" to={tenantRoutes.taskCreate()}>Create Task</Button> : undefined}
             />
           )}
 
@@ -311,13 +352,13 @@ export function TasksPage() {
               <div className="hidden min-w-[1080px] md:block">
                 {filtered.map((task) => {
                   const isDone = task.status === "DONE";
-                  const canUpdateStatus = canManageTasks || canEmployeeUpdateStatus(task);
+                  const canUpdateStatus = canUpdateTaskStatus(task);
                   const teamRoles = task.assignedTeamId
                     ? resolveViewerTeamRoles(employeeTeams, viewerIdentity, [task.assignedTeamId])
                     : [];
                   const statusOptions = getTaskAllowedStatuses(
                     task,
-                    canManageTasks ? "TENANT_ADMIN" : role,
+                    hasGlobalTaskManagement ? "TENANT_ADMIN" : role,
                     teamRoles,
                     isTaskAssignedToViewer(task, viewerIdentity)
                   );
@@ -337,13 +378,13 @@ export function TasksPage() {
                           {task.description || "No description"}
                         </p>
                         <p className="truncate text-[11px]" style={{ color: "var(--text-tertiary)" }}>
-                          {task.assignedTeamName ? `Team: ${task.assignedTeamName}` : "Team: Unscoped"} | {task.assigneeId ? "Assigned to member" : "Team Task"}
+                          {task.assignedTeamName ? `Team: ${task.assignedTeamName}` : "Team: Unscoped"} | {task.assigneeName ? `Owner: ${task.assigneeName}` : "No owner"}
                         </p>
                       </div>
                       <TaskStatusBadge status={task.status} />
                       <TaskPriorityBadge priority={task.priority} />
                       <span className="truncate text-sm" style={{ color: "var(--text-secondary)" }}>
-                        {task.assignedTeamName || task.assigneeName || "Unassigned"}
+                        {task.assigneeName || "Unassigned"}
                       </span>
                       <span className="truncate text-sm" style={{ color: "var(--text-secondary)" }}>
                         {task.projectName || "No project"}
@@ -364,7 +405,7 @@ export function TasksPage() {
                           ))}
                         </AppSelect>
                         <Link
-                          to={`/app/tasks/${task.id}`}
+                          to={tenantRoutes.taskDetail(task.id)}
                           title="View task"
                           aria-label="View task"
                           className="inline-flex items-center justify-center p-1 transition-opacity hover:opacity-80"
@@ -372,10 +413,10 @@ export function TasksPage() {
                         >
                           <FiEye size={15} />
                         </Link>
-                        {canManageTasks && !isDone && (
+                        {canManageTaskRecord(task) && !isDone && (
                           <>
                             <Link
-                              to={`/app/tasks/${task.id}/edit`}
+                              to={tenantRoutes.taskEdit(task.id)}
                               title="Edit task"
                               aria-label="Edit task"
                               className="inline-flex items-center justify-center p-1 transition-opacity hover:opacity-80"
@@ -395,7 +436,7 @@ export function TasksPage() {
                             </button>
                           </>
                         )}
-                        {canManageTasks && isDone && (
+                        {canManageTaskRecord(task) && isDone && (
                           <span className="text-xs font-medium" style={{ color: "var(--text-tertiary)" }}>
                             Locked
                           </span>
@@ -428,25 +469,25 @@ export function TasksPage() {
                     </div>
 
                     <div className="mt-3 space-y-1 text-xs" style={{ color: "var(--text-tertiary)" }}>
-                      <p>Assignee: {task.assignedTeamName || task.assigneeName || "Unassigned"}</p>
+                      <p>Assignee: {task.assigneeName || "Unassigned"}</p>
                       <p>Team: {task.assignedTeamName || "Unscoped"}</p>
-                      <p>Type: {task.assignedTeamName ? "Team Task" : task.assigneeId ? "Assigned to Me/Member" : "Task"}</p>
+                      <p>Owner: {task.assigneeName || "Unassigned"}</p>
                       <p>Project: {task.projectName || "No project"}</p>
                       <p>Due: {formatDate(task.dueDate)}</p>
                     </div>
 
                     <div className="mt-4 flex flex-wrap gap-2">
-                      <Button variant="ghost" size="sm" to={`/app/tasks/${task.id}`}>View</Button>
-                      {canManageTasks && !isDone && (
+                      <Button variant="ghost" size="sm" to={tenantRoutes.taskDetail(task.id)}>View</Button>
+                      {canManageTaskRecord(task) && !isDone && (
                         <>
-                          <Button variant="outline" size="sm" to={`/app/tasks/${task.id}/edit`}>Edit</Button>
+                          <Button variant="outline" size="sm" to={tenantRoutes.taskEdit(task.id)}>Edit</Button>
                           <Button variant="danger" size="sm" onClick={() => setDeleteTarget(task)}>
                             <Trash2 size={14} color="#ef4444" />
                             Delete
                           </Button>
                         </>
                       )}
-                      {canManageTasks && isDone && (
+                      {canManageTaskRecord(task) && isDone && (
                         <span className="inline-flex items-center rounded-xl px-3 py-2 text-xs font-semibold" style={{ color: "var(--text-tertiary)", backgroundColor: "var(--bg-muted)" }}>
                           Locked
                         </span>

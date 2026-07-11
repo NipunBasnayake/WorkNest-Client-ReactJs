@@ -23,6 +23,7 @@ export function ApplicationSuccessPage() {
   const [application, setApplication] = useState<PublicApplicationResponse | PublicApplicationStatus | null>(initialApplication ?? null);
   const [loading, setLoading] = useState(!initialApplication);
   const [error, setError] = useState<string | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
 
   const companyName = application?.company.companyName ?? "Company";
   const title = useMemo(() => `Application Submitted - ${companyName}`, [companyName]);
@@ -58,7 +59,7 @@ export function ApplicationSuccessPage() {
     return () => {
       active = false;
     };
-  }, [initialApplication, referenceNumber, tenantSlug]);
+  }, [initialApplication, referenceNumber, retryKey, tenantSlug]);
 
   if (loading) {
     return (
@@ -71,7 +72,7 @@ export function ApplicationSuccessPage() {
   if (error || !application) {
     return (
       <PageContainer size="lg" className="space-y-5">
-        <ErrorBanner message={error ?? "Unable to load the submitted application."} onRetry={() => window.location.reload()} />
+        <ErrorBanner message={error ?? "Unable to load the submitted application."} onRetry={() => setRetryKey((value) => value + 1)} />
         <Button variant="secondary" to={`/${tenantSlug}/careers`}>Return to Careers</Button>
       </PageContainer>
     );

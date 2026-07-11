@@ -11,12 +11,12 @@ vi.mock("@/modules/leave/services/leaveService", () => ({
   updateLeaveRequest: vi.fn(),
 }));
 
-function renderPage(path = "/app/leave/1/edit") {
+function renderPage(path = "/demo/leave/1/edit") {
   return render(
     <MemoryRouter initialEntries={[path]}>
       <Routes>
-        <Route path="/app/leave/:id/edit" element={<LeaveFormPage />} />
-        <Route path="/app/leave/new" element={<LeaveFormPage />} />
+        <Route path="/:tenantSlug/leave/:id/edit" element={<LeaveFormPage />} />
+        <Route path="/:tenantSlug/leave/new" element={<LeaveFormPage />} />
       </Routes>
     </MemoryRouter>
   );

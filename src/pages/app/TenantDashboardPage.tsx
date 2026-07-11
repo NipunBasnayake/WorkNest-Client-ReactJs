@@ -26,31 +26,32 @@ import { SectionCard } from "@/components/common/SectionCard";
 import { Button } from "@/components/common/Button";
 import { formatDate, formatDateTime, formatMinutes, getDaytimeGreeting, toReadableLabel } from "@/utils/formatting";
 import { getErrorMessage } from "@/utils/errorHandler";
+import { tenantRoutes } from "@/utils/tenantRoutes";
 import type { DashboardTaskStatusSummary, TenantDashboardSnapshot } from "@/modules/analytics/types";
 
 interface QuickAction {
   label: string;
   description: string;
   icon: ReactNode;
-  to: string;
+  to: () => string;
   permission?: Permission;
 }
 
 const ADMIN_QUICK_ACTIONS: QuickAction[] = [
-  { label: "Add Employee", description: "Create and onboard employee profile", icon: <UserPlus size={18} />, to: "/app/employees/new", permission: PERMISSIONS.EMPLOYEES_MANAGE },
-  { label: "Create Team", description: "Set up a new team structure", icon: <Briefcase size={18} />, to: "/app/teams/new", permission: PERMISSIONS.TEAMS_MANAGE },
-  { label: "Create Project", description: "Initialize a project workspace", icon: <FolderOpen size={18} />, to: "/app/projects/new", permission: PERMISSIONS.PROJECTS_MANAGE },
-  { label: "Create Task", description: "Assign work and due dates", icon: <CheckSquare size={18} />, to: "/app/tasks/new", permission: PERMISSIONS.TASKS_MANAGE },
-  { label: "Publish Announcement", description: "Share company-wide updates", icon: <Megaphone size={18} />, to: "/app/announcements/new", permission: PERMISSIONS.ANNOUNCEMENTS_MANAGE },
+  { label: "Add Employee", description: "Create and onboard employee profile", icon: <UserPlus size={18} />, to: () => tenantRoutes.employeeNew(), permission: PERMISSIONS.EMPLOYEES_MANAGE },
+  { label: "Create Team", description: "Set up a new team structure", icon: <Briefcase size={18} />, to: () => tenantRoutes.teamNew(), permission: PERMISSIONS.TEAMS_MANAGE },
+  { label: "Create Project", description: "Initialize a project workspace", icon: <FolderOpen size={18} />, to: () => tenantRoutes.projectNew(), permission: PERMISSIONS.PROJECTS_MANAGE },
+  { label: "Create Task", description: "Assign work and due dates", icon: <CheckSquare size={18} />, to: () => tenantRoutes.taskCreate(), permission: PERMISSIONS.TASKS_MANAGE },
+  { label: "Publish Announcement", description: "Share company-wide updates", icon: <Megaphone size={18} />, to: () => tenantRoutes.announcementNew(), permission: PERMISSIONS.ANNOUNCEMENTS_MANAGE },
 ];
 
 const USER_QUICK_ACTIONS: QuickAction[] = [
-  { label: "View My Tasks", description: "Review assigned workload", icon: <CheckSquare size={18} />, to: "/app/tasks", permission: PERMISSIONS.TASKS_VIEW },
-  { label: "Check Attendance", description: "View daily attendance status", icon: <CalendarClock size={18} />, to: "/app/attendance", permission: PERMISSIONS.ATTENDANCE_VIEW },
-  { label: "Request Leave", description: "Submit a leave request", icon: <CalendarClock size={18} />, to: "/app/leave/new", permission: PERMISSIONS.LEAVE_REQUEST },
-  { label: "Announcements", description: "Read company updates", icon: <Bell size={18} />, to: "/app/announcements", permission: PERMISSIONS.ANNOUNCEMENTS_VIEW },
-  { label: "Notifications", description: "Review your alerts", icon: <BellRing size={18} />, to: "/app/notifications", permission: PERMISSIONS.NOTIFICATIONS_VIEW },
-  { label: "Open Chat", description: "Talk with your team", icon: <MessageSquare size={18} />, to: "/app/chat", permission: PERMISSIONS.CHAT_VIEW },
+  { label: "View My Tasks", description: "Review assigned workload", icon: <CheckSquare size={18} />, to: () => tenantRoutes.tasks(), permission: PERMISSIONS.TASKS_VIEW },
+  { label: "Check Attendance", description: "View daily attendance status", icon: <CalendarClock size={18} />, to: () => tenantRoutes.attendance(), permission: PERMISSIONS.ATTENDANCE_VIEW },
+  { label: "Request Leave", description: "Submit a leave request", icon: <CalendarClock size={18} />, to: () => tenantRoutes.leaveNew(), permission: PERMISSIONS.LEAVE_REQUEST },
+  { label: "Announcements", description: "Read company updates", icon: <Bell size={18} />, to: () => tenantRoutes.announcements(), permission: PERMISSIONS.ANNOUNCEMENTS_VIEW },
+  { label: "Notifications", description: "Review your alerts", icon: <BellRing size={18} />, to: () => tenantRoutes.notifications(), permission: PERMISSIONS.NOTIFICATIONS_VIEW },
+  { label: "Open Chat", description: "Talk with your team", icon: <MessageSquare size={18} />, to: () => tenantRoutes.chat(), permission: PERMISSIONS.CHAT_VIEW },
 ];
 
 const TASK_STATUS_META: Array<{ key: keyof DashboardTaskStatusSummary; label: string; color: string }> = [
@@ -162,7 +163,7 @@ function TenantAdminDashboard({
               label={action.label}
               description={action.description}
               icon={action.icon}
-              to={action.to}
+              to={action.to()}
             />
           ))}
         </div>
@@ -172,7 +173,7 @@ function TenantAdminDashboard({
         <SectionCard
           title="Task Status Summary"
           subtitle="Distribution of active and completed work."
-          action={canViewAnalytics ? <Button variant="ghost" size="sm" to="/app/analytics">Open Analytics</Button> : undefined}
+          action={canViewAnalytics ? <Button variant="ghost" size="sm" to={tenantRoutes.analytics()}>Open Analytics</Button> : undefined}
         >
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             {TASK_STATUS_META.map((item) => (
@@ -205,7 +206,7 @@ function TenantAdminDashboard({
             <MetricTile label="Half Day" value={snapshot.attendanceSummary.halfDay} color="#6366f1" />
           </div>
           <div className="mt-4">
-            <Button variant="outline" size="sm" to="/app/attendance">View Attendance Module</Button>
+            <Button variant="outline" size="sm" to={tenantRoutes.attendance()}>View Attendance Module</Button>
           </div>
         </SectionCard>
       </div>
@@ -214,7 +215,7 @@ function TenantAdminDashboard({
         <SectionCard
           title="Pending Leave Approvals"
           subtitle="Requests waiting for admin review."
-          action={<Button variant="ghost" size="sm" to="/app/leave">Open Leave</Button>}
+          action={<Button variant="ghost" size="sm" to={tenantRoutes.leave()}>Open Leave</Button>}
         >
           <div className="space-y-2">
             {snapshot.pendingApprovals.length === 0 && (
@@ -225,7 +226,7 @@ function TenantAdminDashboard({
             {snapshot.pendingApprovals.map((leave) => (
               <PreviewItem
                 key={leave.id}
-                to={`/app/leave/${leave.id}`}
+                to={tenantRoutes.leaveDetail(leave.id)}
                 title={`${leave.employeeName} - ${toReadableLabel(leave.leaveType)}`}
                 meta={`${formatDate(leave.startDate)} to ${formatDate(leave.endDate)}`}
               />
@@ -236,7 +237,7 @@ function TenantAdminDashboard({
         <SectionCard
           title="Upcoming Deadlines"
           subtitle="Tasks due in the next 7 days."
-          action={<Button variant="ghost" size="sm" to="/app/tasks">Open Tasks</Button>}
+          action={<Button variant="ghost" size="sm" to={tenantRoutes.tasks()}>Open Tasks</Button>}
         >
           <div className="space-y-2">
             {snapshot.dueSoonTasks.length === 0 && (
@@ -247,7 +248,7 @@ function TenantAdminDashboard({
             {snapshot.dueSoonTasks.map((task) => (
               <PreviewItem
                 key={task.id}
-                to={`/app/tasks/${task.id}`}
+                to={tenantRoutes.taskDetail(task.id)}
                 title={task.title}
                 meta={`Due ${formatDate(task.dueDate)} - ${toReadableLabel(task.status)} - ${toReadableLabel(task.priority)}`}
               />
@@ -258,7 +259,7 @@ function TenantAdminDashboard({
         <SectionCard
           title="Recent Announcements"
           subtitle="Latest internal updates."
-          action={<Button variant="ghost" size="sm" to="/app/announcements">View All</Button>}
+          action={<Button variant="ghost" size="sm" to={tenantRoutes.announcements()}>View All</Button>}
         >
           <div className="space-y-2">
             {snapshot.announcements.length === 0 && (
@@ -269,7 +270,7 @@ function TenantAdminDashboard({
             {snapshot.announcements.map((announcement) => (
               <PreviewItem
                 key={announcement.id}
-                to={`/app/announcements/${announcement.id}`}
+                to={tenantRoutes.announcementDetail(announcement.id)}
                 title={announcement.title}
                 meta={formatDateTime(announcement.createdAt)}
               />
@@ -280,7 +281,7 @@ function TenantAdminDashboard({
         <SectionCard
           title="Recent Notifications"
           subtitle="Most recent alerts for your admin account."
-          action={<Button variant="ghost" size="sm" to="/app/notifications">View All</Button>}
+          action={<Button variant="ghost" size="sm" to={tenantRoutes.notifications()}>View All</Button>}
         >
           <div className="space-y-2">
             {snapshot.notifications.length === 0 && (
@@ -291,7 +292,7 @@ function TenantAdminDashboard({
             {snapshot.notifications.map((notification) => (
               <PreviewItem
                 key={notification.id}
-                to={notification.link || "/app/notifications"}
+                to={normalizeDashboardLink(notification.link)}
                 title={notification.title}
                 meta={formatDateTime(notification.createdAt)}
                 unread={!notification.read}
@@ -336,7 +337,7 @@ function TenantUserDashboard({
               label={action.label}
               description={action.description}
               icon={action.icon}
-              to={action.to}
+              to={action.to()}
             />
           ))}
         </div>
@@ -376,7 +377,7 @@ function TenantUserDashboard({
             <MetricTile label="Records (30d)" value={snapshot.attendanceSummary.total} color="#6366f1" />
           </div>
           <div className="mt-4">
-            <Button variant="outline" size="sm" to="/app/attendance">Open Attendance</Button>
+            <Button variant="outline" size="sm" to={tenantRoutes.attendance()}>Open Attendance</Button>
           </div>
         </SectionCard>
       </div>
@@ -385,7 +386,7 @@ function TenantUserDashboard({
         <SectionCard
           title="Tasks Due Soon"
           subtitle="Your nearest task deadlines."
-          action={<Button variant="ghost" size="sm" to="/app/tasks">Open Tasks</Button>}
+          action={<Button variant="ghost" size="sm" to={tenantRoutes.tasks()}>Open Tasks</Button>}
         >
           <div className="space-y-2">
             {snapshot.dueSoonTasks.length === 0 && (
@@ -396,7 +397,7 @@ function TenantUserDashboard({
             {snapshot.dueSoonTasks.map((task) => (
               <PreviewItem
                 key={task.id}
-                to={`/app/tasks/${task.id}`}
+                to={tenantRoutes.taskDetail(task.id)}
                 title={task.title}
                 meta={`Due ${formatDate(task.dueDate)} - ${toReadableLabel(task.status)}`}
               />
@@ -407,7 +408,7 @@ function TenantUserDashboard({
         <SectionCard
           title="Recent Leave Actions"
           subtitle="Latest activity on your leave requests."
-          action={<Button variant="ghost" size="sm" to="/app/leave">Open Leave</Button>}
+          action={<Button variant="ghost" size="sm" to={tenantRoutes.leave()}>Open Leave</Button>}
         >
           <div className="space-y-2">
             {snapshot.recentLeaves.length === 0 && (
@@ -418,7 +419,7 @@ function TenantUserDashboard({
             {snapshot.recentLeaves.map((leave) => (
               <PreviewItem
                 key={leave.id}
-                to={`/app/leave/${leave.id}`}
+                to={tenantRoutes.leaveDetail(leave.id)}
                 title={`${toReadableLabel(leave.leaveType)} - ${toReadableLabel(leave.status)}`}
                 meta={`${formatDate(leave.startDate)} to ${formatDate(leave.endDate)}`}
               />
@@ -429,7 +430,7 @@ function TenantUserDashboard({
         <SectionCard
           title="Recent Announcements"
           subtitle="Latest company communication."
-          action={<Button variant="ghost" size="sm" to="/app/announcements">View All</Button>}
+          action={<Button variant="ghost" size="sm" to={tenantRoutes.announcements()}>View All</Button>}
         >
           <div className="space-y-2">
             {snapshot.announcements.length === 0 && (
@@ -440,7 +441,7 @@ function TenantUserDashboard({
             {snapshot.announcements.map((announcement) => (
               <PreviewItem
                 key={announcement.id}
-                to={`/app/announcements/${announcement.id}`}
+                to={tenantRoutes.announcementDetail(announcement.id)}
                 title={announcement.title}
                 meta={formatDateTime(announcement.createdAt)}
               />
@@ -451,7 +452,7 @@ function TenantUserDashboard({
         <SectionCard
           title="My Notifications"
           subtitle="Unread and recent alerts."
-          action={<Button variant="ghost" size="sm" to="/app/notifications">View All</Button>}
+          action={<Button variant="ghost" size="sm" to={tenantRoutes.notifications()}>View All</Button>}
         >
           <div className="space-y-2">
             {snapshot.notifications.length === 0 && (
@@ -462,7 +463,7 @@ function TenantUserDashboard({
             {snapshot.notifications.map((notification) => (
               <PreviewItem
                 key={notification.id}
-                to={notification.link || "/app/notifications"}
+                to={normalizeDashboardLink(notification.link)}
                 title={notification.title}
                 meta={formatDateTime(notification.createdAt)}
                 unread={!notification.read}
@@ -524,6 +525,23 @@ function MetricTile({ label, value, color }: { label: string; value: string | nu
   );
 }
 
+function normalizeDashboardLink(link?: string): string {
+  const legacyPrefix = `/${"app"}`;
+
+  if (!link) {
+    return tenantRoutes.notifications();
+  }
+
+  if (link === legacyPrefix) {
+    return tenantRoutes.dashboard();
+  }
+
+  if (link.startsWith(`${legacyPrefix}/`)) {
+    return tenantRoutes.path(link.slice(legacyPrefix.length));
+  }
+
+  return link;
+}
 function PreviewItem({
   to,
   title,

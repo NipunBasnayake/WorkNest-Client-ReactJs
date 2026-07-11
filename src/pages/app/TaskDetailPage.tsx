@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useParams } from "react-router-dom";
 import { ArrowLeft, CalendarClock, FolderKanban, MessageSquareText, UserCircle2 } from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
@@ -29,14 +29,19 @@ import {
   type TaskPriority,
   type TaskStatus,
 } from "@/modules/tasks/types";
+import { getAssignableTeamMembers } from "@/modules/teams/services/teamService";
 import { resolveViewerTeamRoles } from "@/modules/teams/utils/teamRoles";
 import { getTaskAllowedStatuses, hasTeamWorkflowAccess } from "@/modules/tasks/utils/taskWorkflow";
 import { getErrorMessage } from "@/utils/errorHandler";
+import type { AssignableTeamMember } from "@/modules/teams/types";
 import { formatDate, formatDateTime, toReadableLabel } from "@/utils/formatting";
+import { tenantRoutes } from "@/utils/tenantRoutes";
 
 interface Option {
   id: string;
   label: string;
+  subtitle?: string;
+  avatarUrl?: string;
 }
 
 const EMPTY_COMMENTS: TaskComment[] = [];
@@ -77,26 +82,32 @@ export function TaskDetailPage() {
   const [dueDateDraft, setDueDateDraft] = useState<string | null>(null);
   const [assigneeDraft, setAssigneeDraft] = useState<string | null>(null);
   const [projectDraft, setProjectDraft] = useState<string | null>(null);
+  const [assigneeOptions, setAssigneeOptions] = useState<Option[]>([]);
 
   const isDraftForCurrentTask = Boolean(task && draftTaskId === task.id);
   const effectiveDueDateDraft = isDraftForCurrentTask ? (dueDateDraft ?? "") : (task?.dueDate ?? "");
-  const effectiveAssigneeDraft = isDraftForCurrentTask ? (assigneeDraft ?? "") : (task?.assigneeId ?? "");
+  const effectiveAssigneeDraft = isDraftForCurrentTask ? (assigneeDraft ?? "") : (task?.assignedEmployeeId ?? task?.assigneeId ?? "");
   const effectiveProjectDraft = isDraftForCurrentTask ? (projectDraft ?? "") : (task?.projectId ?? "");
+  useEffect(() => {
+    if (!task?.assignedTeamId) {
+      setAssigneeOptions([]);
+      return;
+    }
 
-  const assigneeOptions = useMemo<Option[]>(() => {
-    const selectedTeam = (teamsQuery.data ?? []).find((team) => team.id === task?.assignedTeamId);
-    if (!selectedTeam) return [];
-
-    const scoped = new Map<string, Option>();
-    selectedTeam.members.forEach((member) => {
-      if (!member.employeeId || scoped.has(member.employeeId)) return;
-      scoped.set(member.employeeId, {
-        id: member.employeeId,
-        label: member.name?.trim() || member.email?.trim() || member.employeeId,
+    let active = true;
+    getAssignableTeamMembers(task.assignedTeamId)
+      .then((members) => {
+        if (active) setAssigneeOptions(members.map(toAssigneeOption));
+      })
+      .catch(() => {
+        if (active) setAssigneeOptions([]);
       });
-    });
-    return Array.from(scoped.values()).sort((left, right) => left.label.localeCompare(right.label));
-  }, [task?.assignedTeamId, teamsQuery.data]);
+
+    return () => {
+      active = false;
+    };
+  }, [task?.assignedTeamId]);
+
 
   const projectOptions = useMemo<Option[]>(() => {
     const projects = projectsQuery.data ?? [];
@@ -113,7 +124,8 @@ export function TaskDetailPage() {
   );
 
   const canEditTaskTeam = hasTeamWorkflowAccess(viewerTeamRoles);
-  const canManageTaskFields = hasGlobalTaskWorkflow || canEditTaskTeam;
+  const hasProjectManagerAccess = viewerTeamRoles.includes("PROJECT_MANAGER");
+  const canManageTaskFields = hasGlobalTaskWorkflow || hasProjectManagerAccess;
   const canAssignTask = hasPermission(PERMISSIONS.TASKS_ASSIGN, { teamRoles: viewerTeamRoles });
   const canManageAssignee = hasGlobalTaskWorkflow || (canAssignTask && canEditTaskTeam);
 
@@ -138,10 +150,9 @@ export function TaskDetailPage() {
 
   const canUpdateStatus = useMemo(() => {
     if (!task) return false;
-    if (hasGlobalTaskWorkflow) return true;
-    if (task.assignedTeamId) return canEditTaskTeam;
+    if (hasGlobalTaskWorkflow || hasProjectManagerAccess) return true;
     return isTaskAssignedToViewer(task, viewerIdentity);
-  }, [canEditTaskTeam, hasGlobalTaskWorkflow, task, viewerIdentity]);
+  }, [hasGlobalTaskWorkflow, hasProjectManagerAccess, task, viewerIdentity]);
   const workflowPermissionNote = useMemo(() => {
     if (canManageTaskFields) return null;
     if (canManageAssignee) return "You don't have permission to edit protected fields outside task assignment.";
@@ -185,7 +196,7 @@ export function TaskDetailPage() {
       const updated = await updateStatusMutation.mutateAsync(nextStatus);
       setDraftTaskId(updated.id);
       setDueDateDraft(updated.dueDate ?? "");
-      setAssigneeDraft(updated.assigneeId ?? "");
+      setAssigneeDraft(updated.assignedEmployeeId ?? updated.assigneeId ?? "");
       setProjectDraft(updated.projectId ?? "");
       toast.success({ title: "Task status updated" });
     } catch (err: unknown) {
@@ -203,7 +214,7 @@ export function TaskDetailPage() {
       const updated = await updatePriorityMutation.mutateAsync(nextPriority);
       setDraftTaskId(updated.id);
       setDueDateDraft(updated.dueDate ?? "");
-      setAssigneeDraft(updated.assigneeId ?? "");
+      setAssigneeDraft(updated.assignedEmployeeId ?? updated.assigneeId ?? "");
       setProjectDraft(updated.projectId ?? "");
       toast.success({ title: "Task priority updated" });
     } catch (err: unknown) {
@@ -221,7 +232,7 @@ export function TaskDetailPage() {
       const updated = await updateDueDateMutation.mutateAsync(effectiveDueDateDraft);
       setDraftTaskId(updated.id);
       setDueDateDraft(updated.dueDate ?? "");
-      setAssigneeDraft(updated.assigneeId ?? "");
+      setAssigneeDraft(updated.assignedEmployeeId ?? updated.assigneeId ?? "");
       setProjectDraft(updated.projectId ?? "");
       toast.success({ title: "Task due date updated" });
     } catch (err: unknown) {
@@ -233,13 +244,13 @@ export function TaskDetailPage() {
   }
 
   async function handleAssigneeUpdate() {
-    if (!task || isTaskDone || !canManageAssignee || effectiveAssigneeDraft === (task.assigneeId ?? "")) return;
+    if (!task || isTaskDone || !canManageAssignee || effectiveAssigneeDraft === (task.assignedEmployeeId ?? task.assigneeId ?? "")) return;
 
     try {
       const updated = await updateAssigneeMutation.mutateAsync(effectiveAssigneeDraft);
       setDraftTaskId(updated.id);
       setDueDateDraft(updated.dueDate ?? "");
-      setAssigneeDraft(updated.assigneeId ?? "");
+      setAssigneeDraft(updated.assignedEmployeeId ?? updated.assigneeId ?? "");
       setProjectDraft(updated.projectId ?? "");
       toast.success({ title: "Task assignee updated" });
     } catch (err: unknown) {
@@ -268,7 +279,7 @@ export function TaskDetailPage() {
       });
       setDraftTaskId(updated.id);
       setDueDateDraft(updated.dueDate ?? "");
-      setAssigneeDraft(updated.assigneeId ?? "");
+      setAssigneeDraft(updated.assignedEmployeeId ?? updated.assigneeId ?? "");
       setProjectDraft(updated.projectId ?? "");
       toast.success({ title: "Task project updated" });
     } catch (err: unknown) {
@@ -304,11 +315,11 @@ export function TaskDetailPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-2">
-        <Button variant="ghost" to="/app/tasks">
+        <Button variant="ghost" to={tenantRoutes.tasks()}>
           <ArrowLeft size={16} />
           Back
         </Button>
-        {task && canManageTaskFields && !isTaskDone ? <Button variant="outline" to={`/app/tasks/${task.id}/edit`}>Edit Task</Button> : null}
+        {task && canManageTaskFields && !isTaskDone ? <Button variant="outline" to={tenantRoutes.taskEdit(task.id)}>Edit Task</Button> : null}
       </div>
 
       {loading ? (
@@ -325,7 +336,7 @@ export function TaskDetailPage() {
         <EmptyState
           title="Task not found"
           description="The requested task does not exist."
-          action={<Button variant="outline" to="/app/tasks">Go to Tasks</Button>}
+          action={<Button variant="outline" to={tenantRoutes.tasks()}>Go to Tasks</Button>}
         />
       ) : null}
 
@@ -353,12 +364,12 @@ export function TaskDetailPage() {
               className="rounded-xl border px-4 py-3 text-sm"
               style={{ borderColor: "rgba(245,158,11,0.30)", backgroundColor: "rgba(245,158,11,0.08)", color: "#b45309" }}
             >
-              This task is DONE and locked. The only available change is reopening it to Waiting for Admin Review through the status control.
+              This task is DONE and locked. The only available change is reopening it to Review through the status control.
             </div>
           ) : null}
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-            <InfoCard icon={<UserCircle2 size={16} />} label="Assignee" value={task.assignedTeamName || task.assigneeName || "Unassigned"} />
+            <InfoCard icon={<UserCircle2 size={16} />} label="Assignee" value={task.assigneeName || "Unassigned"} />
             <InfoCard icon={<UserCircle2 size={16} />} label="Assigned Team" value={task.assignedTeamName || "Unscoped"} />
             <InfoCard icon={<FolderKanban size={16} />} label="Project" value={task.projectName || "No project"} />
             <InfoCard icon={<CalendarClock size={16} />} label="Due Date" value={formatDate(task.dueDate, "Not set")} />
@@ -422,14 +433,14 @@ export function TaskDetailPage() {
                       }}
                       disabled={!canManageAssignee || isTaskDone}
                     >
-                      <option value="">Unassigned</option>
+                      <option value="">Select active team member</option>
                       {assigneeOptions.map((assignee) => (
                         <option key={assignee.id} value={assignee.id}>
-                          {assignee.label}
+                          {assignee.subtitle ? `${assignee.label} - ${assignee.subtitle}` : assignee.label}
                         </option>
                       ))}
                     </AppSelect>
-                    <Button size="sm" variant="outline" disabled={updatingTask || !canManageAssignee || isTaskDone || effectiveAssigneeDraft === (task.assigneeId ?? "")} onClick={() => void handleAssigneeUpdate()}>
+                    <Button size="sm" variant="outline" disabled={updatingTask || !canManageAssignee || isTaskDone || !effectiveAssigneeDraft || effectiveAssigneeDraft === (task.assignedEmployeeId ?? task.assigneeId ?? "")} onClick={() => void handleAssigneeUpdate()}>
                       Save
                     </Button>
                   </div>
@@ -586,6 +597,17 @@ function FieldSelect({
       </AppSelect>
     </div>
   );
+}
+
+function toAssigneeOption(member: AssignableTeamMember): Option {
+  const label = member.fullName?.trim() || member.email?.trim() || member.employeeId;
+  const designation = member.designation?.trim();
+  return {
+    id: member.employeeId,
+    label,
+    subtitle: designation || undefined,
+    avatarUrl: member.avatarUrl || member.avatar,
+  };
 }
 
 function InfoCard({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {

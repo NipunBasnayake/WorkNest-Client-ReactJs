@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, UserPlus } from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
+import { invalidateWorkflowQueries } from "@/hooks/queries/workflowInvalidation";
 import { createEmployee, getEmployeeById, updateEmployee } from "@/modules/employees/services/employeeService";
 import { SectionCard } from "@/components/common/SectionCard";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -12,9 +14,11 @@ import { DEFAULT_EMPLOYEE_FORM, validateEmployeeForm } from "@/modules/employees
 import { generateEmployeeCode, toEmployeeFormValues, toEmployeePayload } from "@/modules/employees/utils/employeeMapper";
 import type { EmployeeFormErrors, EmployeeFormValues } from "@/modules/employees/types";
 import { getErrorMessage } from "@/utils/errorHandler";
+import { tenantRoutes } from "@/utils/tenantRoutes";
 
 export function EmployeeFormPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { id } = useParams<{ id?: string }>();
   const isEdit = Boolean(id);
 
@@ -73,8 +77,9 @@ export function EmployeeFormPage() {
         setMessage("Employee created successfully.");
       }
 
+      await invalidateWorkflowQueries(queryClient, ["employees"]);
       setTimeout(() => {
-        navigate("/app/employees", { replace: true });
+        navigate(tenantRoutes.employees(), { replace: true });
       }, 500);
     } catch (err: unknown) {
       setMessage(getErrorMessage(err, "Failed to save employee. Please verify details and try again."));
@@ -89,7 +94,7 @@ export function EmployeeFormPage() {
         title={title}
         description="Capture core employee profile data and keep your workforce records up to date."
         actions={(
-          <Button variant="ghost" onClick={() => navigate("/app/employees")}>
+          <Button variant="ghost" onClick={() => navigate(tenantRoutes.employees())}>
             <ArrowLeft size={16} />
             Back to Employees
           </Button>
@@ -145,7 +150,7 @@ export function EmployeeFormPage() {
               if (Object.keys(errors).length) setErrors({});
             }}
             onSubmit={handleSubmit}
-            onCancel={() => navigate("/app/employees")}
+            onCancel={() => navigate(tenantRoutes.employees())}
           />
         </SectionCard>
       )}

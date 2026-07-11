@@ -20,6 +20,7 @@ export function CareersPage() {
   const [data, setData] = useState<PublicCareersResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
   const [search, setSearch] = useState("");
   const [department, setDepartment] = useState("all");
   const [employmentType, setEmploymentType] = useState("all");
@@ -52,7 +53,7 @@ export function CareersPage() {
     return () => {
       active = false;
     };
-  }, [tenantSlug]);
+  }, [retryKey, tenantSlug]);
 
   const jobs = data?.jobs ?? [];
   const departments = useMemo(() => uniqueOptions<string>(jobs.map((job) => job.department)), [jobs]);
@@ -97,7 +98,7 @@ export function CareersPage() {
   if (error || !data) {
     return (
       <PageContainer size="lg">
-        <ErrorBanner message={error ?? "Unable to load careers."} onRetry={() => window.location.reload()} />
+        <ErrorBanner message={error ?? "Unable to load careers."} onRetry={() => setRetryKey((value) => value + 1)} />
       </PageContainer>
     );
   }

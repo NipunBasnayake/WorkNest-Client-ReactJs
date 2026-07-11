@@ -19,6 +19,7 @@ export function CareerDetailPage() {
   const [job, setJob] = useState<PublicCareerJobDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
 
   useSeoMeta({
     title: job ? `${job.title} at ${job.company.companyName}` : "Career Opportunity",
@@ -47,7 +48,7 @@ export function CareerDetailPage() {
     return () => {
       active = false;
     };
-  }, [jobSlug, tenantSlug]);
+  }, [jobSlug, retryKey, tenantSlug]);
 
   if (loading) {
     return (
@@ -63,7 +64,7 @@ export function CareerDetailPage() {
   if (error || !job) {
     return (
       <PageContainer size="lg" className="space-y-5">
-        <ErrorBanner message={error ?? "Unable to load this vacancy."} onRetry={() => window.location.reload()} />
+        <ErrorBanner message={error ?? "Unable to load this vacancy."} onRetry={() => setRetryKey((value) => value + 1)} />
         <Button variant="secondary" size="sm" to={`/${tenantSlug}/careers`}>Back to careers</Button>
       </PageContainer>
     );

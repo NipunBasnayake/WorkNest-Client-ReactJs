@@ -10,6 +10,7 @@ import { SectionCard } from "@/components/common/SectionCard";
 import { Button } from "@/components/common/Button";
 import { EmptyState, ErrorBanner } from "@/components/common/AppUI";
 import type { LeaveRequest } from "@/modules/leave/types";
+import { tenantRoutes } from "@/utils/tenantRoutes";
 
 function toLabel(value: string): string {
   return value.charAt(0) + value.slice(1).toLowerCase();
@@ -54,11 +55,11 @@ export function LeaveDetailPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-2">
-        <Button variant="ghost" to="/app/leave">
+        <Button variant="ghost" to={tenantRoutes.leave()}>
           <ArrowLeft size={16} />
           Back
         </Button>
-        {canEdit && <Button variant="outline" to={`/app/leave/${leaveRequest?.id}/edit`}>Edit Request</Button>}
+        {canEdit && <Button variant="outline" to={tenantRoutes.leaveEdit(leaveRequest?.id ?? "")}>Edit Request</Button>}
       </div>
 
       {loading && (
@@ -73,7 +74,7 @@ export function LeaveDetailPage() {
         <EmptyState
           title="Leave request not found"
           description="The request may no longer exist."
-          action={<Button variant="outline" to="/app/leave">Go to Leave</Button>}
+          action={<Button variant="outline" to={tenantRoutes.leave()}>Go to Leave</Button>}
         />
       )}
 

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { BellRing } from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
+import { invalidateWorkflowQueries } from "@/hooks/queries/workflowInvalidation";
 import { NotificationItem } from "@/modules/notifications/components/NotificationItem";
 import {
   getNotifications,
@@ -19,6 +21,7 @@ type NotificationFilter = "all" | "unread";
 
 export function NotificationsPage() {
   usePageMeta({ title: "Notifications", breadcrumb: ["Workspace", "Notifications"] });
+  const queryClient = useQueryClient();
 
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(true);
@@ -80,6 +83,7 @@ export function NotificationsPage() {
 
     try {
       await markNotificationAsRead(id);
+      await invalidateWorkflowQueries(queryClient, ["notifications"]);
       void fetchNotifications(true);
     } catch (err: unknown) {
       setNotifications(previous);
@@ -94,6 +98,7 @@ export function NotificationsPage() {
 
     try {
       await markAllNotificationsAsRead();
+      await invalidateWorkflowQueries(queryClient, ["notifications"]);
       void fetchNotifications(true);
     } catch (err: unknown) {
       setNotifications(previous);
@@ -108,6 +113,7 @@ export function NotificationsPage() {
     setNotifications((prev) => prev.map((entry) => (entry.id === item.id ? { ...entry, read: true } : entry)));
     try {
       await markNotificationAsRead(item.id);
+      await invalidateWorkflowQueries(queryClient, ["notifications"]);
     } catch {
       void fetchNotifications(true);
     }
