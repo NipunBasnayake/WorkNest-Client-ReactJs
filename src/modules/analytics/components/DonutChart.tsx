@@ -1,9 +1,12 @@
 import type { DistributionDatum } from "@/modules/analytics/types";
 
+import { Link } from 'react-router-dom';
+
 interface DonutChartProps {
   title: string;
   subtitle?: string;
   data: DistributionDatum[];
+  drillDownTo?: string;
 }
 
 function buildGradient(data: DistributionDatum[]): string {
@@ -21,7 +24,7 @@ function buildGradient(data: DistributionDatum[]): string {
   return `conic-gradient(${segments.join(",")})`;
 }
 
-export function DonutChart({ title, subtitle, data }: DonutChartProps) {
+export function DonutChart({ title, subtitle, data, drillDownTo }: DonutChartProps) {
   const total = data.reduce((acc, item) => acc + item.value, 0);
   const gradient = buildGradient(data);
 
@@ -36,6 +39,7 @@ export function DonutChart({ title, subtitle, data }: DonutChartProps) {
             {subtitle}
           </p>
         )}
+        {drillDownTo && <Link to={drillDownTo} className='mt-2 inline-block text-xs font-semibold text-purple-600 hover:underline'>View underlying records →</Link>}
       </div>
 
       <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
