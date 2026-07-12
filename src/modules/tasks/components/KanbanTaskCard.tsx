@@ -5,6 +5,7 @@ import { CalendarClock, FolderKanban, ShieldCheck, User } from "lucide-react";
 import { Link } from "react-router-dom";
 import { getTaskStatusLabel } from "@/modules/tasks/utils/taskWorkflow";
 import type { Task } from "@/modules/tasks/types";
+import { tenantRoutes } from "@/utils/tenantRoutes";
 
 interface KanbanTaskCardProps {
   task: Task;
@@ -93,7 +94,7 @@ function KanbanTaskCardComponent({ task, draggable, overlay = false }: KanbanTas
             style={{ borderColor: "var(--border-default)", color: "var(--text-secondary)", backgroundColor: "var(--bg-muted)" }}
           >
             <ShieldCheck size={11} />
-            Team Task
+            {task.assignedTeamName}
           </span>
         ) : (
           <span
@@ -101,7 +102,7 @@ function KanbanTaskCardComponent({ task, draggable, overlay = false }: KanbanTas
             style={{ borderColor: "var(--border-default)", color: "var(--text-secondary)", backgroundColor: "var(--bg-muted)" }}
           >
             <User size={11} />
-            Member Task
+            Individual
           </span>
         )}
       </div>
@@ -109,7 +110,7 @@ function KanbanTaskCardComponent({ task, draggable, overlay = false }: KanbanTas
       <div className="mt-3 grid grid-cols-1 gap-1.5 text-xs" style={{ color: "var(--text-secondary)" }}>
         <div className="inline-flex items-center gap-1.5 truncate">
           <User size={12} />
-          {task.assignedTeamName || task.assigneeName || "Unassigned"}
+          {task.assigneeName || "Unassigned"}
         </div>
         <div className="inline-flex items-center gap-1.5">
           <CalendarClock size={12} />
@@ -128,7 +129,7 @@ function KanbanTaskCardComponent({ task, draggable, overlay = false }: KanbanTas
   }
 
   return (
-    <Link to={`/app/tasks/${task.id}`} className="block no-underline">
+    <Link to={tenantRoutes.taskDetail(task.id)} className="block no-underline">
       {cardBody}
     </Link>
   );

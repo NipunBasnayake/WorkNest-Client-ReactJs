@@ -75,6 +75,7 @@ function normalizeJobPosition(value: unknown): RecruitmentJobPosition {
   return {
     id: getId(record.id),
     title: getString(record.title) ?? "Untitled position",
+    slug: getString(record.slug),
     department: getString(record.department),
     description: getString(record.description),
     employmentType: getString(record.employmentType)?.toUpperCase() as RecruitmentJobPosition["employmentType"],
@@ -82,6 +83,8 @@ function normalizeJobPosition(value: unknown): RecruitmentJobPosition {
     openings: getNumber(record.openings),
     status: getString(record.status)?.toUpperCase() as RecruitmentJobPosition["status"],
     published: normalizeBoolean(record.published),
+    visibleToExternalApplicants: normalizeBoolean(record.visibleToExternalApplicants),
+    expiresAt: toIsoDateTime(record.expiresAt),
     applicationCount: getNumber(record.applicationCount),
     createdAt: toIsoDateTime(record.createdAt),
     updatedAt: toIsoDateTime(record.updatedAt),

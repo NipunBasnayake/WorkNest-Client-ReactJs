@@ -5,6 +5,7 @@ import type {
   Tenant,
   TenantOnboardingRequest,
   TenantProvisioningData,
+  PlatformTenantStatus,
 } from "@/types";
 import { extractList } from "@/services/http/parsers";
 
@@ -53,5 +54,13 @@ export async function getTenantByKeyApi(tenantKey: string): Promise<Tenant> {
     `/api/platform/tenants/${tenantKey}`
   );
 
+  return unwrapApiData<Tenant>(data);
+}
+
+export async function updateTenantStatusApi(tenantKey: string, status: PlatformTenantStatus): Promise<Tenant> {
+  const { data } = await apiClient.patch<ApiResponse<Tenant> | Tenant>(
+    `/api/platform/tenants/${encodeURIComponent(tenantKey)}/status`,
+    { status }
+  );
   return unwrapApiData<Tenant>(data);
 }

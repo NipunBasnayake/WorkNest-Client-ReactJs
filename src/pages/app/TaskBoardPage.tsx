@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   DndContext,
   DragOverlay,
@@ -9,9 +10,10 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
-import { Search, Table2 } from "lucide-react";
+import { PlusCircle, Search, Table2 } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { usePageMeta } from "@/hooks/usePageMeta";
+import { invalidateWorkflowQueries } from "@/hooks/queries/workflowInvalidation";
 import { useAuth } from "@/hooks/useAuth";
 import { PERMISSIONS } from "@/constants/permissions";
 import { usePermission } from "@/hooks/usePermission";
@@ -37,25 +39,26 @@ import { SectionCard } from "@/components/common/SectionCard";
 import { Button } from "@/components/common/Button";
 import { EmptyState, ErrorBanner } from "@/components/common/AppUI";
 import { getErrorMessage } from "@/utils/errorHandler";
+import { tenantRoutes } from "@/utils/tenantRoutes";
 
 const BOARD_LABELS: Record<typeof TASK_STATUS_OPTIONS[number], string> = {
-  TODO: "Backlog",
+  TODO: "To Do",
   IN_PROGRESS: "In Progress",
-  IN_REVIEW: "Waiting for Admin Review",
+  IN_REVIEW: "Review",
   BLOCKED: "Blocked",
   DONE: "Done",
 };
 
 export function TaskBoardPage() {
   usePageMeta({ title: "Task Management", breadcrumb: ["Workspace", "Tasks"] });
-  const { role } = useAuth();
+  const queryClient = useQueryClient();
+  const { role, user } = useAuth();
   const { hasPermission } = usePermission();
 
   const canManageTasks = hasPermission(PERMISSIONS.TASKS_MANAGE);
   const roleValue = String(role ?? "");
   const hasGlobalTaskWorkflow = roleValue === "TENANT_ADMIN" || roleValue === "ADMIN";
   const needsScopedWorkflowContext = !hasGlobalTaskWorkflow;
-  const isEmployeeOnly = role === "EMPLOYEE" && !canManageTasks;
   const myTeamsQuery = useMyTeamsQuery(needsScopedWorkflowContext);
 
   const [viewerIdentity, setViewerIdentity] = useState<TaskViewerIdentity | null>(null);
@@ -83,9 +86,16 @@ export function TaskBoardPage() {
     }
 
     try {
-      const identityPromise = needsScopedWorkflowContext ? resolveTaskViewerIdentity() : Promise.resolve(null);
-      const taskPromise = isEmployeeOnly ? getMyTasks() : getTasks();
-      const [data, identity] = await Promise.all([taskPromise, identityPromise]);
+      const identity = needsScopedWorkflowContext ? await resolveTaskViewerIdentity() : null;
+      const scopedRoles = resolveViewerTeamRoles(
+        myTeamsQuery.data ?? [],
+        {
+          employeeId: identity?.employeeId ?? user?.id,
+          email: identity?.email ?? user?.email,
+        }
+      );
+      const selfOnly = role === "EMPLOYEE" && !canManageTasks && !hasTeamWorkflowAccess(scopedRoles);
+      const data = await (selfOnly ? getMyTasks() : getTasks());
       setTasks(data);
       setViewerIdentity(identity);
     } catch (err: unknown) {
@@ -97,7 +107,7 @@ export function TaskBoardPage() {
         setLoading(false);
       }
     }
-  }, [isEmployeeOnly, needsScopedWorkflowContext]);
+  }, [canManageTasks, myTeamsQuery.data, needsScopedWorkflowContext, role, user?.email, user?.id]);
 
   useEffect(() => {
     const preferredView = resolveTasksViewFromQuery(searchParams.get("view"));
@@ -149,6 +159,15 @@ export function TaskBoardPage() {
   }, [fetchTasks]);
 
   const employeeTeams = useMemo(() => myTeamsQuery.data ?? [], [myTeamsQuery.data]);
+  const viewerScopedTeamRoles = useMemo(
+    () => resolveViewerTeamRoles(employeeTeams, {
+      employeeId: viewerIdentity?.employeeId ?? user?.id,
+      email: viewerIdentity?.email ?? user?.email,
+    }),
+    [employeeTeams, user?.email, user?.id, viewerIdentity?.email, viewerIdentity?.employeeId]
+  );
+  const isSelfOnlyBoard = role === "EMPLOYEE" && !canManageTasks && !hasTeamWorkflowAccess(viewerScopedTeamRoles);
+  const canCreateScopedTask = hasGlobalTaskWorkflow || hasTeamWorkflowAccess(viewerScopedTeamRoles);
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -196,13 +215,7 @@ export function TaskBoardPage() {
     }
 
     if (hasGlobalTaskWorkflow) return true;
-    if (!viewerIdentity) return false;
-
-    if (task.assignedTeamId) {
-      return hasTeamWorkflowAccess(teamRoles);
-    }
-
-    return isTaskAssignedToViewer(task, viewerIdentity);
+    return Boolean(viewerIdentity);
   }, [employeeTeams, hasGlobalTaskWorkflow, role, viewerIdentity]);
 
   const draggableTaskIds = useMemo(() => {
@@ -257,6 +270,7 @@ export function TaskBoardPage() {
 
     try {
       const updated = await updateTaskStatus(taskId, nextStatus);
+      await invalidateWorkflowQueries(queryClient, ["tasks"]);
       setTasks((prev) => {
         const next = new Map(prev.map((task) => [task.id, task]));
         next.set(updated.id, updated);
@@ -267,18 +281,26 @@ export function TaskBoardPage() {
       setTasks((prev) => prev.map((task) => (task.id === taskId ? { ...task, status: previousStatus } : task)));
       setFeedback(getErrorMessage(err, "Unable to move task right now."));
     }
-  }, [employeeTeams, hasGlobalTaskWorkflow, role, tasks, viewerIdentity]);
+  }, [employeeTeams, hasGlobalTaskWorkflow, queryClient, role, tasks, viewerIdentity]);
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title={isEmployeeOnly ? "My Tasks" : "Task Management"}
-        description={isEmployeeOnly ? "Track your assigned tasks by workflow stage." : "Visualize tasks by workflow stage and quickly spot bottlenecks."}
+        title={isSelfOnlyBoard ? "My Tasks" : "Task Management"}
+        description={isSelfOnlyBoard ? "Track your assigned tasks by workflow stage." : "Visualize tasks by workflow stage and quickly spot bottlenecks."}
         actions={(
-          <Button variant="outline" to="/app/tasks?view=list">
-            <Table2 size={16} />
-            Table View
-          </Button>
+          <>
+            <Button variant="outline" to={`${tenantRoutes.tasks()}?view=list`}>
+              <Table2 size={16} />
+              Table View
+            </Button>
+            {canCreateScopedTask && (
+              <Button variant="primary" to={tenantRoutes.taskCreate()}>
+                <PlusCircle size={16} />
+                Create Task
+              </Button>
+            )}
+          </>
         )}
       />
 
@@ -320,8 +342,8 @@ export function TaskBoardPage() {
       {!loading && !error && filtered.length === 0 && (
         <EmptyState
           title={search ? "No matching board cards" : "No tasks available"}
-          description={search ? "Adjust your search to see matching tasks." : (isEmployeeOnly ? "No tasks are assigned to you right now." : "Create tasks to start using the Kanban board.")}
-          action={canManageTasks ? <Button variant="outline" to="/app/tasks/new">Create Task</Button> : undefined}
+          description={search ? "Adjust your search to see matching tasks." : (isSelfOnlyBoard ? "No tasks are assigned to you right now." : "Create tasks to start using the Kanban board.")}
+          action={canCreateScopedTask ? <Button variant="outline" to={tenantRoutes.taskCreate()}>Create Task</Button> : undefined}
         />
       )}
 

@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
+import { invalidateWorkflowQueries } from "@/hooks/queries/workflowInvalidation";
 import { PERMISSIONS, DEFAULT_PERMISSION_DENIED_MESSAGE } from "@/constants/permissions";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermission } from "@/hooks/usePermission";
@@ -18,9 +20,11 @@ import { ErrorBanner } from "@/components/common/AppUI";
 import type { ProjectFormErrors, ProjectFormValues } from "@/modules/projects/types";
 import type { Team } from "@/modules/teams/types";
 import { getErrorMessage } from "@/utils/errorHandler";
+import { tenantRoutes } from "@/utils/tenantRoutes";
 
 export function ProjectFormPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { id } = useParams<{ id?: string }>();
   const isEdit = Boolean(id);
   const { user } = useAuth();
@@ -135,7 +139,8 @@ export function ProjectFormPage() {
         setMessage("Project created successfully.");
       }
 
-      setTimeout(() => navigate("/app/projects", { replace: true }), 500);
+      await invalidateWorkflowQueries(queryClient, ["projects"]);
+      setTimeout(() => navigate(tenantRoutes.projects(), { replace: true }), 500);
     } catch (err: unknown) {
       setMessage(getErrorMessage(err, "Unable to save project right now."));
     } finally {
@@ -149,7 +154,7 @@ export function ProjectFormPage() {
         title={title}
         description="Capture project goals, timelines, and team ownership."
         actions={(
-          <Button variant="ghost" onClick={() => navigate("/app/projects")}>
+          <Button variant="ghost" onClick={() => navigate(tenantRoutes.projects())}>
             <ArrowLeft size={16} />
             Back to Projects
           </Button>
@@ -196,7 +201,7 @@ export function ProjectFormPage() {
               if (Object.keys(errors).length) setErrors({});
             }}
             onSubmit={handleSubmit}
-            onCancel={() => navigate("/app/projects")}
+            onCancel={() => navigate(tenantRoutes.projects())}
           />
         </SectionCard>
       )}

@@ -19,6 +19,7 @@ import type { Project, ProjectStatus } from "@/modules/projects/types";
 import type { Task } from "@/modules/tasks/types";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { formatDate } from "@/utils/formatting";
+import { tenantRoutes } from "@/utils/tenantRoutes";
 
 type ProjectStatusFilter = "all" | ProjectStatus;
 
@@ -103,7 +104,7 @@ export function ProjectsPage() {
             : `${visibleProjects.length} project${visibleProjects.length === 1 ? "" : "s"} visible.`
         }
         actions={canManageProjects ? (
-          <Button variant="primary" to="/app/projects/new">
+          <Button variant="primary" to={tenantRoutes.projectNew()}>
             <FolderKanban size={16} />
             Add Project
           </Button>
@@ -163,7 +164,7 @@ export function ProjectsPage() {
                   ? "No projects are linked to your team or assigned work yet."
                   : "Create your first project to start tracking delivery."
             }
-            action={canManageProjects ? <Button variant="outline" to="/app/projects/new">Create Project</Button> : undefined}
+            action={canManageProjects ? <Button variant="outline" to={tenantRoutes.projectNew()}>Create Project</Button> : undefined}
           />
         )}
 
@@ -194,7 +195,7 @@ export function ProjectsPage() {
                     </span>
                     <div className="flex items-center justify-end gap-2">
                       <Link
-                        to={`/app/projects/${project.id}`}
+                        to={tenantRoutes.projectDetail(project.id)}
                         title="View project"
                         aria-label="View project"
                         className="inline-flex items-center justify-center p-1 transition-opacity hover:opacity-80"
@@ -204,7 +205,7 @@ export function ProjectsPage() {
                       </Link>
                       {canManageProjects && !isClosed && (
                         <Link
-                          to={`/app/projects/${project.id}/edit`}
+                          to={tenantRoutes.projectEdit(project.id)}
                           title="Edit project"
                           aria-label="Edit project"
                           className="inline-flex items-center justify-center p-1 transition-opacity hover:opacity-80"
@@ -252,8 +253,8 @@ export function ProjectsPage() {
                       <StatusBadge status={project.status} />
                     </div>
                     <div className="mt-4 flex flex-wrap gap-2">
-                      <Button variant="ghost" size="sm" to={`/app/projects/${project.id}`}>View</Button>
-                      {canManageProjects && !isClosed && <Button variant="outline" size="sm" to={`/app/projects/${project.id}/edit`}>Edit</Button>}
+                      <Button variant="ghost" size="sm" to={tenantRoutes.projectDetail(project.id)}>View</Button>
+                      {canManageProjects && !isClosed && <Button variant="outline" size="sm" to={tenantRoutes.projectEdit(project.id)}>Edit</Button>}
                       {canManageProjects && isClosed && (
                         <span className="inline-flex items-center rounded-xl px-3 py-2 text-xs font-semibold" style={{ color: "var(--text-tertiary)", backgroundColor: "var(--bg-muted)" }}>
                           Locked

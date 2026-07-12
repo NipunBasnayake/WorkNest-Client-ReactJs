@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { usePageMeta } from "@/hooks/usePageMeta";
+import { invalidateWorkflowQueries } from "@/hooks/queries/workflowInvalidation";
 import { useTheme } from "@/hooks/useTheme";
 import { Button } from "@/components/common/Button";
 import { AppSelect } from "@/components/common/AppSelect";
@@ -10,6 +12,7 @@ import type { PreferenceSettings, ThemePreference } from "@/modules/settings/typ
 
 export function AppSettingsPreferencesPage() {
   usePageMeta({ title: "Settings - Preferences", breadcrumb: ["Workspace", "Settings", "Preferences"] });
+  const queryClient = useQueryClient();
   const { setTheme } = useTheme();
 
   const [values, setValues] = useState<PreferenceSettings>({
@@ -37,6 +40,7 @@ export function AppSettingsPreferencesPage() {
     try {
       const next = await updateTenantPreferences(values);
       applyThemePreference(next.theme, setTheme);
+      await invalidateWorkflowQueries(queryClient, ["settings"]);
       setMessage("Preferences saved.");
     } catch {
       setError("Unable to save preferences.");

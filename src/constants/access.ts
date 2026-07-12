@@ -47,5 +47,5 @@ export const TENANT_MODULE_ACCESS: Record<
   announcements: ["TENANT_ADMIN", "ADMIN", "MANAGER", "HR", "EMPLOYEE"],
   notifications: ["TENANT_ADMIN", "ADMIN", "MANAGER", "HR", "EMPLOYEE"],
   chat: ["TENANT_ADMIN", "ADMIN", "MANAGER", "HR", "EMPLOYEE"],
-  analytics: ["TENANT_ADMIN", "ADMIN", "MANAGER", "HR"],
+  analytics: ["TENANT_ADMIN", "ADMIN", "MANAGER", "HR", "EMPLOYEE"],
 };

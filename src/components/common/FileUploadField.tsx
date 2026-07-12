@@ -94,7 +94,7 @@ export function FileUploadField({
             {uploading ? "Uploading..." : kind === "image" ? "Upload image" : "Upload PDF or image"}
           </p>
           <p className="mt-1 text-xs" style={{ color: "var(--text-secondary)" }}>
-            {kind === "image" ? "PNG, JPG, SVG, or WEBP up to 5 MB." : "PDF or image files up to 10 MB."}
+            {kind === "image" ? "PNG or JPG up to 10 MB." : "PDF or image files up to 10 MB."}
           </p>
         </div>
         <input

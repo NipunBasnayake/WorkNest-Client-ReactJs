@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Building2, CalendarDays, Mail, Phone, UserCheck, UserPlus, UserX, Users } from "lucide-react";
 import { FiEdit2, FiEye } from "react-icons/fi";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { usePageMeta } from "@/hooks/usePageMeta";
+import { invalidateWorkflowQueries } from "@/hooks/queries/workflowInvalidation";
 import { PERMISSIONS } from "@/constants/permissions";
 import { usePermission } from "@/hooks/usePermission";
 import { getEmployees, updateEmployeeStatus } from "@/modules/employees/services/employeeService";
@@ -20,6 +22,7 @@ import { SearchField } from "@/components/common/SearchField";
 import { toEmployeeViewModel } from "@/modules/employees/utils/employeeMapper";
 import type { EmployeeViewModel } from "@/modules/employees/types";
 import { getErrorMessage } from "@/utils/errorHandler";
+import { tenantRoutes } from "@/utils/tenantRoutes";
 
 type EmployeeStatusFilter = "all" | "active" | "inactive";
 type EmployeeRoleFilter = "all" | "TENANT_ADMIN" | "HR" | "EMPLOYEE";
@@ -31,6 +34,7 @@ interface StatusActionTarget {
 
 export function EmployeesPage() {
   usePageMeta({ title: "Employees", breadcrumb: ["Workspace", "Employees"] });
+  const queryClient = useQueryClient();
   const { hasPermission } = usePermission();
   const { role: currentUserRole } = useAuth();
 
@@ -118,6 +122,7 @@ export function EmployeesPage() {
           item.id === statusTarget.employee.id ? { ...item, status: statusTarget.nextStatus } : item
         )
       );
+      await invalidateWorkflowQueries(queryClient, ["employees"]);
       setFeedback(
         statusTarget.nextStatus === "inactive"
           ? `${statusTarget.employee.displayName} was deactivated.`
@@ -137,7 +142,7 @@ export function EmployeesPage() {
         title="Employee Management"
         description={loading ? "Loading employee roster..." : `${employees.length} employee record${employees.length === 1 ? "" : "s"} found.`}
         actions={canCreateOrEdit ? (
-          <Button variant="primary" to="/app/employees/new">
+          <Button variant="primary" to={tenantRoutes.employeeNew()}>
             <UserPlus size={16} />
             Add Employee
           </Button>
@@ -215,7 +220,7 @@ export function EmployeesPage() {
               icon={<Users size={28} />}
               title={search || departmentFilter !== "all" || statusFilter !== "all" || roleFilter !== "all" ? "No matching employees" : "No employees yet"}
               description={search || departmentFilter !== "all" || statusFilter !== "all" || roleFilter !== "all" ? "Adjust filters to find employees." : "Add your first employee record to start managing your workforce."}
-              action={canCreateOrEdit ? <Button variant="outline" to="/app/employees/new">Create Employee</Button> : undefined}
+              action={canCreateOrEdit ? <Button variant="outline" to={tenantRoutes.employeeNew()}>Create Employee</Button> : undefined}
             />
           )}
 
@@ -255,7 +260,7 @@ export function EmployeesPage() {
 
                       <div className="flex items-center justify-end gap-2">
                         <Link
-                          to={`/app/employees/${emp.id}`}
+                          to={tenantRoutes.employeeDetail(emp.id)}
                           title="View employee"
                           aria-label="View employee"
                           className="inline-flex items-center justify-center p-1 transition-opacity hover:opacity-80"
@@ -265,7 +270,7 @@ export function EmployeesPage() {
                         </Link>
                         {canCreateOrEdit && (
                           <Link
-                            to={`/app/employees/${emp.id}/edit`}
+                            to={tenantRoutes.employeeEdit(emp.id)}
                             title="Edit employee"
                             aria-label="Edit employee"
                             className="inline-flex items-center justify-center p-1 transition-opacity hover:opacity-80"
@@ -333,8 +338,8 @@ export function EmployeesPage() {
                       </div>
 
                       <div className="mt-4 flex flex-wrap gap-2">
-                        <Button variant="ghost" size="sm" to={`/app/employees/${emp.id}`}>View</Button>
-                        {canCreateOrEdit && <Button variant="outline" size="sm" to={`/app/employees/${emp.id}/edit`}>Edit</Button>}
+                        <Button variant="ghost" size="sm" to={tenantRoutes.employeeDetail(emp.id)}>View</Button>
+                        {canCreateOrEdit && <Button variant="outline" size="sm" to={tenantRoutes.employeeEdit(emp.id)}>Edit</Button>}
                         {canShowStatusAction && (
                           <Button
                             variant={currentStatus === "active" ? "danger" : "outline"}

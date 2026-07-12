@@ -27,11 +27,16 @@ import type {
   ProgressDatum,
   TenantAnalyticsData,
   TenantDashboardSnapshot,
+  BusinessIntelligenceData,
 } from "@/modules/analytics/types";
 import type { ApiResponse } from "@/types";
 import type { AttendanceRecord } from "@/modules/attendance/types";
 import type { LeaveRequest } from "@/modules/leave/types";
 import type { Task } from "@/modules/tasks/types";
+
+import type { AnalyticsFilters, BusinessInsight } from '@/modules/analytics/types';
+import { getRecruitmentDashboard } from '@/modules/recruitment/services/recruitmentService';
+import { tenantRoutes } from '@/utils/tenantRoutes';
 
 const STATUS_COLORS: Record<string, string> = {
   TODO: "#6366f1",
@@ -105,7 +110,10 @@ function toProgressFromUnknown(input: unknown): ProgressDatum[] {
     return input
       .map((item) => {
         const value = asRecord(item);
+        const assignee = asRecord(value.assignee);
         const label = firstDefined(
+          getString(assignee.name),
+          getString(assignee.fullName),
           getString(value.label),
           getString(value.name),
           getString(value.projectName),
@@ -131,6 +139,8 @@ function toProgressFromUnknown(input: unknown): ProgressDatum[] {
 }
 
 function roleDashboardEndpoint(): string {
+  const currentRole = normalizeAppRole(useAuthStore.getState().user?.role);
+  if (currentRole === 'MANAGER') return '/api/tenant/dashboard/manager';
   const role = normalizeAppRole(useAuthStore.getState().user?.role);
   if (role === "TENANT_ADMIN") return "/api/tenant/dashboard/tenant-admin";
   if (role === "HR") return "/api/tenant/dashboard/hr";
@@ -535,7 +545,7 @@ export async function getTenantDashboardSnapshot(): Promise<TenantDashboardSnaps
   }
 }
 
-export async function getTenantAnalyticsData(): Promise<TenantAnalyticsData> {
+async function getTenantAnalyticsDataLegacy(): Promise<Partial<TenantAnalyticsData>> {
   const snapshotPromise = getTenantDashboardSnapshot();
 
   const now = new Date();
@@ -605,6 +615,111 @@ export async function getTenantAnalyticsData(): Promise<TenantAnalyticsData> {
     leaveStatusDistribution: toDistribution(leaveStatusMap),
     upcomingDeadlines,
   };
+}
+
+void getTenantAnalyticsDataLegacy;
+
+export async function getTenantAnalyticsData(filters?: AnalyticsFilters): Promise<TenantAnalyticsData> {
+  const role = normalizeAppRole(useAuthStore.getState().user?.role);
+  const canWorkforce = role === 'TENANT_ADMIN' || role === 'HR';
+  const canWork = role === 'TENANT_ADMIN' || role === 'MANAGER';
+  const range = filters ?? { fromDate: '', toDate: '', department: '', projectId: '', teamId: '', employeeId: '', status: '', recruitmentStatus: '', attendancePeriod: 'daily', leaveType: '' };
+  const snapshotPromise = getTenantDashboardSnapshot();
+  const safePayload = (endpoint: string, params?: Record<string, string>) => fetchTenantAnalyticsPayload(endpoint, params).catch(() => []);
+  const [snapshot, tasksRaw, leavesRaw, employees, teams, projects] = await Promise.all([
+    snapshotPromise, getTasks().catch(() => []), getLeaveRequests().catch(() => []),
+    canWorkforce ? getEmployees().catch(() => []) : Promise.resolve([]),
+    getTeams().catch(() => []), getProjects().catch(() => []),
+  ]);
+  const tasks = tasksRaw.filter((task) =>
+    (!range.projectId || task.projectId === range.projectId) &&
+    (!range.teamId || task.assignedTeamId === range.teamId) &&
+    (!range.employeeId || [task.assigneeId, task.assignedEmployeeId, task.assigneeEmployeeId].includes(range.employeeId)) &&
+    (!range.status || task.status === range.status) &&
+    (!range.fromDate || !task.dueDate || task.dueDate >= range.fromDate) && (!range.toDate || !task.dueDate || task.dueDate <= range.toDate)
+  );
+  const leaves = leavesRaw.filter((leave) => (!range.employeeId || leave.employeeId === range.employeeId) && (!range.status || leave.status === range.status) && (!range.fromDate || leave.endDate >= range.fromDate) && (!range.toDate || leave.startDate <= range.toDate));
+  const [assigneeRaw, progressRaw, attendanceRaw, rolesRaw, designationsRaw, recruitmentRaw] = await Promise.all([
+    canWork ? safePayload('/api/tenant/analytics/tasks/by-assignee') : Promise.resolve([]),
+    canWork ? safePayload('/api/tenant/analytics/projects/progress') : Promise.resolve([]),
+    canWorkforce ? safePayload('/api/tenant/analytics/attendance/trend', { fromDate: range.fromDate, toDate: range.toDate }) : Promise.resolve([]),
+    canWorkforce ? safePayload('/api/tenant/analytics/employees/role-distribution') : Promise.resolve([]),
+    canWorkforce ? safePayload('/api/tenant/analytics/employees/designation-distribution') : Promise.resolve([]),
+    canWorkforce ? getRecruitmentDashboard().catch(() => undefined) : Promise.resolve(undefined),
+  ]);
+  const taskCounts = tasks.reduce<Record<string, number>>((map, task) => ({ ...map, [task.status]: (map[task.status] ?? 0) + 1 }), {});
+  const leaveCounts = leaves.reduce<Record<string, number>>((map, leave) => ({ ...map, [leave.status]: (map[leave.status] ?? 0) + 1 }), {});
+  const attendanceTrend = extractList(attendanceRaw).map((item) => { const value = asRecord(item); return {
+    date: toIsoDate(firstDefined(value.date, value.workDate)),
+    present: firstDefined(getNumber(value.present), getNumber(value.presentCount)) ?? 0,
+    late: firstDefined(getNumber(value.late), getNumber(value.lateCount)) ?? 0,
+    halfDay: firstDefined(getNumber(value.halfDay), getNumber(value.halfDayCount)) ?? 0,
+    incomplete: firstDefined(getNumber(value.incomplete), getNumber(value.incompleteCount)) ?? 0,
+    absent: firstDefined(getNumber(value.absent), getNumber(value.absentCount)) ?? 0,
+  }; });
+  const now = new Date().toISOString().slice(0, 10);
+  const previews = (items: Task[]) => items.map((task) => ({ id: task.id, title: task.title, dueDate: task.dueDate, status: task.status, priority: task.priority }));
+  const openTasks = tasks.filter((task) => task.status !== 'DONE');
+  const overdue = openTasks.filter((task) => task.dueDate && task.dueDate < now).sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+  const upcoming = openTasks.filter((task) => task.dueDate && task.dueDate >= now).sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+  const filteredEmployees = employees.filter((employee) => !range.department || employee.department === range.department);
+  const teamMap = tasks.reduce<Record<string, number>>((map, task) => { const name = task.assignedTeamName ?? 'Unassigned'; map[name] = (map[name] ?? 0) + 1; return map; }, {});
+  const teamWorkload = Object.entries(teamMap).map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value);
+  const completed = tasks.filter((task) => task.status === 'DONE').length;
+  const completion = tasks.length ? Math.round((completed / tasks.length) * 100) : 0;
+  const blocked = taskCounts.BLOCKED ?? 0;
+  const insights: BusinessInsight[] = [];
+  if (overdue.length) insights.push({ id: 'overdue', severity: overdue.length > 5 ? 'critical' : 'warning', title: `${overdue.length} overdue task${overdue.length === 1 ? '' : 's'}`, description: 'Past-due work is increasing delivery risk. Review owners and unblock the oldest items first.', actionTo: tenantRoutes.tasks() });
+  if (blocked) insights.push({ id: 'blocked', severity: 'warning', title: `${blocked} blocked item${blocked === 1 ? '' : 's'}`, description: 'Blocked work needs a dependency owner or escalation.' });
+  if (completion >= 75) insights.push({ id: 'delivery', severity: 'positive', title: 'Strong delivery momentum', description: `${completion}% of work in the selected scope is complete.` });
+  if (!insights.length) insights.push({ id: 'stable', severity: 'info', title: 'Operations are stable', description: 'No critical workload or deadline signals were detected for this filter range.' });
+
+  return {
+    totalEmployees: filteredEmployees.length || snapshot.totalEmployees,
+    activeProjects: range.projectId ? projects.filter((project) => project.id === range.projectId).length : snapshot.activeProjects,
+    openTasks: openTasks.length,
+    pendingLeaves: leaves.filter((leave) => leave.status === 'PENDING').length,
+    presentToday: attendanceTrend.at(-1)?.present ?? snapshot.presentToday,
+    taskStatusDistribution: toDistribution(taskCounts),
+    projectProgress: toProgressFromUnknown(progressRaw).slice(0, 10),
+    workloadByEmployee: toProgressFromUnknown(assigneeRaw).slice(0, 10),
+    attendanceTrend,
+    leaveStatusDistribution: toDistribution(leaveCounts),
+    upcomingDeadlines: previews(upcoming.slice(0, 8)),
+    overdueTasks: previews(overdue.slice(0, 8)),
+    employeeRoleDistribution: toDistributionFromUnknown(rolesRaw),
+    employeeDesignationDistribution: toDistributionFromUnknown(designationsRaw),
+    teamWorkload,
+    recruitment: recruitmentRaw ? {
+      openJobs: recruitmentRaw.openJobs, totalCandidates: recruitmentRaw.totalCandidates,
+      activeApplications: recruitmentRaw.activeApplications, hiredCandidates: recruitmentRaw.hiredCandidates,
+      upcomingInterviews: recruitmentRaw.upcomingInterviews,
+      stageDistribution: recruitmentRaw.stageCounts.map((item) => ({ label: labelize(item.stage), value: item.count, color: STATUS_COLORS[item.stage] ?? '#9332ea' })),
+    } : undefined,
+    filterOptions: {
+      departments: [...new Set(employees.map((item) => item.department).filter(Boolean))].sort().map((item) => ({ value: String(item), label: String(item) })),
+      projects: projects.map((item) => ({ value: item.id, label: item.name })),
+      teams: teams.map((item) => ({ value: item.id, label: item.name })),
+      employees: employees.map((item) => ({ value: item.id, label: item.name })),
+    },
+    insights,
+    generatedAt: new Date().toISOString(),
+  };
+}
+
+export async function getBusinessIntelligenceReport(filters: AnalyticsFilters): Promise<BusinessIntelligenceData> {
+  const params: Record<string, string> = {};
+  const mapping: Array<[string, string]> = [
+    ['fromDate', filters.fromDate], ['toDate', filters.toDate], ['department', filters.department],
+    ['projectId', filters.projectId], ['teamId', filters.teamId], ['employeeId', filters.employeeId],
+    ['taskStatus', filters.status], ['recruitmentStatus', filters.recruitmentStatus], ['leaveType', filters.leaveType],
+    ['attendancePeriod', filters.attendancePeriod],
+  ];
+  mapping.forEach(([key, value]) => { if (value) params[key] = value; });
+  const { data } = await apiClient.get<ApiResponse<BusinessIntelligenceData> | BusinessIntelligenceData>(
+    '/api/tenant/analytics/business-intelligence', { params },
+  );
+  return unwrapApiData(data);
 }
 
 export async function getPlatformAnalyticsData(): Promise<PlatformAnalyticsData> {

@@ -1,6 +1,7 @@
 import { Pin, Users, UserCircle2, Edit2, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { Announcement } from "@/modules/announcements/types";
+import { tenantRoutes } from "@/utils/tenantRoutes";
 
 interface AnnouncementCardProps {
   announcement: Announcement;
@@ -16,7 +17,7 @@ export function AnnouncementCard({ announcement, onEdit, onDelete }: Announcemen
     >
       <div className="flex items-start justify-between gap-3">
         <Link
-          to={`/app/announcements/${announcement.id}`}
+          to={tenantRoutes.announcementDetail(announcement.id)}
           className="min-w-0 flex-1 no-underline hover:opacity-80 transition-opacity"
         >
           <h3 className="truncate text-base font-semibold" style={{ color: "var(--text-primary)" }}>

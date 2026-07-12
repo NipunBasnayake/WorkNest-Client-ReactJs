@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
+import { invalidateWorkflowQueries } from "@/hooks/queries/workflowInvalidation";
 import { createTeam, getTeamById, updateTeam } from "@/modules/teams/services/teamService";
 import { getEmployees } from "@/modules/employees/services/employeeService";
 import { getEmployeeDisplayName } from "@/modules/employees/utils/employeeMapper";
@@ -14,6 +16,7 @@ import { ErrorBanner } from "@/components/common/AppUI";
 import type { TeamFormErrors, TeamFormValues } from "@/modules/teams/types";
 import type { Employee } from "@/types";
 import { getErrorMessage } from "@/utils/errorHandler";
+import { tenantRoutes } from "@/utils/tenantRoutes";
 
 interface EmployeeOption {
   id: string;
@@ -62,6 +65,7 @@ function isHrEmployee(employee: Employee): boolean {
 
 export function TeamFormPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { id } = useParams<{ id?: string }>();
   const isEdit = Boolean(id);
 
@@ -167,7 +171,8 @@ export function TeamFormPage() {
       } else {
         await createTeam(form);
       }
-      navigate("/app/teams", { replace: true });
+      await invalidateWorkflowQueries(queryClient, ["teams"]);
+      navigate(tenantRoutes.teams(), { replace: true });
       return;
     } catch (err: unknown) {
       setMessage(getErrorMessage(err, "Unable to save team right now."));
@@ -182,7 +187,7 @@ export function TeamFormPage() {
         title={title}
         description="Configure team structure, manager ownership, and membership."
         actions={(
-          <Button variant="ghost" onClick={() => navigate("/app/teams")}>
+          <Button variant="ghost" onClick={() => navigate(tenantRoutes.teams())}>
             <ArrowLeft size={16} />
             Back to Teams
           </Button>
@@ -230,7 +235,7 @@ export function TeamFormPage() {
               if (Object.keys(errors).length) setErrors({});
             }}
             onSubmit={handleSubmit}
-            onCancel={() => navigate("/app/teams")}
+            onCancel={() => navigate(tenantRoutes.teams())}
           />
         </SectionCard>
       )}

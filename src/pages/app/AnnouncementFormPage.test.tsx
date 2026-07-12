@@ -15,12 +15,12 @@ vi.mock("@/hooks/usePageMeta", () => ({
   usePageMeta: () => undefined,
 }));
 
-function renderPage(path = "/app/announcements/1/edit") {
+function renderPage(path = "/demo/announcements/1/edit") {
   return render(
     <MemoryRouter initialEntries={[path]}>
       <Routes>
-        <Route path="/app/announcements/new" element={<AnnouncementFormPage />} />
-        <Route path="/app/announcements/:id/edit" element={<AnnouncementFormPage />} />
+        <Route path="/:tenantSlug/announcements/new" element={<AnnouncementFormPage />} />
+        <Route path="/:tenantSlug/announcements/:id/edit" element={<AnnouncementFormPage />} />
       </Routes>
     </MemoryRouter>
   );
@@ -79,7 +79,7 @@ describe("AnnouncementFormPage", () => {
       updatedAt: "2026-04-18T08:00:00.000Z",
     });
 
-    renderPage("/app/announcements/2/edit");
+    renderPage("/demo/announcements/2/edit");
 
     await waitFor(() => {
       expect(screen.getByDisplayValue("Editable announcement")).toBeInTheDocument();

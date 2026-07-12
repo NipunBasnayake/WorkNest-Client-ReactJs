@@ -1,5 +1,5 @@
 import { lazy, Suspense, type ComponentType } from "react";
-import { createBrowserRouter, Navigate, RouterProvider, useLocation } from "react-router-dom";
+import { createBrowserRouter, Navigate, RouterProvider, useLocation, useParams } from "react-router-dom";
 import { AuthLayout } from "@/app/layouts/AuthLayout";
 import { PublicLayout } from "@/app/layouts/PublicLayout";
 import { PlatformLayout, TenantLayout } from "@/app/layouts/AppLayout";
@@ -41,6 +41,10 @@ function lazyElement<TModule extends Record<string, unknown>>(
 }
 
 const landingPage = lazyElement(() => import("@/pages/public/LandingPage"), "LandingPage");
+const careersPage = lazyElement(() => import("@/pages/public/CareersPage"), "CareersPage");
+const careerDetailPage = lazyElement(() => import("@/pages/public/CareerDetailPage"), "CareerDetailPage");
+const applicationFormPage = lazyElement(() => import("@/pages/public/ApplicationFormPage"), "ApplicationFormPage");
+const applicationSuccessPage = lazyElement(() => import("@/pages/public/ApplicationSuccessPage"), "ApplicationSuccessPage");
 const loginPage = lazyElement(() => import("@/pages/public/LoginPage"), "LoginPage");
 const registerPage = lazyElement(() => import("@/pages/public/RegisterPage"), "RegisterPage");
 const forgotPasswordPage = lazyElement(() => import("@/pages/public/ForgotPasswordPage"), "ForgotPasswordPage");
@@ -99,6 +103,10 @@ const router = createBrowserRouter([
     element: <PublicLayout />,
     children: [
       { index: true, element: landingPage },
+      { path: ":tenantSlug/careers", element: careersPage },
+      { path: ":tenantSlug/careers/:jobSlug/apply", element: applicationFormPage },
+      { path: ":tenantSlug/careers/:jobSlug", element: careerDetailPage },
+      { path: ":tenantSlug/applications/:referenceNumber/success", element: applicationSuccessPage },
       { path: "unauthorized", element: unauthorizedPage },
       { path: "*", element: notFoundPage },
     ],
@@ -189,7 +197,8 @@ const router = createBrowserRouter([
             children: [
               { path: "tasks", element: tasksPage },
               { path: "tasks/board", element: taskBoardPage },
-              { path: "tasks/new", element: taskFormPage },
+              { path: "tasks/create", element: taskFormPage },
+              { path: "tasks/new", element: <TenantRouteRedirect target="tasks/create" /> },
               { path: "tasks/:id", element: taskDetailPage },
             ],
           },
@@ -250,12 +259,18 @@ const router = createBrowserRouter([
 
           {
             element: <PermissionGuard permission={PERMISSIONS.ANALYTICS_VIEW} />,
-            children: [{ path: "analytics", element: analyticsPage }],
+            children: [
+              { path: 'analytics', element: analyticsPage },
+              { path: 'analytics/:domain', element: analyticsPage },
+            ],
           },
 
           {
             element: <PermissionGuard permission={PERMISSIONS.REPORTS_VIEW} />,
-            children: [{ path: "reports", element: reportsPage }],
+            children: [
+              { path: 'reports', element: reportsPage },
+              { path: 'reports/:domain', element: reportsPage },
+            ],
           },
 
           {
@@ -266,10 +281,11 @@ const router = createBrowserRouter([
           {
             element: <PermissionGuard permission={PERMISSIONS.RECRUITMENT_VIEW} />,
             children: [
-              { path: "recruitment", element: <Navigate to="dashboard" replace /> },
-              { path: "recruitment/dashboard", element: recruitmentDashboardPage },
-              { path: "recruitment/pipeline", element: recruitmentPipelinePage },
+              { path: "recruitment", element: recruitmentDashboardPage },
+              { path: "recruitment/dashboard", element: <RecruitmentRouteRedirect target="overview" /> },
+              { path: "recruitment/pipeline", element: <RecruitmentRouteRedirect target="applications" boardView /> },
               { path: "recruitment/jobs", element: recruitmentJobsPage },
+              { path: "recruitment/applications", element: recruitmentPipelinePage },
               { path: "recruitment/candidates", element: recruitmentCandidatesPage },
               { path: "recruitment/interviews", element: recruitmentInterviewsPage },
             ],
@@ -287,7 +303,7 @@ const router = createBrowserRouter([
               { path: "security", element: appSettingsSecurityPage },
             ],
           },
-          { path: "*", element: <ComingSoonPage /> },
+          { path: "*", element: notFoundPage },
         ],
       },
     ],
@@ -311,40 +327,53 @@ const router = createBrowserRouter([
           { path: "platform/tenants/:tenantKey", element: tenantDetailPlatformPage },
           { path: "platform/profile", element: profilePage },
           { path: "platform/settings", element: platformSettingsPage },
-          { path: "platform/*", element: <ComingSoonPage /> },
+          { path: "platform/*", element: notFoundPage },
         ],
       },
     ],
   },
 ]);
 
-function ComingSoonPage() {
-  return (
-    <div className="flex flex-col items-center justify-center py-24 text-center">
-      <div
-        className="mb-4 h-16 w-16 rounded-2xl flex items-center justify-center"
-        style={{ background: "rgba(147,50,234,0.08)", border: "1px solid rgba(147,50,234,0.15)", color: "var(--color-primary-500)" }}
-      >
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="10" />
-          <path d="M12 8v4l3 3" />
-        </svg>
-      </div>
-      <h2 className="mb-2 text-lg font-semibold" style={{ color: "var(--text-primary)" }}>
-        Coming Soon
-      </h2>
-      <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-        This module is being built and will be available in a future phase.
-      </p>
-    </div>
-  );
-}
-
 function LegacyTenantPathRedirect() {
   const location = useLocation();
-  const tenantSlug = useAuthStore.getState().tenantKey ?? "app";
+  const suffix = `${location.search}${location.hash}`;
+  const tenantSlug = useAuthStore.getState().tenantKey;
+
+  if (!tenantSlug) {
+    return <Navigate to={`/login${suffix}`} replace />;
+  }
+
   const remainder = location.pathname.replace(/^\/app\/?/, "");
-  const nextPath = remainder ? `/${tenantSlug}/${remainder}${location.search}${location.hash}` : `/${tenantSlug}/dashboard`;
+  const nextPath = remainder ? `/${tenantSlug}/${remainder}${suffix}` : `/${tenantSlug}/dashboard${suffix}`;
+  return <Navigate to={nextPath} replace />;
+}
+
+function TenantRouteRedirect({ target }: { target: string }) {
+  const { tenantSlug = useAuthStore.getState().tenantKey ?? "app" } = useParams();
+  const location = useLocation();
+  const cleanTarget = target.replace(/^\/+/, "");
+  return <Navigate to={`/${tenantSlug}/${cleanTarget}${location.search}${location.hash}`} replace />;
+}
+function RecruitmentRouteRedirect({
+  target,
+  boardView = false,
+}: {
+  target: "overview" | "applications";
+  boardView?: boolean;
+}) {
+  const { tenantSlug = useAuthStore.getState().tenantKey ?? "app" } = useParams();
+  const location = useLocation();
+  const basePath = target === "overview"
+    ? `/${tenantSlug}/recruitment`
+    : `/${tenantSlug}/recruitment/applications`;
+  const searchParams = new URLSearchParams(location.search);
+
+  if (boardView && !searchParams.has("view")) {
+    searchParams.set("view", "board");
+  }
+
+  const search = searchParams.toString();
+  const nextPath = `${basePath}${search ? `?${search}` : ""}${location.hash}`;
   return <Navigate to={nextPath} replace />;
 }
 

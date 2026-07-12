@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { CalendarPlus } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { SectionCard } from "@/components/common/SectionCard";
@@ -7,6 +8,7 @@ import { Input } from "@/components/common/Input";
 import { AppSelect } from "@/components/common/AppSelect";
 import { EmptyState, ErrorBanner, SkeletonRow } from "@/components/common/AppUI";
 import { usePageMeta } from "@/hooks/usePageMeta";
+import { invalidateWorkflowQueries } from "@/hooks/queries/workflowInvalidation";
 import { usePermission } from "@/hooks/usePermission";
 import { PERMISSIONS } from "@/constants/permissions";
 import { useRecruitmentApplicationsQuery, useRecruitmentInterviewsQuery } from "@/modules/recruitment/hooks/useRecruitment";
@@ -26,6 +28,7 @@ const EMPTY_FORM: RecruitmentInterviewFormValues = {
 
 export function RecruitmentInterviewsPage() {
   usePageMeta({ title: "Recruitment Interviews", breadcrumb: ["Workspace", "Recruitment", "Interviews"] });
+  const queryClient = useQueryClient();
   const interviewsQuery = useRecruitmentInterviewsQuery();
   const applicationsQuery = useRecruitmentApplicationsQuery();
   const { hasPermission } = usePermission();
@@ -45,6 +48,7 @@ export function RecruitmentInterviewsPage() {
     try {
       await scheduleInterview(form);
       await interviewsQuery.refetch();
+      await invalidateWorkflowQueries(queryClient, ["recruitment"]);
       setForm(EMPTY_FORM);
       setFeedback("Interview scheduled successfully.");
     } catch (error) {

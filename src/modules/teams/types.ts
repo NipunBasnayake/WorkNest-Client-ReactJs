@@ -31,6 +31,17 @@ export interface TeamMember {
   isManager?: boolean;
 }
 
+
+export interface AssignableTeamMember {
+  employeeId: string;
+  fullName: string;
+  email?: string;
+  designation?: string;
+  avatar?: string;
+  avatarUrl?: string;
+  teamRole?: TeamMemberFunctionalRole;
+  active: boolean;
+}
 export interface Team {
   id: string;
   name: string;

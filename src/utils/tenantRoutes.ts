@@ -1,116 +1,91 @@
+import { tokenStorage } from "@/services/auth/tokenStorage";
 import type { SessionType } from "@/types";
 
 /**
- * Centralised tenant-aware route builder.
+ * Centralized tenant-aware route builder.
  *
- * Use these helpers instead of hardcoding paths like `/app/dashboard`.
- * They resolve the current tenant slug from the auth store automatically
- * so all navigation stays consistent after the `/:tenant/...` routing structure.
- *
- * Usage (inside a React component or hook — store must be ready):
- *   tenantRoutes.dashboard()       → "/acme-corp/dashboard"
- *   tenantRoutes.employees("acme") → "/acme/employees"
- *   platformRoutes.dashboard()     → "/platform/dashboard"
- *   authRoutes.login()             → "/login"
+ * Use these helpers instead of hardcoding tenant paths. They resolve the
+ * current tenant slug from an explicit override, the active browser URL, or
+ * the stored auth context so tenant navigation remains canonical.
  */
 
-/* ── In-memory cache refreshed lazily ── */
+const RESERVED_TOP_LEVEL_SEGMENTS = new Set([
+  "",
+  "app",
+  "platform",
+  "login",
+  "register",
+  "register-company",
+  "forgot-password",
+  "reset-password",
+  "force-password-change",
+  "unauthorized",
+]);
 
-let cachedTenantKey: string | null = null;
-
-/**
- * Lazily sync the cached values from the auth store.
- * Uses a dynamic import so the module can be imported before the store is
- * initialised (circular-safe), and switches to a direct getter after the
- * first successful read.
- */
-let refreshCache: () => void = () => {
-  import("@/store/authStore")
-    .then(({ useAuthStore }) => {
-      try {
-        const state = useAuthStore.getState();
-        cachedTenantKey = state.tenantKey;
-      } catch {
-        // Store not ready yet
-      }
-      // Subsequent calls go straight to the store
-      refreshCache = () => {
-        try {
-          const state = useAuthStore.getState();
-          cachedTenantKey = state.tenantKey;
-        } catch {
-          // Keep previous cache
-        }
-      };
-    })
-    .catch(() => {
-      // Module not available – keep defaults
-      refreshCache = () => {};
-    });
-};
-
-function getTenantSlug(override?: string): string {
-  if (override) return override;
-  refreshCache();
-  return cachedTenantKey ?? "app";
+function getTenantSlugFromPath(): string | null {
+  if (typeof window === "undefined") return null;
+  const [firstSegment = ""] = window.location.pathname.split("/").filter(Boolean);
+  if (!firstSegment || RESERVED_TOP_LEVEL_SEGMENTS.has(firstSegment)) return null;
+  return firstSegment;
 }
 
-/* ── Route builders ── */
+function getTenantSlug(override?: string): string {
+  return override ?? getTenantSlugFromPath() ?? tokenStorage.getTenantKey() ?? "app";
+}
 
 export const tenantRoutes = {
-  /** Builds a path scoped to the active tenant. */
   path: (route: string, tenantOverride?: string): string => {
     const cleanRoute = route.startsWith("/") ? route : `/${route}`;
     return `/${getTenantSlug(tenantOverride)}${cleanRoute}`;
   },
 
-  /* ── Overview ── */
   dashboard: (tenantOverride?: string) => tenantRoutes.path("/dashboard", tenantOverride),
   analytics: (tenantOverride?: string) => tenantRoutes.path("/analytics", tenantOverride),
   reports: (tenantOverride?: string) => tenantRoutes.path("/reports", tenantOverride),
   auditLogs: (tenantOverride?: string) => tenantRoutes.path("/audit-logs", tenantOverride),
 
-  /* ── People ── */
   employees: (tenantOverride?: string) => tenantRoutes.path("/employees", tenantOverride),
   employeeDetail: (id: string, tenantOverride?: string) => tenantRoutes.path(`/employees/${id}`, tenantOverride),
   employeeNew: (tenantOverride?: string) => tenantRoutes.path("/employees/new", tenantOverride),
   employeeEdit: (id: string, tenantOverride?: string) => tenantRoutes.path(`/employees/${id}/edit`, tenantOverride),
+
   teams: (tenantOverride?: string) => tenantRoutes.path("/teams", tenantOverride),
   teamDetail: (id: string, tenantOverride?: string) => tenantRoutes.path(`/teams/${id}`, tenantOverride),
   teamNew: (tenantOverride?: string) => tenantRoutes.path("/teams/new", tenantOverride),
   teamEdit: (id: string, tenantOverride?: string) => tenantRoutes.path(`/teams/${id}/edit`, tenantOverride),
 
-  /* ── Work ── */
   projects: (tenantOverride?: string) => tenantRoutes.path("/projects", tenantOverride),
   projectDetail: (id: string, tenantOverride?: string) => tenantRoutes.path(`/projects/${id}`, tenantOverride),
   projectNew: (tenantOverride?: string) => tenantRoutes.path("/projects/new", tenantOverride),
   projectEdit: (id: string, tenantOverride?: string) => tenantRoutes.path(`/projects/${id}/edit`, tenantOverride),
+
   tasks: (tenantOverride?: string) => tenantRoutes.path("/tasks", tenantOverride),
   taskBoard: (tenantOverride?: string) => tenantRoutes.path("/tasks/board", tenantOverride),
   taskDetail: (id: string, tenantOverride?: string) => tenantRoutes.path(`/tasks/${id}`, tenantOverride),
-  taskNew: (tenantOverride?: string) => tenantRoutes.path("/tasks/new", tenantOverride),
+  taskCreate: (tenantOverride?: string) => tenantRoutes.path("/tasks/create", tenantOverride),
+  taskNew: (tenantOverride?: string) => tenantRoutes.taskCreate(tenantOverride),
   taskEdit: (id: string, tenantOverride?: string) => tenantRoutes.path(`/tasks/${id}/edit`, tenantOverride),
 
-  /* ── HR ── */
   attendance: (tenantOverride?: string) => tenantRoutes.path("/attendance", tenantOverride),
   leave: (tenantOverride?: string) => tenantRoutes.path("/leave", tenantOverride),
   leaveDetail: (id: string, tenantOverride?: string) => tenantRoutes.path(`/leave/${id}`, tenantOverride),
   leaveNew: (tenantOverride?: string) => tenantRoutes.path("/leave/new", tenantOverride),
   leaveEdit: (id: string, tenantOverride?: string) => tenantRoutes.path(`/leave/${id}/edit`, tenantOverride),
-  recruitment: (tenantOverride?: string) => tenantRoutes.path("/recruitment", tenantOverride),
-  recruitmentDashboard: (tenantOverride?: string) => tenantRoutes.path("/recruitment/dashboard", tenantOverride),
-  recruitmentPipeline: (tenantOverride?: string) => tenantRoutes.path("/recruitment/pipeline", tenantOverride),
-  recruitmentJobs: (tenantOverride?: string) => tenantRoutes.path("/recruitment/jobs", tenantOverride),
 
-  /* ── Communication ── */
+  recruitment: (tenantOverride?: string) => tenantRoutes.path("/recruitment", tenantOverride),
+  recruitmentDashboard: (tenantOverride?: string) => tenantRoutes.recruitment(tenantOverride),
+  recruitmentPipeline: (tenantOverride?: string) => tenantRoutes.recruitmentApplications(tenantOverride),
+  recruitmentJobs: (tenantOverride?: string) => tenantRoutes.path("/recruitment/jobs", tenantOverride),
+  recruitmentApplications: (tenantOverride?: string) => tenantRoutes.path("/recruitment/applications", tenantOverride),
+
   announcements: (tenantOverride?: string) => tenantRoutes.path("/announcements", tenantOverride),
   announcementDetail: (id: string, tenantOverride?: string) => tenantRoutes.path(`/announcements/${id}`, tenantOverride),
   announcementNew: (tenantOverride?: string) => tenantRoutes.path("/announcements/new", tenantOverride),
   announcementEdit: (id: string, tenantOverride?: string) => tenantRoutes.path(`/announcements/${id}/edit`, tenantOverride),
+
   notifications: (tenantOverride?: string) => tenantRoutes.path("/notifications", tenantOverride),
   chat: (tenantOverride?: string) => tenantRoutes.path("/chat", tenantOverride),
 
-  /* ── Account ── */
   profile: (tenantOverride?: string) => tenantRoutes.path("/profile", tenantOverride),
   settings: (tenantOverride?: string) => tenantRoutes.path("/settings", tenantOverride),
   settingsProfile: (tenantOverride?: string) => tenantRoutes.path("/settings/profile", tenantOverride),
@@ -142,7 +117,6 @@ export const authRoutes = {
   unauthorized: "/unauthorized",
 };
 
-/** Resolve the default redirect after login based on session type. */
 export function getDefaultPostLoginRedirect(sessionType?: SessionType | null, tenantSlug?: string | null): string {
   if (sessionType === "platform") return platformRoutes.dashboard();
   return tenantRoutes.dashboard(tenantSlug ?? undefined);

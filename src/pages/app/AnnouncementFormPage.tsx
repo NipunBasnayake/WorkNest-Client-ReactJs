@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
+import { invalidateWorkflowQueries } from "@/hooks/queries/workflowInvalidation";
 import { useAuth } from "@/hooks/useAuth";
 import { canCreateAnnouncements } from "@/modules/announcements/access";
 import { createAnnouncement, getAnnouncementById, updateAnnouncement } from "@/modules/announcements/services/announcementService";
@@ -13,9 +15,11 @@ import { Button } from "@/components/common/Button";
 import { ErrorBanner } from "@/components/common/AppUI";
 import type { AnnouncementFormErrors, AnnouncementFormValues } from "@/modules/announcements/types";
 import { getErrorMessage } from "@/utils/errorHandler";
+import { tenantRoutes } from "@/utils/tenantRoutes";
 
 export function AnnouncementFormPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { id } = useParams<{ id?: string }>();
   const isEdit = Boolean(id);
   const { user } = useAuth();
@@ -90,7 +94,8 @@ export function AnnouncementFormPage() {
         await createAnnouncement(form);
         setMessage("Announcement published successfully.");
       }
-      setTimeout(() => navigate("/app/announcements", { replace: true }), 500);
+      await invalidateWorkflowQueries(queryClient, ["announcements"]);
+      setTimeout(() => navigate(tenantRoutes.announcements(), { replace: true }), 500);
     } catch (err: unknown) {
       setMessage(getErrorMessage(err, "Unable to save announcement right now."));
     } finally {
@@ -104,7 +109,7 @@ export function AnnouncementFormPage() {
         title={title}
         description="Publish updates and keep everyone aligned across the workspace."
         actions={(
-          <Button variant="ghost" onClick={() => navigate("/app/announcements")}>
+          <Button variant="ghost" onClick={() => navigate(tenantRoutes.announcements())}>
             <ArrowLeft size={16} />
             Back to Announcements
           </Button>
@@ -144,7 +149,7 @@ export function AnnouncementFormPage() {
               if (Object.keys(errors).length) setErrors({});
             }}
             onSubmit={handleSubmit}
-            onCancel={() => navigate("/app/announcements")}
+            onCancel={() => navigate(tenantRoutes.announcements())}
           />
         </SectionCard>
       )}

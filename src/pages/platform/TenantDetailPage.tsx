@@ -1,19 +1,25 @@
 import type { ReactNode } from "react";
+import { useState } from 'react';
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, Building2, Calendar, Key, Mail } from "lucide-react";
+import { ArrowLeft, Building2, Calendar, Key, Mail, Pencil } from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { usePlatformTenantDetailQuery } from "@/hooks/queries/usePlatformQueries";
 import { EmptyState, ErrorState, LoadingSkeleton } from "@/components/common/AsyncStates";
 import { SectionCard } from "@/components/common/SectionCard";
 import { formatDate } from "@/utils/formatting";
 import { getErrorMessage } from "@/utils/errorHandler";
+import { Button } from '@/components/common/Button';
+import { TenantStatusDialog } from '@/modules/platform/components/TenantStatusDialog';
 
 export function TenantDetailPage() {
   const { tenantKey } = useParams<{ tenantKey: string }>();
   usePageMeta({ title: tenantKey ?? "Tenant Detail", breadcrumb: ["Platform", "Tenants", tenantKey ?? ""] });
 
   const { data: tenant, error, isLoading, refetch } = usePlatformTenantDetailQuery(tenantKey, true);
+  const [statusEditorOpen, setStatusEditorOpen] = useState(false);
   const errorMessage = error ? getErrorMessage(error, "Failed to load tenant details.") : null;
+  const status = String(tenant?.status ?? 'inactive').toLowerCase();
+  const statusColor = status === 'active' ? '#10b981' : status === 'suspended' ? '#ef4444' : '#64748b';
 
   if (isLoading) {
     return (
@@ -62,13 +68,14 @@ export function TenantDetailPage() {
               <div className="mt-1 flex items-center gap-1.5">
                 <span
                   className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold"
-                  style={{ background: "rgba(16,185,129,0.1)", color: "#10b981" }}
+                  style={{ background: `${statusColor}18`, color: statusColor }}
                 >
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                  {tenant.status ?? "active"}
+                  <span className='h-1.5 w-1.5 rounded-full' style={{ background: statusColor }} />
+                  {status}
                 </span>
               </div>
             </div>
+            <Button className='ml-auto' variant='outline' size='sm' onClick={() => setStatusEditorOpen(true)}><Pencil size={15} />Edit status</Button>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -76,6 +83,7 @@ export function TenantDetailPage() {
             <FieldRow icon={<Building2 size={16} />} label="Company Name" value={tenant.companyName} />
             <FieldRow icon={<Mail size={16} />} label="Admin Email" value={tenant.adminEmail} />
             <FieldRow icon={<Calendar size={16} />} label="Created" value={formatDate(tenant.createdAt)} />
+            <FieldRow icon={<Calendar size={16} />} label='Last Updated' value={formatDate(tenant.updatedAt)} />
           </div>
 
           {Object.keys(tenant).filter((key) => !["id", "tenantKey", "companyName", "adminEmail", "status", "createdAt"].includes(key)).length > 0 ? (
@@ -99,6 +107,7 @@ export function TenantDetailPage() {
           ) : null}
         </div>
       ) : null}
+      {tenant && statusEditorOpen ? <TenantStatusDialog tenant={tenant} open onClose={() => setStatusEditorOpen(false)} /> : null}
     </div>
   );
 }

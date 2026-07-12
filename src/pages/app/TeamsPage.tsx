@@ -18,6 +18,7 @@ import type { Team } from "@/modules/teams/types";
 import type { Project } from "@/modules/projects/types";
 import { getTeamMemberCount } from "@/modules/teams/utils/memberCount";
 import { getErrorMessage } from "@/utils/errorHandler";
+import { tenantRoutes } from "@/utils/tenantRoutes";
 
 const EMPTY_TEAMS: Team[] = [];
 const EMPTY_PROJECTS: Project[] = [];
@@ -87,7 +88,7 @@ export function TeamsPage() {
             : `${visibleTeams.length} team${visibleTeams.length === 1 ? "" : "s"} visible.`
         }
         actions={canManageTeams ? (
-          <Button variant="primary" to="/app/teams/new">
+          <Button variant="primary" to={tenantRoutes.teamNew()}>
             <UserPlus2 size={16} />
             Add Team
           </Button>
@@ -136,7 +137,7 @@ export function TeamsPage() {
                   ? "You are not assigned to a team yet. Contact your workspace admin."
                   : "Create your first team to organize employees."
             }
-            action={canManageTeams ? <Button variant="outline" to="/app/teams/new">Create Team</Button> : undefined}
+            action={canManageTeams ? <Button variant="outline" to={tenantRoutes.teamNew()}>Create Team</Button> : undefined}
           />
         )}
 
@@ -159,7 +160,7 @@ export function TeamsPage() {
                   <StatusBadge status={team.status} />
                   <div className="flex items-center justify-end gap-2">
                     <Link
-                      to={`/app/teams/${team.id}`}
+                      to={tenantRoutes.teamDetail(team.id)}
                       title="View team"
                       aria-label="View team"
                       className="inline-flex items-center justify-center p-1 transition-opacity hover:opacity-80"
@@ -169,7 +170,7 @@ export function TeamsPage() {
                     </Link>
                     {canManageTeams && (
                       <Link
-                        to={`/app/teams/${team.id}/edit`}
+                        to={tenantRoutes.teamEdit(team.id)}
                         title="Edit team"
                         aria-label="Edit team"
                         className="inline-flex items-center justify-center p-1 transition-opacity hover:opacity-80"
@@ -180,7 +181,7 @@ export function TeamsPage() {
                     )}
                     {canManageTeams && (
                       <Link
-                        to={`/app/teams/${team.id}#members`}
+                        to={`${tenantRoutes.teamDetail(team.id)}#members`}
                         title="Manage team members"
                         aria-label="Manage team members"
                         className="inline-flex items-center justify-center p-1 transition-opacity hover:opacity-80"
@@ -212,8 +213,8 @@ export function TeamsPage() {
                     <StatusBadge status={team.status} />
                   </div>
                   <div className="mt-4 flex flex-wrap gap-2">
-                    <Button variant="ghost" size="sm" to={`/app/teams/${team.id}`}>View</Button>
-                    {canManageTeams && <Button variant="outline" size="sm" to={`/app/teams/${team.id}/edit`}>Edit</Button>}
+                    <Button variant="ghost" size="sm" to={tenantRoutes.teamDetail(team.id)}>View</Button>
+                    {canManageTeams && <Button variant="outline" size="sm" to={tenantRoutes.teamEdit(team.id)}>Edit</Button>}
                   </div>
                 </article>
               ))}

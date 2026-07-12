@@ -150,18 +150,19 @@ export function RegisterForm() {
     setSubmitting(true);
     setSubmitMessage(null);
     try {
-      await registerTenantPublicApi({
+      const tenant = await registerTenantPublicApi({
         companyName: companyName.trim(),
         tenantKey: workspaceKey.trim(),
         adminFullName: adminName.trim(),
         adminEmail: adminEmail.trim(),
         adminPassword: password,
       });
+      const loginTenantKey = tenant.tenantKey || workspaceKey.trim();
 
       setSubmitMessage("Workspace created successfully. Redirecting to login...");
       setRedirecting(true);
       redirectTimerRef.current = window.setTimeout(() => {
-        navigate(`/login?tenant=${encodeURIComponent(workspaceKey.trim())}&email=${encodeURIComponent(adminEmail.trim())}`);
+        navigate(`/login?tenant=${encodeURIComponent(loginTenantKey)}&email=${encodeURIComponent(adminEmail.trim())}`);
       }, 1500);
     } catch (error: unknown) {
       setSubmitMessage(getErrorMessage(error, "Unable to register workspace right now. Please try again."));

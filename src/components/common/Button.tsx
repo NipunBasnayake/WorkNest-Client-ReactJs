@@ -1,5 +1,6 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { Link, type LinkProps, type To } from "react-router-dom";
+import { cn } from "@/lib/utils";
 
 interface ButtonBaseProps {
   variant?: "primary" | "secondary" | "ghost" | "outline" | "danger";
@@ -24,7 +25,7 @@ type ButtonAsLink = ButtonBaseProps &
 type ButtonProps = ButtonAsNative | ButtonAsLink;
 
 const base =
-  "inline-flex items-center justify-center font-semibold rounded-xl transition-all duration-200 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 disabled:opacity-50 disabled:pointer-events-none select-none";
+  "inline-flex items-center justify-center font-semibold rounded-xl border border-transparent transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/35 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent disabled:opacity-50 disabled:pointer-events-none select-none";
 
 const variants = {
   primary:
@@ -55,7 +56,7 @@ export function Button({
   loadingLabel = "Loading",
   ...rest
 }: ButtonProps) {
-  const classes = `${base} ${variants[variant]} ${sizes[size]} ${className}`.trim();
+  const classes = cn(base, variants[variant], sizes[size], className);
   const content = (
     <>
       {loading && <ButtonSpinner />}
@@ -74,9 +75,7 @@ export function Button({
     } = rest as ButtonAsLink;
 
     const isDisabled = disabled || loading;
-    const linkClasses = isDisabled
-      ? `${classes} opacity-50 pointer-events-none cursor-not-allowed`
-      : classes;
+    const linkClasses = cn(classes, isDisabled && "cursor-not-allowed opacity-50 pointer-events-none");
 
     return (
       <Link

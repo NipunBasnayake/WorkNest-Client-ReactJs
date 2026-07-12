@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { PlusCircle } from "lucide-react";
 import { FiCheck, FiEdit2, FiEye, FiTrash2, FiX } from "react-icons/fi";
 import { Link } from "react-router-dom";
 import { usePageMeta } from "@/hooks/usePageMeta";
+import { invalidateWorkflowQueries } from "@/hooks/queries/workflowInvalidation";
 import { useAuth } from "@/hooks/useAuth";
 import { PERMISSIONS } from "@/constants/permissions";
 import { usePermission } from "@/hooks/usePermission";
@@ -18,6 +20,7 @@ import { InlineAlert } from "@/components/common/InlineAlert";
 import { SearchField } from "@/components/common/SearchField";
 import { EmptyState, ErrorBanner, SkeletonRow } from "@/components/common/AppUI";
 import { getErrorMessage } from "@/utils/errorHandler";
+import { tenantRoutes } from "@/utils/tenantRoutes";
 
 const STATUS_OPTIONS: Array<LeaveStatus | "ALL"> = ["ALL", "PENDING", "APPROVED", "REJECTED", "CANCELLED"];
 const TYPE_OPTIONS: Array<LeaveType | "ALL"> = ["ALL", ...LEAVE_TYPE_OPTIONS];
@@ -28,6 +31,7 @@ function toLabel(value: string): string {
 
 export function LeavePage() {
   usePageMeta({ title: "Leave", breadcrumb: ["Workspace", "Leave"] });
+  const queryClient = useQueryClient();
   const { user, role } = useAuth();
   const { hasPermission } = usePermission();
 
@@ -102,6 +106,7 @@ export function LeavePage() {
     try {
       const updated = await cancelLeaveRequest(cancelTarget.id);
       setLeaveRequests((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+      await invalidateWorkflowQueries(queryClient, ["leave"]);
       setFeedback("Leave request cancelled.");
       setCancelTarget(null);
     } catch (actionError: unknown) {
@@ -118,6 +123,7 @@ export function LeavePage() {
     try {
       const updated = await reviewLeaveRequest(reviewTarget.item.id, reviewTarget.status);
       setLeaveRequests((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+      await invalidateWorkflowQueries(queryClient, ["leave"]);
       setFeedback(`Leave request ${reviewTarget.status === "APPROVED" ? "approved" : "rejected"}.`);
       setReviewTarget(null);
     } catch (actionError: unknown) {
@@ -133,7 +139,7 @@ export function LeavePage() {
         title="Leave Management"
         description={loading ? "Loading leave requests..." : `${leaveRequests.length} leave request${leaveRequests.length === 1 ? "" : "s"} logged.`}
         actions={canApplyLeave ? (
-          <Button variant="primary" to="/app/leave/new">
+          <Button variant="primary" to={tenantRoutes.leaveNew()}>
             <PlusCircle size={16} />
             Apply Leave
           </Button>
@@ -200,7 +206,7 @@ export function LeavePage() {
           <EmptyState
             title={search || statusFilter !== "ALL" || typeFilter !== "ALL" ? "No matching leave requests" : "No leave requests yet"}
             description={search || statusFilter !== "ALL" || typeFilter !== "ALL" ? "Try adjusting your filters." : "Leave requests submitted by employees will appear here."}
-            action={canApplyLeave ? <Button variant="outline" to="/app/leave/new">Apply Leave</Button> : undefined}
+            action={canApplyLeave ? <Button variant="outline" to={tenantRoutes.leaveNew()}>Apply Leave</Button> : undefined}
           />
         )}
 
@@ -227,7 +233,7 @@ export function LeavePage() {
                     <LeaveStatusBadge status={item.status} />
                     <div className="flex flex-wrap items-center justify-end gap-2">
                       <Link
-                        to={`/app/leave/${item.id}`}
+                        to={tenantRoutes.leaveDetail(item.id)}
                         title="View leave request"
                         aria-label="View leave request"
                         className="inline-flex items-center justify-center p-1 transition-opacity hover:opacity-80"
@@ -237,7 +243,7 @@ export function LeavePage() {
                       </Link>
                       {canEdit && (
                         <Link
-                          to={`/app/leave/${item.id}/edit`}
+                          to={tenantRoutes.leaveEdit(item.id)}
                           title="Edit leave request"
                           aria-label="Edit leave request"
                           className="inline-flex items-center justify-center p-1 transition-opacity hover:opacity-80"
@@ -314,8 +320,8 @@ export function LeavePage() {
                       <LeaveStatusBadge status={item.status} />
                     </div>
                     <div className="mt-4 flex flex-wrap gap-2">
-                      <Button variant="ghost" size="sm" to={`/app/leave/${item.id}`}>View</Button>
-                      {canEdit && <Button variant="outline" size="sm" to={`/app/leave/${item.id}/edit`}>Edit</Button>}
+                      <Button variant="ghost" size="sm" to={tenantRoutes.leaveDetail(item.id)}>View</Button>
+                      {canEdit && <Button variant="outline" size="sm" to={tenantRoutes.leaveEdit(item.id)}>Edit</Button>}
                       {canCancel && <Button variant="danger" size="sm" onClick={() => setCancelTarget(item)}>Cancel</Button>}
                       {canApprove && (
                         <>

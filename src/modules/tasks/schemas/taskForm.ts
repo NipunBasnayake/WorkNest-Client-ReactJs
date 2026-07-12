@@ -27,12 +27,16 @@ export function validateTaskForm(values: TaskFormValues): TaskFormErrors {
     errors.dueDate = "Due date is required.";
   }
 
+  if (!values.projectId.trim()) {
+    errors.projectId = "Project is required.";
+  }
+
   if (!values.assignedTeamId.trim()) {
     errors.assignedTeamId = "Assigned team is required.";
   }
 
-  if (!values.projectId.trim()) {
-    errors.projectId = "Project is required.";
+  if (!values.assigneeId.trim()) {
+    errors.assigneeId = "Assigned employee is required.";
   }
 
   if (values.description.trim().length > 1500) {

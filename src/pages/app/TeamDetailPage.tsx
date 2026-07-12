@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useParams } from "react-router-dom";
 import { ArrowLeft, Users, UserCircle2, BriefcaseBusiness } from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
+import { invalidateWorkflowQueries } from "@/hooks/queries/workflowInvalidation";
 import { useAuth } from "@/hooks/useAuth";
 import { PERMISSIONS } from "@/constants/permissions";
 import { usePermission } from "@/hooks/usePermission";
@@ -29,6 +31,7 @@ import type { Employee } from "@/types";
 import type { Project } from "@/modules/projects/types";
 import type { Task } from "@/modules/tasks/types";
 import { getErrorMessage } from "@/utils/errorHandler";
+import { tenantRoutes } from "@/utils/tenantRoutes";
 
 type RoleDraftValue = TeamMemberFunctionalRole | "";
 
@@ -63,6 +66,7 @@ function extractRoleTokens(value: unknown): string[] {
 
 export function TeamDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const queryClient = useQueryClient();
   const { role, user } = useAuth();
   const { hasPermission } = usePermission();
   usePageMeta({ title: "Team Details", breadcrumb: ["Workspace", "Teams", "Details"] });
@@ -211,6 +215,7 @@ export function TeamDetailPage() {
     try {
       await addTeamMember(id, memberToAdd);
       await refreshTeam();
+      await invalidateWorkflowQueries(queryClient, ["teams", "tasks"]);
       setMessage("Team member added.");
       setMemberToAdd("");
     } catch (err: unknown) {
@@ -233,6 +238,7 @@ export function TeamDetailPage() {
     try {
       await removeTeamMember(id, removeTarget.employeeId, removeTarget.teamMemberId);
       await refreshTeam();
+      await invalidateWorkflowQueries(queryClient, ["teams", "tasks"]);
       setMessage("Team member removed.");
       setRemoveTarget(null);
     } catch (err: unknown) {
@@ -254,6 +260,7 @@ export function TeamDetailPage() {
     try {
       await updateTeamMemberFunctionalRole(id, member.employeeId, member.teamMemberId, nextRole);
       await refreshTeam();
+      await invalidateWorkflowQueries(queryClient, ["teams", "tasks"]);
       setMessage("Member functional role updated.");
     } catch (err: unknown) {
       setMessage(getErrorMessage(err, "Unable to update functional role."));
@@ -265,12 +272,12 @@ export function TeamDetailPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-2">
-        <Button variant="ghost" to="/app/teams">
+        <Button variant="ghost" to={tenantRoutes.teams()}>
           <ArrowLeft size={16} />
           Back
         </Button>
         {team && canManageTeam && (
-          <Button variant="outline" to={`/app/teams/${team.id}/edit`}>Edit Team</Button>
+          <Button variant="outline" to={tenantRoutes.teamEdit(team.id)}>Edit Team</Button>
         )}
       </div>
 
@@ -303,7 +310,7 @@ export function TeamDetailPage() {
           icon={<Users size={28} />}
           title="Team not found"
           description="The requested team does not exist."
-          action={<Button variant="outline" to="/app/teams">Go to Teams</Button>}
+          action={<Button variant="outline" to={tenantRoutes.teams()}>Go to Teams</Button>}
         />
       )}
 
@@ -312,7 +319,7 @@ export function TeamDetailPage() {
           icon={<Users size={28} />}
           title="Access restricted"
           description="You can only view teams where you are assigned."
-          action={<Button variant="outline" to="/app/teams">Go to My Teams</Button>}
+          action={<Button variant="outline" to={tenantRoutes.teams()}>Go to My Teams</Button>}
         />
       )}
 
@@ -383,7 +390,7 @@ export function TeamDetailPage() {
                         {project.status.replace("_", " ")}
                       </p>
                     </div>
-                    <Button size="sm" variant="ghost" to={`/app/projects/${project.id}`}>
+                    <Button size="sm" variant="ghost" to={tenantRoutes.projectDetail(project.id)}>
                       View
                     </Button>
                   </div>

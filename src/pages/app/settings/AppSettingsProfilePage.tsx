@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Shield } from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
+import { invalidateWorkflowQueries } from "@/hooks/queries/workflowInvalidation";
 import { useAuth } from "@/hooks/useAuth";
 import { Input } from "@/components/common/Input";
 import { FileUploadField } from "@/components/common/FileUploadField";
@@ -16,6 +18,7 @@ import type { EmployeeSkill, EmployeeViewModel } from "@/modules/employees/types
 
 export function AppSettingsProfilePage() {
   usePageMeta({ title: "Settings - Profile", breadcrumb: ["Workspace", "Settings", "Profile"] });
+  const queryClient = useQueryClient();
   const { user } = useAuth();
   const setUser = useAuthStore((state) => state.setUser);
 
@@ -100,6 +103,7 @@ export function AppSettingsProfilePage() {
       await updateTenantPassword(newPassword.trim());
       setNewPassword("");
       setConfirmPassword("");
+      await invalidateWorkflowQueries(queryClient, ["settings"]);
       setMessage("Password updated successfully.");
     } catch {
       setError("Unable to update password.");

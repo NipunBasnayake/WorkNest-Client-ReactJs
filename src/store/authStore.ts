@@ -3,6 +3,7 @@ import { tokenStorage } from "@/services/http/client";
 import { loginApi, getMeApi, logoutApi, isPasswordChangeRequiredApiError } from "@/services/api/authApi";
 import type { AuthUser, LoginPayload, SessionType } from "@/types";
 import type { ChangeRequiredPasswordResult, PasswordChangeRequirement } from "@/services/api/authApi";
+import { getErrorMessage } from "@/utils/errorHandler";
 
 const LOGIN_ROUTE = "/login";
 let bootstrapInFlight: Promise<void> | null = null;
@@ -91,6 +92,10 @@ function resolveSessionType(current: SessionType | null, tenantKey: string | nul
   return current ?? tokenStorage.getSession() ?? (tenantKey ? "tenant" : "platform");
 }
 
+function hasStoredSessionArtifact(): boolean {
+  return Boolean(tokenStorage.getAccess() || tokenStorage.getRefresh() || tokenStorage.getCsrf());
+}
+
 export const useAuthStore = create<AuthState>((set, get) => ({
   user:             null,
   isAuthenticated:  false,
@@ -168,7 +173,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
 
       tokenStorage.clear();
-      const message = extractErrorMessage(err) ?? "Login failed. Please check your credentials.";
+      const message = getErrorMessage(err, "Login failed. Please check your credentials.");
       set({
         isLoading: false,
         error: message,
@@ -214,7 +219,24 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
 
     bootstrapInFlight = (async () => {
-      set({ isBootstrapping: true });
+      const hadStoredSession = hasStoredSessionArtifact();
+      set({ isBootstrapping: true, error: null });
+
+      if (!hadStoredSession) {
+        tokenStorage.clear();
+        set({
+          user:            null,
+          isAuthenticated: false,
+          sessionType:     null,
+          tenantKey:       null,
+          isBootstrapping: false,
+          authReady:       true,
+          error:           null,
+          passwordChangeRequired: false,
+          passwordChangeChallenge: null,
+        });
+        return;
+      }
 
       try {
         const user = await getMeApi();
@@ -245,7 +267,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           tenantKey:       null,
           isBootstrapping: false,
           authReady:       true,
-          error: extractErrorMessage(err) ?? "Your previous session could not be restored. Please sign in again.",
+          error: getErrorMessage(err, "Your previous session could not be restored. Please sign in again."),
           passwordChangeRequired: false,
           passwordChangeChallenge: null,
         });
@@ -320,7 +342,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         sessionType: null,
         tenantKey: challengeTenantKey,
         isLoading: false,
-        error: extractErrorMessage(err) ?? "Password was updated, but the session could not be restored. Please sign in again.",
+        error: getErrorMessage(err, "Password was updated, but the session could not be restored. Please sign in again."),
         passwordChangeRequired: false,
         passwordChangeChallenge: null,
       });
@@ -389,11 +411,3 @@ export const selectAuthLoading      = (s: AuthState) => s.isLoading;
 export const selectPasswordChangeRequired = (s: AuthState) => s.passwordChangeRequired;
 export const selectPasswordChangeChallenge = (s: AuthState) => s.passwordChangeChallenge;
 
-/* ── Helpers ── */
-function extractErrorMessage(err: unknown): string | null {
-  if (typeof err === "object" && err !== null) {
-    const e = err as { response?: { data?: { message?: string } }; message?: string };
-    return e.response?.data?.message ?? e.message ?? null;
-  }
-  return null;
-}

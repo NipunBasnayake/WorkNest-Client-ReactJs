@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, BriefcaseBusiness, Building2, CircleAlert, Mail, Phone, Sparkles, UserCheck, UserCog, UserX } from "lucide-react";
 import { useParams } from "react-router-dom";
 import { usePageMeta } from "@/hooks/usePageMeta";
+import { invalidateWorkflowQueries } from "@/hooks/queries/workflowInvalidation";
 import { useAuth } from "@/hooks/useAuth";
 import { PERMISSIONS } from "@/constants/permissions";
 import { usePermission } from "@/hooks/usePermission";
@@ -23,6 +25,7 @@ import { EmptyState, ErrorBanner } from "@/components/common/AppUI";
 import { toEmployeeViewModel } from "@/modules/employees/utils/employeeMapper";
 import type { EmployeeSkill, EmployeeViewModel, SkillLevel } from "@/modules/employees/types";
 import { getErrorMessage } from "@/utils/errorHandler";
+import { tenantRoutes } from "@/utils/tenantRoutes";
 
 const SKILL_LEVELS: SkillLevel[] = ["BEGINNER", "INTERMEDIATE", "ADVANCED", "EXPERT"];
 
@@ -34,6 +37,7 @@ interface SkillEditorState {
 
 export function EmployeeDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const queryClient = useQueryClient();
   const { user } = useAuth();
   const { hasPermission } = usePermission();
   usePageMeta({ title: "Employee Details", breadcrumb: ["Workspace", "Employees", "Details"] });
@@ -119,6 +123,7 @@ export function EmployeeDetailPage() {
     try {
       await updateEmployeeStatus(id, statusTarget);
       setEmployee((prev) => (prev ? { ...prev, status: statusTarget } : prev));
+      await invalidateWorkflowQueries(queryClient, ["employees"]);
       setMessage(statusTarget === "inactive" ? "Employee deactivated successfully." : "Employee activated successfully.");
       setStatusTarget(null);
     } catch (err: unknown) {
@@ -135,6 +140,7 @@ export function EmployeeDetailPage() {
     try {
       const created = await addEmployeeSkill(id, { name: newSkillName.trim(), level: newSkillLevel });
       setSkills((prev) => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)));
+      await invalidateWorkflowQueries(queryClient, ["employees"]);
       setNewSkillName("");
       setNewSkillLevel("INTERMEDIATE");
       setMessage("Skill added.");
@@ -155,6 +161,7 @@ export function EmployeeDetailPage() {
         level: editingSkill.level,
       });
       setSkills((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+      await invalidateWorkflowQueries(queryClient, ["employees"]);
       setEditingSkill(null);
       setMessage("Skill updated.");
     } catch (err: unknown) {
@@ -171,6 +178,7 @@ export function EmployeeDetailPage() {
     try {
       await deleteEmployeeSkill(id, deleteSkillTarget.id);
       setSkills((prev) => prev.filter((item) => item.id !== deleteSkillTarget.id));
+      await invalidateWorkflowQueries(queryClient, ["employees"]);
       setDeleteSkillTarget(null);
       setMessage("Skill removed.");
     } catch (err: unknown) {
@@ -183,12 +191,12 @@ export function EmployeeDetailPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-3">
-        <Button variant="ghost" to="/app/employees">
+        <Button variant="ghost" to={tenantRoutes.employees()}>
           <ArrowLeft size={16} />
           Back
         </Button>
         {id && canEdit && (
-          <Button variant="outline" to={`/app/employees/${id}/edit`}>
+          <Button variant="outline" to={tenantRoutes.employeeEdit(id ?? "")}>
             Edit Employee
           </Button>
         )}
@@ -219,7 +227,7 @@ export function EmployeeDetailPage() {
           icon={<CircleAlert size={28} />}
           title="Employee not found"
           description="The requested employee profile does not exist or you no longer have access."
-          action={<Button variant="outline" to="/app/employees">Go to Employees</Button>}
+          action={<Button variant="outline" to={tenantRoutes.employees()}>Go to Employees</Button>}
         />
       )}
 

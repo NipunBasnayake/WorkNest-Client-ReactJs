@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Paperclip, PlusCircle } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { SectionCard } from "@/components/common/SectionCard";
@@ -7,6 +8,7 @@ import { Input } from "@/components/common/Input";
 import { TextareaField } from "@/components/common/TextareaField";
 import { EmptyState, ErrorBanner, SkeletonRow } from "@/components/common/AppUI";
 import { usePageMeta } from "@/hooks/usePageMeta";
+import { invalidateWorkflowQueries } from "@/hooks/queries/workflowInvalidation";
 import { usePermission } from "@/hooks/usePermission";
 import { PERMISSIONS } from "@/constants/permissions";
 import { useRecruitmentCandidatesQuery } from "@/modules/recruitment/hooks/useRecruitment";
@@ -26,6 +28,7 @@ const EMPTY_FORM: RecruitmentCandidateFormValues = {
 
 export function RecruitmentCandidatesPage() {
   usePageMeta({ title: "Recruitment Candidates", breadcrumb: ["Workspace", "Recruitment", "Candidates"] });
+  const queryClient = useQueryClient();
   const candidatesQuery = useRecruitmentCandidatesQuery();
   const { hasPermission } = usePermission();
   const canManageRecruitment = hasPermission(PERMISSIONS.RECRUITMENT_MANAGE);
@@ -64,6 +67,7 @@ export function RecruitmentCandidatesPage() {
         await uploadCandidateResume(saved.id, resumeFile);
       }
       await candidatesQuery.refetch();
+      await invalidateWorkflowQueries(queryClient, ["recruitment"]);
       setSelectedCandidate(null);
       setResumeFile(null);
       setForm(EMPTY_FORM);

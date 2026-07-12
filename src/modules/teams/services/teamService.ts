@@ -2,6 +2,7 @@ import { apiClient } from "@/services/http/client";
 import { unwrapApiData } from "@/services/http/response";
 import { asRecord, extractList, firstDefined, getBoolean, getId, getNumber, getString, toIsoDateTime } from "@/services/http/parsers";
 import type {
+  AssignableTeamMember,
   Team,
   TeamFormValues,
   TeamMember,
@@ -188,6 +189,76 @@ function normalizeTeamMembersPayload(payload: unknown): TeamMember[] {
   );
 }
 
+function normalizeAssignableTeamMember(input: unknown): AssignableTeamMember | null {
+  const value = asRecord(input);
+  const employee = asRecord(value.employee);
+  const employeeId = getId(firstDefined(value.employeeId, value.id, employee.id));
+
+  if (!employeeId) return null;
+
+  const email = firstDefined(getString(value.email), getString(employee.email));
+  const fullName = firstDefined(
+    getString(value.fullName),
+    getString(value.name),
+    getString(employee.fullName),
+    getString(employee.name),
+    email,
+    employeeId
+  ) ?? employeeId;
+  const designation = firstDefined(
+    getString(value.designation),
+    getString(value.jobTitle),
+    getString(value.position),
+    getString(employee.designation),
+    getString(employee.jobTitle),
+    getString(employee.position)
+  );
+  const avatar = firstDefined(
+    getString(value.avatar),
+    getString(value.avatarUrl),
+    getString(value.profileImageUrl),
+    getString(value.imageUrl),
+    getString(employee.avatar),
+    getString(employee.avatarUrl),
+    getString(employee.profileImageUrl),
+    getString(employee.imageUrl)
+  );
+
+  return {
+    employeeId,
+    fullName,
+    email,
+    designation,
+    avatar,
+    avatarUrl: avatar,
+    teamRole: normalizeFunctionalRole(firstDefined(value.teamRole, value.functionalRole, value.memberRole)),
+    active: getBoolean(firstDefined(value.active, employee.active)) ?? true,
+  };
+}
+
+function normalizeAssignableTeamMembersPayload(payload: unknown): AssignableTeamMember[] {
+  const map = new Map<string, AssignableTeamMember>();
+
+  extractList(payload)
+    .map((item) => normalizeAssignableTeamMember(item))
+    .filter((member): member is AssignableTeamMember => Boolean(member))
+    .forEach((member) => {
+      if (!member.active) return;
+      const existing = map.get(member.employeeId);
+      map.set(member.employeeId, {
+        ...member,
+        fullName: member.fullName || existing?.fullName || member.email || member.employeeId,
+        email: member.email ?? existing?.email,
+        designation: member.designation ?? existing?.designation,
+        avatar: member.avatar ?? existing?.avatar,
+        avatarUrl: member.avatarUrl ?? existing?.avatarUrl,
+        teamRole: member.teamRole ?? existing?.teamRole,
+        active: true,
+      });
+    });
+
+  return Array.from(map.values()).sort((left, right) => left.fullName.localeCompare(right.fullName));
+}
 async function listTeamMembers(teamId: string): Promise<TeamMember[]> {
   const { data } = await apiClient.get<ApiResponse<unknown> | unknown>(
     `/api/tenant/teams/${teamId}/members`
@@ -331,6 +402,14 @@ export async function getMyTeams(): Promise<Team[]> {
   const { data } = await apiClient.get<ApiResponse<unknown> | unknown>("/api/tenant/teams/my");
   const list = extractList(unwrapApiData<unknown>(data));
   return hydrateTeams(list);
+}
+
+
+export async function getAssignableTeamMembers(teamId: string): Promise<AssignableTeamMember[]> {
+  const { data } = await apiClient.get<ApiResponse<unknown> | unknown>(
+    `/api/tenant/teams/${teamId}/assignable-members`
+  );
+  return normalizeAssignableTeamMembersPayload(unwrapApiData<unknown>(data));
 }
 
 export async function getTeamById(id: string): Promise<Team> {

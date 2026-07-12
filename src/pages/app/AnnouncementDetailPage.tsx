@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Pin, Trash2, UserCircle2, Users } from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
+import { invalidateWorkflowQueries } from "@/hooks/queries/workflowInvalidation";
 import { deleteAnnouncement, getAnnouncementById } from "@/modules/announcements/services/announcementService";
 import { SectionCard } from "@/components/common/SectionCard";
 import { Button } from "@/components/common/Button";
@@ -10,9 +12,11 @@ import { EmptyState, ErrorBanner } from "@/components/common/AppUI";
 import type { Announcement } from "@/modules/announcements/types";
 import { canDeleteAnnouncement, canEditAnnouncement } from "@/modules/announcements/access";
 import { getErrorMessage } from "@/utils/errorHandler";
+import { tenantRoutes } from "@/utils/tenantRoutes";
 
 export function AnnouncementDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
   usePageMeta({ title: "Announcement Details", breadcrumb: ["Workspace", "Announcements", "Details"] });
 
@@ -50,7 +54,8 @@ export function AnnouncementDetailPage() {
     setActionError(null);
     try {
       await deleteAnnouncement(announcement.id);
-      navigate("/app/announcements", { replace: true });
+      await invalidateWorkflowQueries(queryClient, ["announcements"]);
+      navigate(tenantRoutes.announcements(), { replace: true });
     } catch (err: unknown) {
       setActionError(getErrorMessage(err, "Unable to delete announcement."));
     } finally {
@@ -62,12 +67,12 @@ export function AnnouncementDetailPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-2">
-        <Button variant="ghost" to="/app/announcements">
+        <Button variant="ghost" to={tenantRoutes.announcements()}>
           <ArrowLeft size={16} />
           Back
         </Button>
         {announcement && canEditAnnouncement(announcement) && (
-          <Button variant="outline" to={`/app/announcements/${announcement.id}/edit`}>Edit</Button>
+          <Button variant="outline" to={tenantRoutes.announcementEdit(announcement.id)}>Edit</Button>
         )}
         {announcement && canDeleteAnnouncement(announcement) && (
           <Button variant="danger" onClick={() => setConfirmDelete(true)}>
@@ -90,7 +95,7 @@ export function AnnouncementDetailPage() {
         <EmptyState
           title="Announcement not found"
           description="The requested announcement may no longer exist."
-          action={<Button variant="outline" to="/app/announcements">Go to Announcements</Button>}
+          action={<Button variant="outline" to={tenantRoutes.announcements()}>Go to Announcements</Button>}
         />
       )}
 

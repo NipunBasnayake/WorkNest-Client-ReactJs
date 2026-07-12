@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
+import { invalidateWorkflowQueries } from "@/hooks/queries/workflowInvalidation";
 import { DEFAULT_PERMISSION_DENIED_MESSAGE, PERMISSIONS } from "@/constants/permissions";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermission } from "@/hooks/usePermission";
@@ -9,8 +11,9 @@ import { getMyEmployeeProfile } from "@/modules/employees/services/employeeServi
 import { createTask, getTaskById, updateTask } from "@/modules/tasks/services/taskService";
 import { DEFAULT_TASK_FORM, validateTaskForm } from "@/modules/tasks/schemas/taskForm";
 import { TaskForm } from "@/modules/tasks/components/TaskForm";
+import { hasTeamWorkflowAccess } from "@/modules/tasks/utils/taskWorkflow";
 import { getProjects } from "@/modules/projects/services/projectService";
-import { getTeams } from "@/modules/teams/services/teamService";
+import { getAssignableTeamMembers, getTeams } from "@/modules/teams/services/teamService";
 import { resolveViewerTeamRoles } from "@/modules/teams/utils/teamRoles";
 import { SectionCard } from "@/components/common/SectionCard";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -18,23 +21,28 @@ import { Button } from "@/components/common/Button";
 import { ErrorBanner } from "@/components/common/AppUI";
 import type { Project } from "@/modules/projects/types";
 import type { TaskFormErrors, TaskFormValues } from "@/modules/tasks/types";
-import type { Team } from "@/modules/teams/types";
+import type { AssignableTeamMember, Team } from "@/modules/teams/types";
 import { getErrorMessage } from "@/utils/errorHandler";
+import { tenantRoutes } from "@/utils/tenantRoutes";
 
 interface Option {
   id: string;
   label: string;
+  subtitle?: string;
+  avatarUrl?: string;
 }
 
 export function TaskFormPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { id } = useParams<{ id?: string }>();
   const [searchParams] = useSearchParams();
   const isEdit = Boolean(id);
   const requestedProjectId = searchParams.get("projectId")?.trim() ?? "";
   const { user } = useAuth();
   const { hasPermission } = usePermission();
-  const canManageTasks = hasPermission(PERMISSIONS.TASKS_MANAGE);
+  const roleValue = String(user?.role ?? "").toUpperCase();
+  const hasGlobalTaskManagement = roleValue === "TENANT_ADMIN" || roleValue === "ADMIN";
 
   usePageMeta({
     title: isEdit ? "Edit Task" : "Create Task",
@@ -45,6 +53,9 @@ export function TaskFormPage() {
   const [errors, setErrors] = useState<TaskFormErrors>({});
   const [projectCatalog, setProjectCatalog] = useState<Project[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
+  const [assignableAssignees, setAssignableAssignees] = useState<Option[]>([]);
+  const [assigneeLoading, setAssigneeLoading] = useState(false);
+  const [assigneeLoadError, setAssigneeLoadError] = useState<string | null>(null);
   const [viewerEmployeeId, setViewerEmployeeId] = useState<string | undefined>(undefined);
   const [dependencyLoadError, setDependencyLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(isEdit);
@@ -108,7 +119,7 @@ export function TaskFormPage() {
           priority: task.priority,
           dueDate: task.dueDate,
           assignedTeamId: task.assignedTeamId || "",
-          assigneeId: task.assigneeId || "",
+          assigneeId: task.assignedEmployeeId || task.assigneeId || "",
           projectId: task.projectId || "",
           attachments: task.attachments,
         });
@@ -125,6 +136,37 @@ export function TaskFormPage() {
     };
   }, [id]);
 
+  useEffect(() => {
+    if (!form.assignedTeamId) {
+      setAssignableAssignees([]);
+      setAssigneeLoadError(null);
+      setAssigneeLoading(false);
+      return;
+    }
+
+    let active = true;
+    setAssigneeLoading(true);
+    setAssigneeLoadError(null);
+
+    getAssignableTeamMembers(form.assignedTeamId)
+      .then((members) => {
+        if (!active) return;
+        setAssignableAssignees(members.map(toAssigneeOption));
+      })
+      .catch((err: unknown) => {
+        if (!active) return;
+        setAssignableAssignees([]);
+        setAssigneeLoadError(getErrorMessage(err, "Unable to load active team members for assignment."));
+      })
+      .finally(() => {
+        if (active) setAssigneeLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [form.assignedTeamId]);
+
   const title = useMemo(() => (isEdit ? "Update Task" : "Create Task"), [isEdit]);
   const projects = useMemo<Option[]>(
     () => projectCatalog.map((project) => ({ id: project.id, label: project.name })),
@@ -134,59 +176,51 @@ export function TaskFormPage() {
     () => projectCatalog.find((project) => project.id === form.projectId) ?? null,
     [form.projectId, projectCatalog]
   );
-  const scopedTeamRoles = useMemo(
-    () =>
-      resolveViewerTeamRoles(
-        teams,
-        { employeeId: viewerEmployeeId ?? user?.id, email: user?.email },
-        selectedProject?.teamIds
-      ),
-    [selectedProject?.teamIds, teams, user?.email, user?.id, viewerEmployeeId]
+  const taskViewerIdentity = useMemo(
+    () => ({ employeeId: viewerEmployeeId ?? user?.id, email: user?.email }),
+    [user?.email, user?.id, viewerEmployeeId]
   );
-  const scopedAssignees = useMemo<Option[]>(() => {
-    if (!selectedProject || !form.assignedTeamId) return [];
-
-    const scopedTeamIds = new Set(selectedProject.teamIds);
-    if (!scopedTeamIds.has(form.assignedTeamId)) {
-      return [];
-    }
-
-    const optionMap = new Map<string, Option>();
-
-    teams
-      .filter((team) => team.id === form.assignedTeamId)
-      .forEach((team) => {
-        team.members.forEach((member) => {
-          if (!member.employeeId || optionMap.has(member.employeeId)) return;
-          optionMap.set(member.employeeId, {
-            id: member.employeeId,
-            label: member.name?.trim() || member.email?.trim() || member.employeeId,
-          });
-        });
-      });
-
-    return Array.from(optionMap.values()).sort((left, right) => left.label.localeCompare(right.label));
-  }, [form.assignedTeamId, selectedProject, teams]);
+  const scopedTeamRoles = useMemo(
+    () => resolveViewerTeamRoles(teams, taskViewerIdentity, selectedProject?.teamIds),
+    [selectedProject?.teamIds, taskViewerIdentity, teams]
+  );
+  const selectedTeamRoles = useMemo(
+    () => resolveViewerTeamRoles(
+      teams,
+      taskViewerIdentity,
+      form.assignedTeamId ? [form.assignedTeamId] : selectedProject?.teamIds
+    ),
+    [form.assignedTeamId, selectedProject?.teamIds, taskViewerIdentity, teams]
+  );
 
   const teamOptions = useMemo<Option[]>(() => {
     if (!selectedProject) return [];
-    const allowedTeamIds = new Set(selectedProject.teamIds);
+    const projectTeamIds = new Set(selectedProject.teamIds);
+    const canAssignAcrossProject = hasGlobalTaskManagement || scopedTeamRoles.includes("PROJECT_MANAGER");
     return teams
-      .filter((team) => allowedTeamIds.has(team.id))
+      .filter((team) => {
+        if (!projectTeamIds.has(team.id)) return false;
+        if (canAssignAcrossProject) return true;
+        return hasTeamWorkflowAccess(resolveViewerTeamRoles(teams, taskViewerIdentity, [team.id]));
+      })
       .map((team) => ({ id: team.id, label: team.name }))
       .sort((left, right) => left.label.localeCompare(right.label));
-  }, [selectedProject, teams]);
+  }, [hasGlobalTaskManagement, scopedTeamRoles, selectedProject, taskViewerIdentity, teams]);
 
-  const assignees = scopedAssignees;
-  const canAssignTask = hasPermission(PERMISSIONS.TASKS_ASSIGN, { teamRoles: scopedTeamRoles });
-  const canSubmitTask = isEdit ? canManageTasks : canManageTasks || canAssignTask;
+  const assignees = assignableAssignees;
+  const canAssignTask = hasPermission(PERMISSIONS.TASKS_ASSIGN, { teamRoles: selectedTeamRoles });
+  const hasProjectManagerAccess = scopedTeamRoles.includes("PROJECT_MANAGER");
+  const canCreateTask = hasGlobalTaskManagement || canAssignTask;
+  const canEditTask = hasGlobalTaskManagement || hasProjectManagerAccess;
+  const canSubmitTask = isEdit ? canEditTask : canCreateTask;
   const permissionHint = useMemo(() => {
-    if (isEdit || canManageTasks) return null;
-    if (!form.projectId) return "Select a project where you are a project manager or team lead to assign a task.";
-    if (!canAssignTask) return DEFAULT_PERMISSION_DENIED_MESSAGE;
-    if (assignees.length === 0) return "No team members are available for assignment on the selected project.";
+    if (isEdit && !canEditTask) return "Only tenant admins or project managers can edit task details.";
+    if (!isEdit && !form.projectId) return "Select a project where you are a project manager or team lead to assign a task.";
+    if (!isEdit && !canCreateTask) return DEFAULT_PERMISSION_DENIED_MESSAGE;
+    if (assigneeLoadError) return assigneeLoadError;
+    if (form.assignedTeamId && !assigneeLoading && assignees.length === 0) return "No active team members are available for assignment on the selected team.";
     return null;
-  }, [assignees.length, canAssignTask, canManageTasks, form.projectId, isEdit]);
+  }, [assigneeLoadError, assigneeLoading, assignees.length, canCreateTask, canEditTask, form.assignedTeamId, form.projectId, isEdit]);
 
   async function handleSubmit() {
     if (!canSubmitTask) {
@@ -228,9 +262,10 @@ export function TaskFormPage() {
         setMessage("Task created successfully.");
       }
 
-      setTimeout(() => navigate("/app/tasks", { replace: true }), 500);
+      await invalidateWorkflowQueries(queryClient, ["tasks"]);
+      setTimeout(() => navigate(tenantRoutes.tasks(), { replace: true }), 500);
     } catch (err: unknown) {
-      setMessage(getErrorMessage(err, "Unable to save task right now."));
+      setMessage(getErrorMessage(err, "Unable to save task. Please verify the selected project, team, and assignee belong to your team."));
     } finally {
       setSubmitting(false);
     }
@@ -242,7 +277,7 @@ export function TaskFormPage() {
         title={title}
         description="Define task scope, owner, and due dates for smoother team execution."
         actions={(
-          <Button variant="ghost" onClick={() => navigate("/app/tasks")}>
+          <Button variant="ghost" onClick={() => navigate(tenantRoutes.tasks())}>
             <ArrowLeft size={16} />
             Back to Tasks
           </Button>
@@ -282,6 +317,7 @@ export function TaskFormPage() {
             assignees={assignees}
             projects={projects}
             submitting={submitting}
+            assigneeLoading={assigneeLoading}
             submitDisabled={!canSubmitTask}
             submitLabel={isEdit ? "Save Task" : "Create Task"}
             onChange={(next) => {
@@ -289,12 +325,23 @@ export function TaskFormPage() {
               if (Object.keys(errors).length) setErrors({});
             }}
             onSubmit={handleSubmit}
-            onCancel={() => navigate("/app/tasks")}
+            onCancel={() => navigate(tenantRoutes.tasks())}
           />
         </SectionCard>
       )}
     </div>
   );
+}
+
+function toAssigneeOption(member: AssignableTeamMember): Option {
+  const label = member.fullName?.trim() || member.email?.trim() || member.employeeId;
+  const designation = member.designation?.trim();
+  return {
+    id: member.employeeId,
+    label,
+    subtitle: designation || undefined,
+    avatarUrl: member.avatarUrl || member.avatar,
+  };
 }
 
 function isClosedProject(project: Project): boolean {

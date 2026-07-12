@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
+import { invalidateWorkflowQueries } from "@/hooks/queries/workflowInvalidation";
 import { useAuth } from "@/hooks/useAuth";
 import { createLeaveRequest, getLeaveRequestById, updateLeaveRequest } from "@/modules/leave/services/leaveService";
 import { DEFAULT_LEAVE_FORM, validateLeaveForm } from "@/modules/leave/schemas/leaveForm";
@@ -12,9 +14,11 @@ import { Button} from "@/components/common/Button";
 import { ErrorBanner } from "@/components/common/AppUI";
 import type { LeaveFormErrors, LeaveFormValues } from "@/modules/leave/types";
 import { getErrorMessage } from "@/utils/errorHandler";
+import { tenantRoutes } from "@/utils/tenantRoutes";
 
 export function LeaveFormPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { id } = useParams<{ id?: string }>();
   const isEdit = Boolean(id);
   const { user } = useAuth();
@@ -99,7 +103,8 @@ export function LeaveFormPage() {
         });
         setMessage("Leave request submitted successfully.");
       }
-      setTimeout(() => navigate("/app/leave", { replace: true }), 500);
+      await invalidateWorkflowQueries(queryClient, ["leave"]);
+      setTimeout(() => navigate(tenantRoutes.leave(), { replace: true }), 500);
     } catch (error: unknown) {
       setMessage(getErrorMessage(error, "Unable to save leave request."));
     } finally {
@@ -113,7 +118,7 @@ export function LeaveFormPage() {
         title={title}
         description="Submit leave details for manager review and scheduling."
         actions={(
-          <Button variant="ghost" onClick={() => navigate("/app/leave")}>
+          <Button variant="ghost" onClick={() => navigate(tenantRoutes.leave())}>
             <ArrowLeft size={16} />
             Back to Leave
           </Button>
@@ -153,7 +158,7 @@ export function LeaveFormPage() {
               if (Object.keys(errors).length) setErrors({});
             }}
             onSubmit={handleSubmit}
-            onCancel={() => navigate("/app/leave")}
+            onCancel={() => navigate(tenantRoutes.leave())}
           />
         </SectionCard>
       )}

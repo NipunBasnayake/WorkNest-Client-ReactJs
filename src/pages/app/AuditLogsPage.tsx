@@ -29,6 +29,7 @@ const ACTION_OPTIONS: AuditActionType[] = [
   "SCHEDULE",
   "SUBMIT_FEEDBACK",
   "LOGIN",
+  "CANDIDATE_APPLIED",
 ];
 
 const ENTITY_OPTIONS: AuditEntityType[] = [

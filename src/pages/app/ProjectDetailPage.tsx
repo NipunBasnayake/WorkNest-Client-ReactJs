@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useParams } from "react-router-dom";
 import { ArrowLeft, Calendar, ClipboardList, Layers3 } from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
+import { invalidateWorkflowQueries } from "@/hooks/queries/workflowInvalidation";
 import { useAuth } from "@/hooks/useAuth";
 import { PERMISSIONS } from "@/constants/permissions";
 import { usePermission } from "@/hooks/usePermission";
@@ -26,6 +28,7 @@ import type { Project } from "@/modules/projects/types";
 import type { Team } from "@/modules/teams/types";
 import type { Task } from "@/modules/tasks/types";
 import { getErrorMessage } from "@/utils/errorHandler";
+import { tenantRoutes } from "@/utils/tenantRoutes";
 
 interface ViewerContext {
   employeeId?: string;
@@ -34,6 +37,7 @@ interface ViewerContext {
 
 export function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const queryClient = useQueryClient();
   const { role, user } = useAuth();
   const { hasPermission } = usePermission();
   usePageMeta({ title: "Project Details", breadcrumb: ["Workspace", "Projects", "Details"] });
@@ -172,6 +176,7 @@ export function ProjectDetailPage() {
     try {
       await assignTeamToProject(id, teamToAssign);
       await refreshProject();
+      await invalidateWorkflowQueries(queryClient, ["projects", "teams"]);
       setTeamToAssign("");
       setMessage("Team assigned to project.");
     } catch (err: unknown) {
@@ -188,6 +193,7 @@ export function ProjectDetailPage() {
     try {
       await removeTeamFromProject(id, removeTeamTarget.id);
       await refreshProject();
+      await invalidateWorkflowQueries(queryClient, ["projects", "teams"]);
       setMessage("Team removed from project.");
       setRemoveTeamTarget(null);
     } catch (err: unknown) {
@@ -204,6 +210,7 @@ export function ProjectDetailPage() {
     try {
       const updated = await updateProjectStatus(id, "active");
       setProject(updated);
+      await invalidateWorkflowQueries(queryClient, ["projects", "tasks"]);
       setMessage("Project reopened. Editing, team assignment, and task creation are available again.");
     } catch (err: unknown) {
       setMessage(getErrorMessage(err, "Unable to reopen project."));
@@ -215,11 +222,11 @@ export function ProjectDetailPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-2">
-        <Button variant="ghost" to="/app/projects">
+        <Button variant="ghost" to={tenantRoutes.projects()}>
           <ArrowLeft size={16} />
           Back
         </Button>
-        {project && canEditProject && !isProjectClosed && <Button variant="outline" to={`/app/projects/${project.id}/edit`}>Edit Project</Button>}
+        {project && canEditProject && !isProjectClosed && <Button variant="outline" to={tenantRoutes.projectEdit(project.id)}>Edit Project</Button>}
         {project && canManageProjects && isProjectClosed && (
           <Button variant="outline" loading={reopeningProject} loadingLabel="Reopening project" onClick={() => void handleReopenProject()}>
             Reopen Project
@@ -265,7 +272,7 @@ export function ProjectDetailPage() {
           icon={<ClipboardList size={28} />}
           title="Project not found"
           description="The requested project does not exist."
-          action={<Button variant="outline" to="/app/projects">Go to Projects</Button>}
+          action={<Button variant="outline" to={tenantRoutes.projects()}>Go to Projects</Button>}
         />
       )}
 
@@ -335,11 +342,11 @@ export function ProjectDetailPage() {
             subtitle="Execution breakdown linked to this project."
             action={(
               <div className="flex flex-wrap gap-2">
-                <Button size="sm" variant="outline" to="/app/tasks">
+                <Button size="sm" variant="outline" to={tenantRoutes.tasks()}>
                   Open Tasks
                 </Button>
                 {!isProjectClosed && (hasPermission(PERMISSIONS.TASKS_MANAGE) || canAssignProjectTasks) && (
-                  <Button size="sm" variant="primary" to={`/app/tasks/new?projectId=${project.id}`}>
+                  <Button size="sm" variant="primary" to={`${tenantRoutes.taskCreate()}?projectId=${project.id}`}>
                     Create Task
                   </Button>
                 )}
@@ -377,7 +384,7 @@ export function ProjectDetailPage() {
                         {toReadableLabel(task.status)} - {toReadableLabel(task.priority)}
                       </p>
                     </div>
-                    <Button size="sm" variant="ghost" to={`/app/tasks/${task.id}`}>
+                    <Button size="sm" variant="ghost" to={tenantRoutes.taskDetail(task.id)}>
                       View
                     </Button>
                   </div>
@@ -431,7 +438,7 @@ export function ProjectDetailPage() {
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Button size="sm" variant="ghost" to={`/app/teams/${team.id}`}>
+                      <Button size="sm" variant="ghost" to={tenantRoutes.teamDetail(team.id)}>
                         View Team
                       </Button>
                       {canMutateProject && (
