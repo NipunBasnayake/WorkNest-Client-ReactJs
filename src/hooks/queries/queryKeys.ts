@@ -1,6 +1,7 @@
 export const queryKeys = {
   tenantDashboard: () => ["tenant-dashboard"] as const,
   tenantAnalytics: () => ["tenant-analytics"] as const,
+  businessIntelligence: () => ["business-intelligence"] as const,
   platformAnalytics: () => ["platform-analytics"] as const,
   platformDashboard: () => ["platform-dashboard"] as const,
   platformTenants: () => ["platform-tenants"] as const,

@@ -21,6 +21,31 @@ export interface AnalyticsFilters {
   teamId: string;
   employeeId: string;
   status: string;
+  recruitmentStatus: string;
+  attendancePeriod: string;
+  leaveType: string;
+}
+
+export interface BiMetric {
+  key: string; label: string; value: number; unit: string; changePercent: number | null; tone: string; context: string;
+}
+export interface BiChartPoint { label: string; value: number; secondaryValue: number | null; tertiaryValue: number | null; id: string | null; }
+export interface BiInsight { id: string; severity: 'positive' | 'info' | 'warning' | 'critical'; title: string; description: string; route?: string; }
+export interface BiRisk { id: string; severity: 'warning' | 'critical'; title: string; description: string; count: number; route: string; }
+export interface BiActivity { id: string; actor: string; action: string; entityType: string; occurredAt: string; }
+export interface BusinessIntelligenceData {
+  generatedAt: string;
+  range: { fromDate: string; toDate: string };
+  kpis: BiMetric[];
+  charts: Record<string, BiChartPoint[]>;
+  insights: BiInsight[];
+  risks: BiRisk[];
+  recentActivities: BiActivity[];
+  filterOptions: AnalyticsFilterOptions & {
+    taskStatuses: AnalyticsFilterOption[];
+    recruitmentStatuses: AnalyticsFilterOption[];
+    leaveTypes: AnalyticsFilterOption[];
+  };
 }
 
 export interface AnalyticsFilterOption { value: string; label: string; }

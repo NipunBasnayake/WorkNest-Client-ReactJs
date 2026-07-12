@@ -27,6 +27,7 @@ import type {
   ProgressDatum,
   TenantAnalyticsData,
   TenantDashboardSnapshot,
+  BusinessIntelligenceData,
 } from "@/modules/analytics/types";
 import type { ApiResponse } from "@/types";
 import type { AttendanceRecord } from "@/modules/attendance/types";
@@ -622,7 +623,7 @@ export async function getTenantAnalyticsData(filters?: AnalyticsFilters): Promis
   const role = normalizeAppRole(useAuthStore.getState().user?.role);
   const canWorkforce = role === 'TENANT_ADMIN' || role === 'HR';
   const canWork = role === 'TENANT_ADMIN' || role === 'MANAGER';
-  const range = filters ?? { fromDate: '', toDate: '', department: '', projectId: '', teamId: '', employeeId: '', status: '' };
+  const range = filters ?? { fromDate: '', toDate: '', department: '', projectId: '', teamId: '', employeeId: '', status: '', recruitmentStatus: '', attendancePeriod: 'daily', leaveType: '' };
   const snapshotPromise = getTenantDashboardSnapshot();
   const safePayload = (endpoint: string, params?: Record<string, string>) => fetchTenantAnalyticsPayload(endpoint, params).catch(() => []);
   const [snapshot, tasksRaw, leavesRaw, employees, teams, projects] = await Promise.all([
@@ -704,6 +705,21 @@ export async function getTenantAnalyticsData(filters?: AnalyticsFilters): Promis
     insights,
     generatedAt: new Date().toISOString(),
   };
+}
+
+export async function getBusinessIntelligenceReport(filters: AnalyticsFilters): Promise<BusinessIntelligenceData> {
+  const params: Record<string, string> = {};
+  const mapping: Array<[string, string]> = [
+    ['fromDate', filters.fromDate], ['toDate', filters.toDate], ['department', filters.department],
+    ['projectId', filters.projectId], ['teamId', filters.teamId], ['employeeId', filters.employeeId],
+    ['taskStatus', filters.status], ['recruitmentStatus', filters.recruitmentStatus], ['leaveType', filters.leaveType],
+    ['attendancePeriod', filters.attendancePeriod],
+  ];
+  mapping.forEach(([key, value]) => { if (value) params[key] = value; });
+  const { data } = await apiClient.get<ApiResponse<BusinessIntelligenceData> | BusinessIntelligenceData>(
+    '/api/tenant/analytics/business-intelligence', { params },
+  );
+  return unwrapApiData(data);
 }
 
 export async function getPlatformAnalyticsData(): Promise<PlatformAnalyticsData> {
