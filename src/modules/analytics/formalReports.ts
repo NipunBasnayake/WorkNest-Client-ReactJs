@@ -16,7 +16,8 @@ import { asRecord, firstDefined, getNumber, getString } from '@/services/http/pa
 export type FormalReportId = 'employees' | 'attendance' | 'leave' | 'projects' | 'tasks' | 'recruitment' | 'teams' | 'audit' | 'notifications' | 'organization' | 'system-health' | 'departments' | 'new-joiners' | 'employee-status' | 'interviews' | 'project-progress' | 'workload';
 export interface FormalReportDefinition { id: FormalReportId; title: string; description: string; group: string; }
 export interface FormalReportColumn { key: string; label: string; align?: 'left' | 'right'; }
-export interface FormalReportData { title: string; description: string; columns: FormalReportColumn[]; rows: Array<Record<string, ReportCell>>; summary: Array<{ label: string; value: string | number }>; generatedAt: string; }
+export interface FormalReportSupportingChart { title: string; subtitle: string; variant: 'bar' | 'horizontalBar' | 'donut' | 'pie'; data: Array<{ label: string; value: number; secondaryValue: null; tertiaryValue: null; id: null }>; }
+export interface FormalReportData { title: string; description: string; columns: FormalReportColumn[]; rows: Array<Record<string, ReportCell>>; summary: Array<{ label: string; value: string | number }>; supportingCharts: FormalReportSupportingChart[]; generatedAt: string; }
 
 const definitions: Record<FormalReportId, FormalReportDefinition> = {
   employees: { id: 'employees', title: 'Employee Report', description: 'Auditable employee directory, role, department, status, and joining information.', group: 'People' },
@@ -111,8 +112,7 @@ export async function loadFormalReport(id: FormalReportId, filters: AnalyticsFil
     rows = items.map((item) => ({ name: item.label, value: id === 'project-progress' ? `${item.value}%` : item.value }));
   }
   rows = applyStructuredFilters(rows, filters);
-  const statusValues = new Set(rows.map((item) => String(item.status ?? item.stage ?? '')));
-  return { title: definition.title, description: definition.description, columns, rows, summary: [{ label: 'Matching records', value: rows.length }, { label: 'Columns', value: columns.length }, { label: 'Distinct statuses', value: [...statusValues].filter(Boolean).length }, { label: 'Reporting period', value: `${filters.fromDate} – ${filters.toDate}` }], generatedAt: new Date().toISOString() };
+  return { title: definition.title, description: definition.description, columns, rows, summary: buildSummary(id, rows), supportingCharts: buildSupportingCharts(id, rows), generatedAt: new Date().toISOString() };
 }
 
 function applyStructuredFilters(rows: Array<Record<string, ReportCell>>, filters: AnalyticsFilters) {
@@ -131,3 +131,52 @@ function applyStructuredFilters(rows: Array<Record<string, ReportCell>>, filters
 export function reportToDataset(report: FormalReportData, rows = report.rows) {
   return { title: report.title, headers: report.columns.map((column) => column.label), rows: rows.map((row) => report.columns.map((column) => row[column.key])) };
 }
+
+function buildSummary(id: FormalReportId, rows: Array<Record<string, ReportCell>>): Array<{ label: string; value: string | number }> {
+  const status = (value: string) => rows.filter((row) => String(row.status ?? row.stage ?? '').toUpperCase() === value).length;
+  const distinct = (key: string) => new Set(rows.map((row) => String(row[key] ?? '')).filter(Boolean)).size;
+  const sum = (key: string) => rows.reduce((total, row) => total + (Number(row[key]) || 0), 0);
+  const avg = (key: string) => rows.length ? Math.round(sum(key) * 10 / rows.length) / 10 : 0;
+  if (['employees', 'new-joiners', 'employee-status'].includes(id)) return [{ label: 'Total employees', value: rows.length }, { label: 'Active', value: status('ACTIVE') }, { label: 'Inactive', value: status('INACTIVE') }, { label: 'Departments', value: distinct('department') }];
+  if (id === 'attendance') return [{ label: 'Present', value: status('PRESENT') }, { label: 'Late', value: rows.filter((row) => row.late === 'Yes').length }, { label: 'Absent', value: status('ABSENT') }, { label: 'Average minutes', value: avg('worked') }];
+  if (id === 'leave') return [{ label: 'Pending', value: status('PENDING') }, { label: 'Approved', value: status('APPROVED') }, { label: 'Rejected', value: status('REJECTED') }, { label: 'Cancelled', value: status('CANCELLED') }];
+  if (id === 'projects') return [{ label: 'Projects', value: rows.length }, { label: 'Active', value: status('IN_PROGRESS') }, { label: 'Completed', value: status('COMPLETED') }, { label: 'On hold', value: status('ON_HOLD') }];
+  if (id === 'tasks') return [{ label: 'Completed', value: status('DONE') }, { label: 'Overdue', value: rows.filter((row) => String(row.recordDate ?? '') < new Date().toISOString().slice(0, 10) && row.status !== 'DONE').length }, { label: 'Blocked', value: status('BLOCKED') }, { label: 'High priority', value: rows.filter((row) => ['HIGH', 'CRITICAL'].includes(String(row.priority))).length }];
+  if (id === 'recruitment') return [{ label: 'Applications', value: rows.length }, { label: 'Interviews', value: status('INTERVIEW') }, { label: 'Offers', value: status('OFFERED') }, { label: 'Hired', value: status('HIRED') }];
+  if (id === 'interviews') return [{ label: 'Interviews', value: rows.length }, { label: 'Scheduled', value: status('SCHEDULED') }, { label: 'Completed', value: status('COMPLETED') }, { label: 'Cancelled', value: status('CANCELLED') }];
+  if (id === 'teams') return [{ label: 'Teams', value: rows.length }, { label: 'Members', value: sum('members') }, { label: 'Average team size', value: avg('members') }, { label: 'Managed teams', value: rows.filter((row) => row.manager !== '—').length }];
+  if (id === 'audit') return [{ label: 'Audit events', value: rows.length }, { label: 'Creates', value: rows.filter((row) => row.action === 'CREATE').length }, { label: 'Updates', value: rows.filter((row) => row.action === 'UPDATE').length }, { label: 'Actors', value: distinct('actor') }];
+  if (id === 'notifications') return [{ label: 'Notifications', value: rows.length }, { label: 'Unread', value: status('UNREAD') }, { label: 'Read', value: status('READ') }, { label: 'Types', value: distinct('type') }];
+  if (id === 'departments') return [{ label: 'Departments', value: rows.length }, { label: 'Employees', value: sum('employees') }, { label: 'Largest department', value: String(rows.reduce<Record<string, ReportCell>>((best, row) => Number(row.employees) > Number(best.employees ?? 0) ? row : best, {}).department ?? '—') }, { label: 'Average size', value: avg('employees') }];
+  if (id === 'project-progress') return [{ label: 'Projects', value: rows.length }, { label: 'Average completion', value: `${Math.round(rows.reduce((total, row) => total + Number(String(row.value).replace('%', '')), 0) / Math.max(1, rows.length))}%` }, { label: 'At risk', value: rows.filter((row) => Number(String(row.value).replace('%', '')) < 50).length }, { label: 'Healthy', value: rows.filter((row) => Number(String(row.value).replace('%', '')) >= 75).length }];
+  if (id === 'workload') return [{ label: 'Employees', value: rows.length }, { label: 'Assignments', value: sum('value') }, { label: 'Average workload', value: avg('value') }, { label: 'Highest workload', value: Math.max(0, ...rows.map((row) => Number(row.value) || 0)) }];
+  if (id === 'system-health') return [{ label: 'Risk signals', value: rows.length }, { label: 'Critical', value: rows.filter((row) => row.severity === 'CRITICAL').length }, { label: 'Warnings', value: rows.filter((row) => row.severity === 'WARNING').length }, { label: 'Total affected', value: sum('count') }];
+  return rows.slice(0, 4).map((row) => ({ label: String(row.indicator ?? 'Indicator'), value: String(row.value ?? '—') }));
+}
+
+function buildSupportingCharts(id: FormalReportId, rows: Array<Record<string, ReportCell>>): FormalReportSupportingChart[] {
+  const group = (key: string) => {
+    const counts = new Map<string, number>();
+    rows.forEach((row) => { const label = String(row[key] ?? 'Unspecified'); counts.set(label, (counts.get(label) ?? 0) + 1); });
+    return [...counts.entries()].map(([label, value]) => ({ label, value, secondaryValue: null, tertiaryValue: null, id: null })).sort((a, b) => b.value - a.value).slice(0, 10);
+  };
+  const direct = (labelKey: string, valueKey: string) => rows.map((row) => ({ label: String(row[labelKey] ?? 'Unspecified'), value: Number(String(row[valueKey] ?? 0).replace(/[^0-9.-]/g, '')) || 0, secondaryValue: null, tertiaryValue: null, id: null })).sort((a, b) => b.value - a.value).slice(0, 10);
+  if (['employees', 'new-joiners', 'employee-status'].includes(id)) return [chart('Department distribution', 'Employees by department', 'donut', group('department')), chart('Employee status', 'Active and inactive workforce', 'bar', group('status'))];
+  if (id === 'attendance') return [chart('Attendance status', 'Daily status distribution', 'donut', group('status')), chart('Late arrivals', 'On-time compared with late records', 'bar', group('late'))];
+  if (id === 'leave') return [chart('Leave utilization', 'Requests by leave type', 'donut', group('type')), chart('Decision status', 'Approval workflow outcomes', 'bar', group('status'))];
+  if (id === 'projects') return [chart('Project status', 'Portfolio by delivery status', 'donut', group('status'))];
+  if (id === 'tasks') return [chart('Task status', 'Work by workflow state', 'donut', group('status')), chart('Priority distribution', 'Tasks by urgency', 'bar', group('priority'))];
+  if (id === 'recruitment') return [chart('Recruitment pipeline', 'Applications by stage', 'horizontalBar', group('stage')), chart('Applications by department', 'Talent demand by function', 'bar', group('department'))];
+  if (id === 'interviews') return [chart('Interview status', 'Scheduled interview outcomes', 'donut', group('status')), chart('Interview mode', 'Interview delivery channels', 'bar', group('mode'))];
+  if (id === 'teams') return [chart('Members per team', 'Active team size comparison', 'horizontalBar', direct('name', 'members'))];
+  if (id === 'audit') return [chart('Audit actions', 'Events by action type', 'bar', group('action')), chart('Audited entities', 'Events by entity type', 'horizontalBar', group('entity'))];
+  if (id === 'notifications') return [chart('Read status', 'Read compared with unread', 'donut', group('status')), chart('Notification types', 'Messages by notification type', 'bar', group('type'))];
+  if (id === 'departments') return [chart('Department workforce', 'Employees per department', 'horizontalBar', direct('department', 'employees'))];
+  if (id === 'project-progress') return [chart('Project completion', 'Completion percentage by project', 'horizontalBar', direct('name', 'value'))];
+  if (id === 'workload') return [chart('Resource workload', 'Assignments by employee', 'horizontalBar', direct('name', 'value'))];
+  if (id === 'system-health') return [chart('Risk severity', 'Operational risks by severity', 'donut', group('severity'))];
+  if (id === 'organization') return [chart('Organization indicators', 'Selected executive KPI statement', 'bar', direct('indicator', 'value'))];
+  return [];
+}
+
+function chart(title: string, subtitle: string, variant: FormalReportSupportingChart['variant'], data: FormalReportSupportingChart['data']): FormalReportSupportingChart { return { title, subtitle, variant, data }; }
