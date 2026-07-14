@@ -19,6 +19,8 @@ import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { InlineAlert } from "@/components/common/InlineAlert";
 import { SearchField } from "@/components/common/SearchField";
 import { EmptyState, ErrorBanner, SkeletonRow } from "@/components/common/AppUI";
+import { Pagination } from "@/components/common/Pagination";
+import { useClientPagination } from "@/hooks/useClientPagination";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { tenantRoutes } from "@/utils/tenantRoutes";
 
@@ -93,6 +95,10 @@ export function LeavePage() {
       return matchesQuery && matchesStatus && matchesType;
     });
   }, [leaveRequests, search, statusFilter, typeFilter]);
+  const leavePagination = useClientPagination(filtered, {
+    storageKey: "leave-requests",
+    resetKey: `${search}|${statusFilter}|${typeFilter}`,
+  });
 
   function isOwner(item: LeaveRequest): boolean {
     if (!user) return false;
@@ -213,7 +219,7 @@ export function LeavePage() {
         {!loading && filtered.length > 0 && (
           <>
             <div className="hidden min-w-[1040px] md:block">
-              {filtered.map((item) => {
+              {leavePagination.paginatedItems.map((item) => {
                 const owner = isOwner(item);
                 const canEdit = canApplyLeave && owner && item.status === "PENDING";
                 const canCancel = canApplyLeave && owner && item.status === "PENDING";
@@ -295,7 +301,7 @@ export function LeavePage() {
             </div>
 
             <div className="space-y-3 p-4 md:hidden">
-              {filtered.map((item) => {
+              {leavePagination.paginatedItems.map((item) => {
                 const owner = isOwner(item);
                 const canEdit = canApplyLeave && owner && item.status === "PENDING";
                 const canCancel = canApplyLeave && owner && item.status === "PENDING";
@@ -337,6 +343,15 @@ export function LeavePage() {
           </>
         )}
         </div>
+        {!loading && !error && filtered.length > 0 && (
+          <Pagination
+            currentPage={leavePagination.currentPage}
+            totalItems={filtered.length}
+            pageSize={leavePagination.pageSize}
+            onPageChange={leavePagination.setCurrentPage}
+            onPageSizeChange={leavePagination.setPageSize}
+          />
+        )}
       </SectionCard>
 
       <ConfirmDialog

@@ -13,6 +13,8 @@ import { formatRelativeTime } from "@/utils/formatting";
 import { PlatformStatusBadge } from "@/modules/platform/components/PlatformStatusBadge";
 import { platformStatusLabel } from "@/modules/platform/status";
 import { TenantActionsMenu } from "@/modules/platform/components/TenantActionsMenu";
+import { Pagination } from "@/components/common/Pagination";
+import { useClientPagination } from "@/hooks/useClientPagination";
 
 export function PlatformTenantsPage() {
   usePageMeta({ title: "Tenant Management", breadcrumb: ["Platform", "Tenants"] });
@@ -37,6 +39,10 @@ export function PlatformTenantsPage() {
       return matchesStatus && matchesSearch;
     });
   }, [search, statusFilter, tenants]);
+  const tenantPagination = useClientPagination(filtered, {
+    storageKey: "platform-tenants",
+    resetKey: `${search}|${statusFilter}`,
+  });
 
   const attentionCount = (statusCounts.SUSPENDED ?? 0) + (statusCounts.INACTIVE ?? 0) + (statusCounts.PROVISIONING ?? 0);
 
@@ -78,7 +84,7 @@ export function PlatformTenantsPage() {
             </thead>
             <tbody>
               {isLoading ? <tr><td colSpan={6}>{Array.from({ length: 6 }).map((_, index) => <SkeletonRow key={index} cols={6} />)}</td></tr> : null}
-              {!isLoading && !errorMessage ? filtered.map((tenant) => (
+              {!isLoading && !errorMessage ? tenantPagination.paginatedItems.map((tenant) => (
                 <tr key={tenant.tenantKey ?? tenant.id} className="border-b transition-colors hover:bg-primary-50/30 dark:hover:bg-primary-950/10" style={{ borderColor: "var(--border-default)" }}>
                   <td className="px-5 py-4">
                     <div className="flex items-center gap-3">
@@ -112,7 +118,16 @@ export function PlatformTenantsPage() {
         {!isLoading && !errorMessage && filtered.length === 0 ? (
           <EmptyState icon={<Building2 size={28} />} title={search || statusFilter !== "ALL" ? "No matching tenants" : "No tenants yet"} description={search || statusFilter !== "ALL" ? "Adjust the search or lifecycle filter." : "Registered tenant workspaces will appear here."} />
         ) : null}
-        {!isLoading && !errorMessage && filtered.length > 0 ? <div className="border-t px-5 py-3 text-xs" style={{ borderColor: "var(--border-default)", color: "var(--text-tertiary)" }}>Showing {filtered.length} of {tenants.length} companies</div> : null}
+        {!isLoading && !errorMessage && filtered.length > 0 ? (
+          <Pagination
+            currentPage={tenantPagination.currentPage}
+            totalItems={filtered.length}
+            pageSize={tenantPagination.pageSize}
+            onPageChange={tenantPagination.setCurrentPage}
+            onPageSizeChange={tenantPagination.setPageSize}
+            itemLabel="companies"
+          />
+        ) : null}
       </SectionCard>
     </div>
   );

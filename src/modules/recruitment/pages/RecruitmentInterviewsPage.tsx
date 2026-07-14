@@ -15,6 +15,8 @@ import { useRecruitmentApplicationsQuery, useRecruitmentInterviewsQuery } from "
 import { scheduleInterview } from "@/modules/recruitment/services/recruitmentService";
 import type { RecruitmentInterviewFormValues } from "@/modules/recruitment/types";
 import { getErrorMessage } from "@/utils/errorHandler";
+import { Pagination } from "@/components/common/Pagination";
+import { useClientPagination } from "@/hooks/useClientPagination";
 
 const EMPTY_FORM: RecruitmentInterviewFormValues = {
   applicationId: "",
@@ -36,6 +38,11 @@ export function RecruitmentInterviewsPage() {
   const [form, setForm] = useState<RecruitmentInterviewFormValues>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const interviews = interviewsQuery.data ?? [];
+  const interviewPagination = useClientPagination(interviews, {
+    storageKey: "recruitment-interviews",
+    resetKey: interviews.map((interview) => interview.id).join(","),
+  });
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -105,11 +112,12 @@ export function RecruitmentInterviewsPage() {
             <ErrorBanner message="Failed to load interviews." onRetry={() => void interviewsQuery.refetch()} />
           ) : interviewsQuery.isLoading ? (
             <div>{Array.from({ length: 5 }).map((_, index) => <SkeletonRow key={index} cols={4} />)}</div>
-          ) : interviewsQuery.data?.length === 0 ? (
+          ) : interviews.length === 0 ? (
             <EmptyState title="No interviews scheduled" description="Schedule the first interview to coordinate the hiring process." />
           ) : (
+            <>
             <div className="divide-y" style={{ borderColor: "var(--border-default)" }}>
-              {(interviewsQuery.data ?? []).map((interview) => (
+              {interviewPagination.paginatedItems.map((interview) => (
                 <div key={interview.id} className="px-5 py-4">
                   <div className="flex items-center justify-between gap-3">
                     <div>
@@ -124,6 +132,15 @@ export function RecruitmentInterviewsPage() {
                 </div>
               ))}
             </div>
+            <Pagination
+              currentPage={interviewPagination.currentPage}
+              totalItems={interviews.length}
+              pageSize={interviewPagination.pageSize}
+              onPageChange={interviewPagination.setCurrentPage}
+              onPageSizeChange={interviewPagination.setPageSize}
+              itemLabel="interviews"
+            />
+            </>
           )}
         </SectionCard>
       </div>

@@ -23,6 +23,8 @@ import { RecruitmentStatusBadge } from "@/modules/recruitment/components/Recruit
 import { createJobPosition, deleteJobPosition, updateJobPosition } from "@/modules/recruitment/services/recruitmentService";
 import type { RecruitmentJobFormValues, RecruitmentJobPosition } from "@/modules/recruitment/types";
 import { getErrorMessage } from "@/utils/errorHandler";
+import { Pagination } from "@/components/common/Pagination";
+import { useClientPagination } from "@/hooks/useClientPagination";
 
 const EMPTY_FORM: RecruitmentJobFormValues = {
   title: "",
@@ -52,6 +54,10 @@ export function RecruitmentJobsPage() {
   const [deleteTarget, setDeleteTarget] = useState<RecruitmentJobPosition | null>(null);
 
   const jobs = jobsQuery.data?.items ?? [];
+  const jobPagination = useClientPagination(jobs, {
+    storageKey: "recruitment-jobs",
+    resetKey: jobs.map((job) => job.id).join(","),
+  });
   const selectedJob = useMemo(() => jobs.find((job) => job.id === editingJobId) ?? null, [editingJobId, jobs]);
 
   useEffect(() => {
@@ -251,8 +257,9 @@ export function RecruitmentJobsPage() {
           ) : jobs.length === 0 ? (
             <EmptyState title="No job openings" description="Create the first job opening to start building the pipeline." />
           ) : (
+            <>
             <div className="divide-y" style={{ borderColor: "var(--border-default)" }}>
-              {jobs.map((job) => {
+              {jobPagination.paginatedItems.map((job) => {
                 const vacancyUrl = tenantSlug && job.slug && isShareableJob(job) ? buildVacancyUrl(tenantSlug, job.slug) : null;
                 return (
                   <div key={job.id} className="flex flex-col gap-3 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
@@ -326,6 +333,15 @@ export function RecruitmentJobsPage() {
                 );
               })}
             </div>
+            <Pagination
+              currentPage={jobPagination.currentPage}
+              totalItems={jobs.length}
+              pageSize={jobPagination.pageSize}
+              onPageChange={jobPagination.setCurrentPage}
+              onPageSizeChange={jobPagination.setPageSize}
+              itemLabel="jobs"
+            />
+            </>
           )}
         </SectionCard>
       </div>

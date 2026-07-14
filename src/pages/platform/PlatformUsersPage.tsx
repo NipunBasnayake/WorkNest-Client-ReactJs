@@ -10,6 +10,8 @@ import { SectionCard } from "@/components/common/SectionCard";
 import { SkeletonRow, StatCard } from "@/components/common/AppUI";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { formatDate, formatRelativeTime, toReadableLabel } from "@/utils/formatting";
+import { Pagination } from "@/components/common/Pagination";
+import { useClientPagination } from "@/hooks/useClientPagination";
 
 export function PlatformUsersPage() {
   usePageMeta({ title: "Platform Users", breadcrumb: ["Platform", "Users"] });
@@ -30,6 +32,10 @@ export function PlatformUsersPage() {
         && (!tenantFilter || user.tenantKey?.toLowerCase() === tenantFilter);
     });
   }, [role, search, status, tenantFilter, users]);
+  const userPagination = useClientPagination(filtered, {
+    storageKey: "platform-users",
+    resetKey: `${search}|${role}|${status}|${tenantFilter ?? ""}`,
+  });
 
   const roles = useMemo(() => [...new Set(users.map((user) => user.role))].sort(), [users]);
   const currentMonth = new Date().toISOString().slice(0, 7);
@@ -62,7 +68,7 @@ export function PlatformUsersPage() {
             </tr></thead>
             <tbody>
               {isLoading ? <tr><td colSpan={6}>{Array.from({ length: 6 }).map((_, index) => <SkeletonRow key={index} cols={6} />)}</td></tr> : null}
-              {!isLoading && !errorMessage ? filtered.map((user) => (
+              {!isLoading && !errorMessage ? userPagination.paginatedItems.map((user) => (
                 <tr key={user.id} className="border-b" style={{ borderColor: "var(--border-default)" }}>
                   <td className="px-5 py-4"><div className="flex items-center gap-3"><span className="grid h-9 w-9 place-items-center rounded-full bg-purple-500/10 text-xs font-bold text-purple-600">{initials(user.fullName)}</span><div className="min-w-0"><p className="truncate text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{user.fullName}</p><p className="truncate text-xs" style={{ color: "var(--text-tertiary)" }}>{user.email}</p></div></div></td>
                   <td className="px-4 py-4"><p className="max-w-48 truncate text-sm" style={{ color: "var(--text-primary)" }}>{user.companyName ?? "WorkNest Platform"}</p><p className="mt-0.5 font-mono text-xs" style={{ color: "var(--text-tertiary)" }}>{user.tenantKey ?? "platform"}</p></td>
@@ -76,7 +82,16 @@ export function PlatformUsersPage() {
           </table>
         </div>
         {!isLoading && !errorMessage && filtered.length === 0 ? <EmptyState icon={<Users size={28} />} title="No matching users" description="Adjust the search or filters to find a platform identity." /> : null}
-        {!isLoading && !errorMessage && filtered.length > 0 ? <div className="border-t px-5 py-3 text-xs" style={{ borderColor: "var(--border-default)", color: "var(--text-tertiary)" }}>Showing {filtered.length} of {users.length} identities</div> : null}
+        {!isLoading && !errorMessage && filtered.length > 0 ? (
+          <Pagination
+            currentPage={userPagination.currentPage}
+            totalItems={filtered.length}
+            pageSize={userPagination.pageSize}
+            onPageChange={userPagination.setCurrentPage}
+            onPageSizeChange={userPagination.setPageSize}
+            itemLabel="users"
+          />
+        ) : null}
       </SectionCard>
     </div>
   );

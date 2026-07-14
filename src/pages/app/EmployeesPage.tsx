@@ -19,6 +19,8 @@ import { StatusBadge } from "@/components/common/StatusBadge";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { InlineAlert } from "@/components/common/InlineAlert";
 import { SearchField } from "@/components/common/SearchField";
+import { Pagination } from "@/components/common/Pagination";
+import { useClientPagination } from "@/hooks/useClientPagination";
 import { toEmployeeViewModel } from "@/modules/employees/utils/employeeMapper";
 import type { EmployeeViewModel } from "@/modules/employees/types";
 import { getErrorMessage } from "@/utils/errorHandler";
@@ -101,6 +103,10 @@ export function EmployeesPage() {
       return matchesSearch && matchesDepartment && matchesStatus && matchesRole;
     });
   }, [departmentFilter, employees, roleFilter, search, statusFilter]);
+  const employeePagination = useClientPagination(filtered, {
+    storageKey: "employees",
+    resetKey: `${search}|${departmentFilter}|${statusFilter}|${roleFilter}`,
+  });
 
   async function handleStatusConfirm() {
     if (!statusTarget) return;
@@ -227,7 +233,7 @@ export function EmployeesPage() {
           {!loading && filtered.length > 0 && (
             <>
               <div className="hidden min-w-[1180px] md:block">
-                {filtered.map((emp) => {
+                {employeePagination.paginatedItems.map((emp) => {
                   const currentStatus = String(emp.status ?? "active").toLowerCase() === "inactive" ? "inactive" : "active";
                   const nextStatus = currentStatus === "active" ? "inactive" : "active";
                   const employeeRole = String(emp.role ?? "").toUpperCase();
@@ -298,7 +304,7 @@ export function EmployeesPage() {
               </div>
 
               <div className="space-y-3 p-4 md:hidden">
-                {filtered.map((emp) => {
+                {employeePagination.paginatedItems.map((emp) => {
                   const currentStatus = String(emp.status ?? "active").toLowerCase() === "inactive" ? "inactive" : "active";
                   const nextStatus = currentStatus === "active" ? "inactive" : "active";
                   const employeeRole = String(emp.role ?? "").toUpperCase();
@@ -358,6 +364,15 @@ export function EmployeesPage() {
             </>
           )}
         </div>
+        {!loading && !error && filtered.length > 0 && (
+          <Pagination
+            currentPage={employeePagination.currentPage}
+            totalItems={filtered.length}
+            pageSize={employeePagination.pageSize}
+            onPageChange={employeePagination.setCurrentPage}
+            onPageSizeChange={employeePagination.setPageSize}
+          />
+        )}
       </SectionCard>
 
       <ConfirmDialog

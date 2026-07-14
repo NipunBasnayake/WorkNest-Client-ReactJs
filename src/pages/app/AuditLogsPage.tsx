@@ -11,6 +11,8 @@ import { usePageMeta } from "@/hooks/usePageMeta";
 import { getEmployees } from "@/modules/employees/services/employeeService";
 import { getAuditLogs, type AuditActionType, type AuditEntityType, type AuditLogQuery } from "@/modules/audit/services/auditLogService";
 import { formatDateTime, toReadableLabel } from "@/utils/formatting";
+import { Pagination } from "@/components/common/Pagination";
+import { readPageSize, writePageSize } from "@/hooks/useClientPagination";
 
 const ACTION_OPTIONS: AuditActionType[] = [
   "CREATE",
@@ -52,12 +54,10 @@ const ENTITY_OPTIONS: AuditEntityType[] = [
   "NOTIFICATION",
 ];
 
-const PAGE_SIZE = 20;
-
 export function AuditLogsPage() {
   usePageMeta({ title: "Audit Logs", breadcrumb: ["Workspace", "Administration", "Audit Logs"] });
 
-  const [query, setQuery] = useState<AuditLogQuery>({ page: 0, size: PAGE_SIZE });
+  const [query, setQuery] = useState<AuditLogQuery>(() => ({ page: 0, size: readPageSize("audit-logs", 10) }));
   const [search, setSearch] = useState("");
 
   const auditQuery = useQuery({
@@ -96,7 +96,12 @@ export function AuditLogsPage() {
   }
 
   const page = auditQuery.data?.page ?? 0;
-  const totalPages = Math.max(auditQuery.data?.totalPages ?? 0, 1);
+  const pageSize = auditQuery.data?.size ?? query.size ?? 10;
+
+  function handlePageSizeChange(size: number) {
+    writePageSize("audit-logs", size);
+    setQuery((current) => ({ ...current, page: 0, size }));
+  }
 
   return (
     <div className="space-y-6">
@@ -179,19 +184,14 @@ export function AuditLogsPage() {
                 </tbody>
               </table>
             </div>
-            <div className="flex flex-col gap-3 border-t px-5 py-4 sm:flex-row sm:items-center sm:justify-between" style={{ borderColor: "var(--border-default)" }}>
-              <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-                Page {page + 1} of {totalPages}
-              </p>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" disabled={page <= 0} onClick={() => setQuery((current) => ({ ...current, page: Math.max((current.page ?? 0) - 1, 0) }))}>
-                  Previous
-                </Button>
-                <Button variant="outline" size="sm" disabled={page + 1 >= totalPages} onClick={() => setQuery((current) => ({ ...current, page: (current.page ?? 0) + 1 }))}>
-                  Next
-                </Button>
-              </div>
-            </div>
+            <Pagination
+              currentPage={page + 1}
+              totalItems={auditQuery.data?.totalElements ?? 0}
+              pageSize={pageSize}
+              onPageChange={(nextPage) => setQuery((current) => ({ ...current, page: nextPage - 1 }))}
+              onPageSizeChange={handlePageSizeChange}
+              itemLabel="audit events"
+            />
           </>
         )}
       </SectionCard>

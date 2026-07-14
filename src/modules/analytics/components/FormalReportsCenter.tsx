@@ -10,8 +10,6 @@ import {
   Building2,
   CalendarDays,
   CalendarOff,
-  ChevronLeft,
-  ChevronRight,
   FolderKanban,
   Gauge,
   ListChecks,
@@ -38,6 +36,8 @@ import { SectionCard } from '@/components/common/SectionCard';
 import { SearchField } from '@/components/common/SearchField';
 import { Button } from '@/components/common/Button';
 import { AppSelect } from '@/components/common/AppSelect';
+import { Pagination } from '@/components/common/Pagination';
+import { useClientPagination } from '@/hooks/useClientPagination';
 import { tenantRoutes } from '@/utils/tenantRoutes';
 
 const BiChartCard = lazy(() => import('@/modules/analytics/components/BiChartCard'));
@@ -98,8 +98,6 @@ function ReportDetail({ active, role }: { active: FormalReportDefinition; role: 
   const { filters, setFilter, reset } = useAnalyticsFilterStore();
   const [search, setSearch] = useState('');
   const deferredSearch = useDeferredValue(search.trim().toLowerCase());
-  const [page, setPage] = useState(0);
-  const [pageSize, setPageSize] = useState(20);
   const [sort, setSort] = useState<ReportSort | null>(null);
   const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
   const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(() => new Set());
@@ -114,15 +112,17 @@ function ReportDetail({ active, role }: { active: FormalReportDefinition; role: 
     if (!sort) return filtered;
     return [...filtered].sort((left, right) => compareCells(left[sort.key], right[sort.key]) * (sort.direction === 'asc' ? 1 : -1));
   }, [columnFilters, deferredSearch, query.data, sort]);
-  const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
-  const currentPage = Math.min(page, totalPages - 1);
-  const pageOffset = currentPage * pageSize;
-  const currentRows = rows.slice(pageOffset, pageOffset + pageSize);
+  const reportPagination = useClientPagination(rows, {
+    storageKey: `formal-report-${active.id}`,
+    resetKey: `${active.id}|${deferredSearch}|${JSON.stringify(columnFilters)}|${JSON.stringify(filters)}|${JSON.stringify(sort)}`,
+  });
+  const pageOffset = (reportPagination.currentPage - 1) * reportPagination.pageSize;
+  const currentRows = reportPagination.paginatedItems;
   return <main className='min-w-0 space-y-5 pb-8'>
     <PageHeader title={active.title} description={active.description} backButton={<Button to={tenantRoutes.reports()} variant='ghost' size='sm'><ArrowLeft size={15} />Back to reports</Button>} status={<span className='text-xs font-semibold text-emerald-600'>Governed · {roleLabel(role)} scope</span>} secondaryActions={<Button variant='outline' size='sm' onClick={() => void query.refetch()} loading={query.isFetching}><RefreshCw size={14} />Refresh</Button>} />
-    <ReportFilters filters={filters} setFilter={setFilter} onReset={() => { reset(); setSearch(''); setColumnFilters({}); setSort(null); setPage(0); }} />
+    <ReportFilters filters={filters} setFilter={setFilter} onReset={() => { reset(); setSearch(''); setColumnFilters({}); setSort(null); }} />
     {query.isLoading && <ReportLoading />}{query.isError && <ErrorState message='Unable to generate this formal report.' onRetry={() => void query.refetch()} />}
-    {query.data && <><ReportKpis report={query.data} /><ReportCharts report={query.data} /><SectionCard title='Search records' subtitle='Search across every displayed business column. Column-specific filters are available directly under the table headers.' variant='dense' className='print:hidden'><SearchField label='Search report records' value={search} onChange={(event) => { setSearch(event.target.value); setPage(0); }} onClear={() => { setSearch(''); setPage(0); }} placeholder='Search names, statuses, departments, identifiers…' /></SectionCard><AdvancedReportTable columns={query.data.columns} rows={rows} visibleKeys={new Set(query.data.columns.filter((column) => !hiddenColumns.has(column.key)).map((column) => column.key))} onToggleColumn={(key) => setHiddenColumns((current) => { const next = new Set(current); if (next.has(key)) next.delete(key); else next.add(key); return next; })} columnFilters={columnFilters} onColumnFilter={(key, value) => { setColumnFilters((current) => ({ ...current, [key]: value })); setPage(0); }} sort={sort} onSort={(key) => { setSort((current) => current?.key === key ? { key, direction: current.direction === 'asc' ? 'desc' : 'asc' } : { key, direction: 'asc' }); setPage(0); }} pageOffset={pageOffset} pageSize={pageSize} /><ReportSummary report={query.data} filteredCount={rows.length} visibleColumns={query.data.columns.length - hiddenColumns.size} /><ReportExports report={query.data} currentRows={currentRows} allRows={rows} /><ReportPagination page={currentPage} totalPages={totalPages} pageSize={pageSize} totalRows={rows.length} onPage={setPage} onPageSize={(size) => { setPageSize(size); setPage(0); }} /></>}
+    {query.data && <><ReportKpis report={query.data} /><ReportCharts report={query.data} /><SectionCard title='Search records' subtitle='Search across every displayed business column. Column-specific filters are available directly under the table headers.' variant='dense' className='print:hidden'><SearchField label='Search report records' value={search} onChange={(event) => setSearch(event.target.value)} onClear={() => setSearch('')} placeholder='Search names, statuses, departments, identifiers…' /></SectionCard><AdvancedReportTable columns={query.data.columns} rows={rows} visibleKeys={new Set(query.data.columns.filter((column) => !hiddenColumns.has(column.key)).map((column) => column.key))} onToggleColumn={(key) => setHiddenColumns((current) => { const next = new Set(current); if (next.has(key)) next.delete(key); else next.add(key); return next; })} columnFilters={columnFilters} onColumnFilter={(key, value) => setColumnFilters((current) => ({ ...current, [key]: value }))} sort={sort} onSort={(key) => setSort((current) => current?.key === key ? { key, direction: current.direction === 'asc' ? 'desc' : 'asc' } : { key, direction: 'asc' })} pageOffset={pageOffset} pageSize={reportPagination.pageSize} /><ReportSummary report={query.data} filteredCount={rows.length} visibleColumns={query.data.columns.length - hiddenColumns.size} /><ReportExports report={query.data} currentRows={currentRows} allRows={rows} /><Pagination currentPage={reportPagination.currentPage} totalItems={rows.length} pageSize={reportPagination.pageSize} onPageChange={reportPagination.setCurrentPage} onPageSizeChange={reportPagination.setPageSize} className='rounded-2xl border print:hidden' /></>}
   </main>;
 }
 
@@ -132,7 +132,6 @@ function ReportKpis({ report }: { report: FormalReportData }) { return <section>
 function ReportCharts({ report }: { report: FormalReportData }) { if (!report.supportingCharts.length) return null; return <section><SectionHeading eyebrow='Supporting analysis' title='Report context' /><div className='grid gap-4 lg:grid-cols-2'>{report.supportingCharts.map((chart) => <Suspense key={chart.title} fallback={<LoadingSkeleton lines={6} className='h-64' />}><BiChartCard title={chart.title} subtitle={chart.subtitle} data={chart.data} variant={chart.variant} compact showExport={false} /></Suspense>)}</div></section>; }
 function ReportSummary({ report, filteredCount, visibleColumns }: { report: FormalReportData; filteredCount: number; visibleColumns: number }) { return <SectionCard title='Report summary panel' subtitle='Document control information for audit and review.' variant='dense'><dl className='grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4'><SummaryTerm label='Generated' value={new Date(report.generatedAt).toLocaleString()} /><SummaryTerm label='Filtered records' value={filteredCount.toLocaleString()} /><SummaryTerm label='Visible columns' value={visibleColumns.toString()} /><SummaryTerm label='Data source' value='Tenant operational records' /></dl></SectionCard>; }
 function ReportExports({ report, currentRows, allRows }: { report: FormalReportData; currentRows: FormalReportData['rows']; allRows: FormalReportData['rows'] }) { return <SectionCard title='Generate report documents' subtitle='Export the current page for review or the entire filtered dataset for audit and archival.' variant='dense' className='print:hidden'><div className='grid gap-4 md:grid-cols-2'><div className='rounded-xl border p-4' style={{ borderColor: 'var(--border-default)', background: 'var(--bg-muted)' }}><p className='mb-3 text-xs font-semibold'>Current page · {currentRows.length} records</p><ReportExportMenu report={reportToDataset(report, currentRows)} /></div><div className='rounded-xl border p-4' style={{ borderColor: 'var(--border-default)', background: 'var(--bg-muted)' }}><p className='mb-3 text-xs font-semibold'>Entire filtered dataset · {allRows.length} records</p><ReportExportMenu report={{ ...reportToDataset(report, allRows), title: `${report.title} - Full Dataset` }} /></div></div></SectionCard>; }
-function ReportPagination({ page, totalPages, pageSize, totalRows, onPage, onPageSize }: { page: number; totalPages: number; pageSize: number; totalRows: number; onPage: (page: number) => void; onPageSize: (size: number) => void }) { return <SectionCard title='Pagination' subtitle={`${totalRows.toLocaleString()} matching records`} variant='dense' className='print:hidden'><div className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'><label className='flex items-center gap-2 text-xs' style={{ color: 'var(--text-secondary)' }}>Rows per page<AppSelect value={pageSize} onChange={(event) => onPageSize(Number(event.target.value))} className='w-24'><option value={10}>10</option><option value={20}>20</option><option value={50}>50</option><option value={100}>100</option></AppSelect></label><div className='flex items-center gap-2'><Button variant='outline' size='icon' disabled={page === 0} onClick={() => onPage(Math.max(0, page - 1))} aria-label='Previous page'><ChevronLeft size={16} /></Button><span className='min-w-24 text-center text-xs font-semibold'>Page {page + 1} of {totalPages}</span><Button variant='outline' size='icon' disabled={page >= totalPages - 1} onClick={() => onPage(Math.min(totalPages - 1, page + 1))} aria-label='Next page'><ChevronRight size={16} /></Button></div></div></SectionCard>; }
 function ReportLoading() { return <div className='space-y-4'><div className='grid gap-3 sm:grid-cols-2 xl:grid-cols-4'>{[1, 2, 3, 4].map((item) => <LoadingSkeleton key={item} lines={3} className='h-28 rounded-2xl border p-4' />)}</div><LoadingSkeleton lines={12} className='h-[32rem] rounded-2xl border p-5' /></div>; }
 function SectionHeading({ eyebrow, title }: { eyebrow: string; title: string }) { return <div className='mb-3'><p className='text-[10px] font-extrabold uppercase tracking-[.16em] text-purple-600'>{eyebrow}</p><h2 className='mt-1 text-lg font-semibold' style={{ color: 'var(--text-primary)' }}>{title}</h2></div>; }
 function SummaryTerm({ label, value }: { label: string; value: string }) { return <div><dt className='text-[10px] font-extrabold uppercase tracking-wide' style={{ color: 'var(--text-tertiary)' }}>{label}</dt><dd className='mt-1 font-semibold' style={{ color: 'var(--text-primary)' }}>{value}</dd></div>; }

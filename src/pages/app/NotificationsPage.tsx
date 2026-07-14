@@ -14,6 +14,8 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { SectionCard } from "@/components/common/SectionCard";
 import { Button } from "@/components/common/Button";
 import { EmptyState, ErrorBanner } from "@/components/common/AppUI";
+import { Pagination } from "@/components/common/Pagination";
+import { useClientPagination } from "@/hooks/useClientPagination";
 import { isAnnouncementLinkedNotification, type AppNotification } from "@/modules/notifications/types";
 import { getErrorMessage } from "@/utils/errorHandler";
 
@@ -75,6 +77,10 @@ export function NotificationsPage() {
     }
     return notifications;
   }, [filter, notifications]);
+  const notificationPagination = useClientPagination(filtered, {
+    storageKey: "notifications",
+    resetKey: filter,
+  });
 
   async function handleMarkRead(id: string) {
     setActionError(null);
@@ -179,10 +185,22 @@ export function NotificationsPage() {
 
       {!loading && filtered.length > 0 && (
         <div className="space-y-3">
-          {filtered.map((item) => (
+          {notificationPagination.paginatedItems.map((item) => (
             <NotificationItem key={item.id} item={item} onMarkRead={handleMarkRead} onOpen={handleOpenNotification} />
           ))}
         </div>
+      )}
+
+      {!loading && !error && filtered.length > 0 && (
+        <Pagination
+          currentPage={notificationPagination.currentPage}
+          totalItems={filtered.length}
+          pageSize={notificationPagination.pageSize}
+          onPageChange={notificationPagination.setCurrentPage}
+          onPageSizeChange={notificationPagination.setPageSize}
+          itemLabel="notifications"
+          className="rounded-2xl border"
+        />
       )}
     </div>
   );

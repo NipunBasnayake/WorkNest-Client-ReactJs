@@ -20,14 +20,14 @@ function KanbanColumnComponent({ status, title, tasks, draggableTaskIds }: Kanba
   return (
     <section
       ref={setNodeRef}
-      className="w-[325px] shrink-0 rounded-2xl border-2"
+      className="flex h-[clamp(26rem,calc(100vh-17rem),44rem)] w-[min(82vw,325px)] shrink-0 flex-col overflow-hidden rounded-2xl border-2 sm:w-[325px]"
       style={{
         backgroundColor: columnBackground,
         borderColor: isOver ? "var(--color-primary-500)" : "var(--border-default)"
       }}
     >
       <div
-        className="flex items-center justify-between border-b rounded-t-2xl px-4 py-3.5"
+        className="flex shrink-0 items-center justify-between rounded-t-2xl border-b px-4 py-3.5"
         style={{ borderColor: "var(--border-default)", backgroundColor: headerBackground }}
       >
         <div className="min-w-0">
@@ -46,7 +46,7 @@ function KanbanColumnComponent({ status, title, tasks, draggableTaskIds }: Kanba
         </div>
       </div>
 
-      <div className="space-y-3 p-3.5">
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain p-3.5 [scrollbar-gutter:stable]">
         {tasks.length === 0 && (
           <div
             className="rounded-xl border border-dashed px-3 py-9 text-center"
