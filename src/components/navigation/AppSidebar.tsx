@@ -1,7 +1,7 @@
 import { type ReactNode } from "react";
 import { NavLink } from "react-router-dom";
 import {
-  LayoutDashboard, Users, Settings, Building2,
+  LayoutDashboard, Users, Building2,
   ChevronLeft, ChevronRight, X,
   ClipboardList, CalendarCheck, Bell, MessageSquare, Briefcase, BarChart3, CheckSquare, BellRing,
   Lock,
@@ -99,14 +99,16 @@ const PLATFORM_NAV_GROUPS: SidebarNavGroup[] = [
     label: "Overview",
     items: [
       { label: "Dashboard", to: platformRoutes.dashboard(), icon: <LayoutDashboard size={18} /> },
-      { label: "Analytics", to: platformRoutes.analytics(), icon: <BarChart3 size={18} /> },
+      { label: "Analytics", to: platformRoutes.analytics(), icon: <BarChart3 size={18} />, permission: PERMISSIONS.PLATFORM_ANALYTICS_VIEW },
+      { label: "Reports", to: platformRoutes.reports(), icon: <FileText size={18} />, permission: PERMISSIONS.PLATFORM_REPORTS_VIEW },
     ],
   },
   {
-    label: "Admin",
+    label: "Management",
     items: [
-      { label: "Tenants", to: platformRoutes.tenants(), icon: <Building2 size={18} /> },
-      { label: "Settings", to: platformRoutes.settings(), icon: <Settings size={18} /> },
+      { label: "Tenants", to: platformRoutes.tenants(), icon: <Building2 size={18} />, permission: PERMISSIONS.PLATFORM_TENANTS_VIEW },
+      { label: "Platform Users", to: platformRoutes.users(), icon: <Users size={18} />, permission: PERMISSIONS.PLATFORM_USERS_VIEW },
+      { label: "Audit Logs", to: platformRoutes.auditLogs(), icon: <Lock size={18} />, permission: PERMISSIONS.PLATFORM_AUDIT_LOGS_VIEW },
     ],
   },
 ];
@@ -243,14 +245,13 @@ export function AppSidebar({ area, collapsed, mobileOpen, onToggleCollapse, onMo
 
   const resolvedTenantSlug = tenantKey ?? "app";
 
-  const mainNavGroups = area === "tenant"
-    ? TENANT_NAV_GROUPS
+  const sourceGroups = area === "tenant" ? TENANT_NAV_GROUPS : PLATFORM_NAV_GROUPS;
+  const mainNavGroups = sourceGroups
       .map((group) => ({
         ...group,
         items: group.items.filter((item) => !item.permission || hasPermission(item.permission)),
       }))
-      .filter((group) => group.items.length > 0)
-    : PLATFORM_NAV_GROUPS;
+      .filter((group) => group.items.length > 0);
 
   const sidebarContent = (
     <div

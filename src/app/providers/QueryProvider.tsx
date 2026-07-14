@@ -5,8 +5,9 @@ interface QueryProviderProps {
   children: ReactNode;
 }
 
-function shouldRetry(failureCount: number, error: any): boolean {
-  const status = error?.status ?? error?.response?.status;
+function shouldRetry(failureCount: number, error: unknown): boolean {
+  const typedError = error as { status?: number; response?: { status?: number } } | null;
+  const status = typedError?.status ?? typedError?.response?.status;
   if (status === 401 || status === 403) return false;
   return failureCount < 2;
 }

@@ -365,10 +365,12 @@ export function AppTopbar({ area, pageTitle, breadcrumb, onMobileMenuToggle }: A
                   <User size={16} />
                   My Profile
                 </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => navigate(isTenantArea ? tenantRoutes.settingsProfile(tenantSlug) : platformRoutes.settings())}>
-                  <Settings size={16} />
-                  Account Settings
-                </DropdownMenuItem>
+                {isTenantArea && (
+                  <DropdownMenuItem onSelect={() => navigate(tenantRoutes.settingsProfile(tenantSlug))}>
+                    <Settings size={16} />
+                    Account Settings
+                  </DropdownMenuItem>
+                )}
                 {isTenantArea && (
                   <DropdownMenuItem onSelect={() => navigate(tenantRoutes.settingsSecurity(tenantSlug))}>
                     <Shield size={16} />

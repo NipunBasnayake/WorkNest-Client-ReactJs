@@ -1,11 +1,35 @@
 import { lazy, Suspense, useDeferredValue, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, ChevronLeft, ChevronRight, FileCheck2, FileText, RefreshCw, ShieldCheck } from 'lucide-react';
+import {
+  Activity,
+  ArrowLeft,
+  ArrowRight,
+  BarChart3,
+  Bell,
+  BriefcaseBusiness,
+  Building2,
+  CalendarDays,
+  CalendarOff,
+  ChevronLeft,
+  ChevronRight,
+  FolderKanban,
+  Gauge,
+  ListChecks,
+  MessagesSquare,
+  Network,
+  RefreshCw,
+  ShieldCheck,
+  UserCheck,
+  UserPlus,
+  Users,
+  UsersRound,
+  type LucideIcon,
+} from 'lucide-react';
 import { useParams } from 'react-router-dom';
 import { normalizeAppRole, type NormalizedAppRole } from '@/constants/rolePermissionMap';
 import { useAuthStore } from '@/store/authStore';
 import { useAnalyticsFilterStore } from '@/store/analyticsFilterStore';
-import { getReportCatalog, loadFormalReport, reportToDataset, type FormalReportData, type FormalReportDefinition } from '@/modules/analytics/formalReports';
+import { getReportCatalog, loadFormalReport, reportToDataset, type FormalReportData, type FormalReportDefinition, type FormalReportId } from '@/modules/analytics/formalReports';
 import { ReportExportMenu } from '@/modules/analytics/components/ReportExportMenu';
 import { AdvancedReportTable, type ReportSort } from '@/modules/analytics/components/AdvancedReportTable';
 import { ErrorState, LoadingSkeleton } from '@/components/common/AsyncStates';
@@ -18,6 +42,25 @@ import { tenantRoutes } from '@/utils/tenantRoutes';
 
 const BiChartCard = lazy(() => import('@/modules/analytics/components/BiChartCard'));
 const statusOptions = ['TODO', 'IN_PROGRESS', 'IN_REVIEW', 'BLOCKED', 'DONE', 'ACTIVE', 'INACTIVE', 'PENDING', 'APPROVED', 'REJECTED', 'APPLIED', 'SCREENING', 'INTERVIEW', 'OFFERED', 'HIRED'];
+const reportIcons: Record<FormalReportId, LucideIcon> = {
+  employees: Users,
+  attendance: CalendarDays,
+  leave: CalendarOff,
+  projects: FolderKanban,
+  tasks: ListChecks,
+  recruitment: BriefcaseBusiness,
+  teams: UsersRound,
+  audit: ShieldCheck,
+  notifications: Bell,
+  organization: Building2,
+  'system-health': Activity,
+  departments: Network,
+  'new-joiners': UserPlus,
+  'employee-status': UserCheck,
+  interviews: MessagesSquare,
+  'project-progress': BarChart3,
+  workload: Gauge,
+};
 
 export function FormalReportsCenter() {
   const { domain } = useParams();
@@ -25,16 +68,33 @@ export function FormalReportsCenter() {
   const catalog = getReportCatalog(role);
   const active = domain ? catalog.find((item) => item.id === domain) : undefined;
   if (!role || !catalog.length) return <SectionCard title='Formal Reports' subtitle='No company reports are assigned to this role.'><p className='text-sm' style={{ color: 'var(--text-secondary)' }}>Employees use personal Analytics and do not receive company reporting access.</p></SectionCard>;
-  if (!active) return <ReportCatalog catalog={catalog} role={role} />;
-  return <ReportDetail key={active.id} active={active} catalog={catalog} role={role} />;
+  if (!active) return <ReportCatalog catalog={catalog} />;
+  return <ReportDetail key={active.id} active={active} role={role} />;
 }
 
-function ReportCatalog({ catalog, role }: { catalog: FormalReportDefinition[]; role: NormalizedAppRole }) {
-  const groups = useMemo(() => catalog.reduce<Record<string, FormalReportDefinition[]>>((result, report) => { (result[report.group] ??= []).push(report); return result; }, {}), [catalog]);
-  return <div className='space-y-7 pb-8'><PageHeader title='Formal Reports Center' description='Choose a governed operational report to inspect exact records, apply structured filters, and generate an audit-ready document.' status={<span className='inline-flex items-center gap-2 text-xs font-semibold text-emerald-600'><ShieldCheck size={15} />Tenant isolated · {roleLabel(role)} catalog</span>} /><div className='rounded-2xl border p-5' style={{ background: 'color-mix(in srgb,var(--bg-surface) 97%,var(--bg-muted))', borderColor: 'var(--border-default)' }}><div className='flex items-start gap-3'><span className='rounded-xl bg-purple-500/10 p-2.5 text-purple-600'><FileCheck2 size={20} /></span><div><h2 className='text-base font-semibold' style={{ color: 'var(--text-primary)' }}>Report catalog</h2><p className='mt-1 text-sm leading-6' style={{ color: 'var(--text-secondary)' }}>Reports answer “what are the exact records?” Analytics remains the separate workspace for trends, causes, risks, and management recommendations.</p></div></div></div>{Object.entries(groups).map(([group, reports]) => <section key={group}><div className='mb-3'><p className='text-[10px] font-extrabold uppercase tracking-[.16em] text-purple-600'>{group}</p><h2 className='mt-1 text-lg font-semibold' style={{ color: 'var(--text-primary)' }}>{group} reports</h2></div><div className='grid gap-4 sm:grid-cols-2 xl:grid-cols-3'>{reports.map((report) => <Button key={report.id} to={`${tenantRoutes.reports()}/${report.id}`} variant='secondary' className='h-auto min-h-32 items-start justify-start p-5 text-left'><span className='rounded-xl bg-purple-500/10 p-2.5 text-purple-600'><FileText size={18} /></span><span className='min-w-0'><strong className='block text-sm' style={{ color: 'var(--text-primary)' }}>{report.title}</strong><span className='mt-1 block text-xs font-normal leading-5' style={{ color: 'var(--text-secondary)' }}>{report.description}</span></span></Button>)}</div></section>)}</div>;
+function ReportCatalog({ catalog }: { catalog: FormalReportDefinition[] }) {
+  return <nav aria-label='Report catalog' className='grid gap-4 pb-8 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4'>
+    {catalog.map((report) => {
+      const Icon = reportIcons[report.id];
+      return <Button key={report.id} to={`${tenantRoutes.reports()}/${report.id}`} variant='secondary' className='group h-auto min-h-40 w-full items-stretch justify-start overflow-hidden rounded-2xl p-0 text-left transition duration-200 hover:-translate-y-0.5 hover:border-purple-400/60 hover:shadow-lg'>
+        <span className='flex min-w-0 flex-1 flex-col p-5'>
+          <span className='flex items-start justify-between gap-4'>
+            <span className='grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-purple-500/10 text-purple-600 transition-colors group-hover:bg-purple-600 group-hover:text-white'>
+              <Icon size={21} aria-hidden='true' />
+            </span>
+            <ArrowRight size={18} aria-hidden='true' className='mt-1 shrink-0 text-[var(--text-tertiary)] transition-transform group-hover:translate-x-1 group-hover:text-purple-600' />
+          </span>
+          <span className='mt-5 min-w-0'>
+            <strong className='block truncate text-sm font-bold' style={{ color: 'var(--text-primary)' }}>{report.title}</strong>
+            <span className='mt-1.5 line-clamp-3 text-xs font-normal leading-5' style={{ color: 'var(--text-secondary)' }}>{report.description}</span>
+          </span>
+        </span>
+      </Button>;
+    })}
+  </nav>;
 }
 
-function ReportDetail({ active, catalog, role }: { active: FormalReportDefinition; catalog: FormalReportDefinition[]; role: NormalizedAppRole }) {
+function ReportDetail({ active, role }: { active: FormalReportDefinition; role: NormalizedAppRole }) {
   const { filters, setFilter, reset } = useAnalyticsFilterStore();
   const [search, setSearch] = useState('');
   const deferredSearch = useDeferredValue(search.trim().toLowerCase());
@@ -58,15 +118,13 @@ function ReportDetail({ active, catalog, role }: { active: FormalReportDefinitio
   const currentPage = Math.min(page, totalPages - 1);
   const pageOffset = currentPage * pageSize;
   const currentRows = rows.slice(pageOffset, pageOffset + pageSize);
-  return <div className='grid gap-6 pb-8 xl:grid-cols-[250px_minmax(0,1fr)]'><ReportNavigation active={active} catalog={catalog} /><main className='min-w-0 space-y-6'>
-    <PageHeader title={active.title} description={active.description} backButton={<Button to={tenantRoutes.reports()} variant='ghost' size='sm'><ArrowLeft size={15} />Catalog</Button>} status={<span className='text-xs font-semibold text-emerald-600'>Governed · {roleLabel(role)} scope</span>} secondaryActions={<Button variant='outline' size='sm' onClick={() => void query.refetch()} loading={query.isFetching}><RefreshCw size={14} />Refresh</Button>} />
+  return <main className='min-w-0 space-y-5 pb-8'>
+    <PageHeader title={active.title} description={active.description} backButton={<Button to={tenantRoutes.reports()} variant='ghost' size='sm'><ArrowLeft size={15} />Back to reports</Button>} status={<span className='text-xs font-semibold text-emerald-600'>Governed · {roleLabel(role)} scope</span>} secondaryActions={<Button variant='outline' size='sm' onClick={() => void query.refetch()} loading={query.isFetching}><RefreshCw size={14} />Refresh</Button>} />
     <ReportFilters filters={filters} setFilter={setFilter} onReset={() => { reset(); setSearch(''); setColumnFilters({}); setSort(null); setPage(0); }} />
     {query.isLoading && <ReportLoading />}{query.isError && <ErrorState message='Unable to generate this formal report.' onRetry={() => void query.refetch()} />}
     {query.data && <><ReportKpis report={query.data} /><ReportCharts report={query.data} /><SectionCard title='Search records' subtitle='Search across every displayed business column. Column-specific filters are available directly under the table headers.' variant='dense' className='print:hidden'><SearchField label='Search report records' value={search} onChange={(event) => { setSearch(event.target.value); setPage(0); }} onClear={() => { setSearch(''); setPage(0); }} placeholder='Search names, statuses, departments, identifiers…' /></SectionCard><AdvancedReportTable columns={query.data.columns} rows={rows} visibleKeys={new Set(query.data.columns.filter((column) => !hiddenColumns.has(column.key)).map((column) => column.key))} onToggleColumn={(key) => setHiddenColumns((current) => { const next = new Set(current); if (next.has(key)) next.delete(key); else next.add(key); return next; })} columnFilters={columnFilters} onColumnFilter={(key, value) => { setColumnFilters((current) => ({ ...current, [key]: value })); setPage(0); }} sort={sort} onSort={(key) => { setSort((current) => current?.key === key ? { key, direction: current.direction === 'asc' ? 'desc' : 'asc' } : { key, direction: 'asc' }); setPage(0); }} pageOffset={pageOffset} pageSize={pageSize} /><ReportSummary report={query.data} filteredCount={rows.length} visibleColumns={query.data.columns.length - hiddenColumns.size} /><ReportExports report={query.data} currentRows={currentRows} allRows={rows} /><ReportPagination page={currentPage} totalPages={totalPages} pageSize={pageSize} totalRows={rows.length} onPage={setPage} onPageSize={(size) => { setPageSize(size); setPage(0); }} /></>}
-  </main></div>;
+  </main>;
 }
-
-function ReportNavigation({ active, catalog }: { active: FormalReportDefinition; catalog: FormalReportDefinition[] }) { return <aside className='print:hidden'><div className='sticky top-2 rounded-2xl border p-2 shadow-sm' style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-default)' }}><p className='px-3 py-2 text-[10px] font-extrabold uppercase tracking-[.16em]' style={{ color: 'var(--text-tertiary)' }}>Report catalog</p><nav className='space-y-1'>{catalog.map((report) => <Button key={report.id} to={`${tenantRoutes.reports()}/${report.id}`} variant={active.id === report.id ? 'primary' : 'ghost'} size='sm' className='h-auto w-full justify-start px-3 py-2.5 text-left'><FileText size={15} /><span><strong className='block text-xs'>{report.title}</strong><span className='block text-[10px] font-normal opacity-75'>{report.group}</span></span></Button>)}</nav></div></aside>; }
 
 function ReportFilters({ filters, setFilter, onReset }: { filters: ReturnType<typeof useAnalyticsFilterStore.getState>['filters']; setFilter: ReturnType<typeof useAnalyticsFilterStore.getState>['setFilter']; onReset: () => void }) { return <SectionCard title='Report filters' subtitle='Filters define the governed record set and are applied before summaries, charts, tables, and exports.' action={<Button variant='ghost' size='sm' onClick={onReset}>Reset filters</Button>} variant='dense' className='print:hidden'><div className='grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6'><label className='space-y-1.5 text-xs font-medium'><span style={{ color: 'var(--text-secondary)' }}>From date</span><input type='date' value={filters.fromDate} onChange={(event) => setFilter('fromDate', event.target.value)} className='h-10 w-full rounded-xl border px-3 text-sm' style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-default)' }} /></label><label className='space-y-1.5 text-xs font-medium'><span style={{ color: 'var(--text-secondary)' }}>To date</span><input type='date' value={filters.toDate} onChange={(event) => setFilter('toDate', event.target.value)} className='h-10 w-full rounded-xl border px-3 text-sm' style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-default)' }} /></label><label className='space-y-1.5 text-xs font-medium'><span style={{ color: 'var(--text-secondary)' }}>Status</span><AppSelect value={filters.status} onChange={(event) => setFilter('status', event.target.value)}><option value=''>All statuses</option>{statusOptions.map((status) => <option key={status} value={status}>{status.replaceAll('_', ' ')}</option>)}</AppSelect></label><label className='space-y-1.5 text-xs font-medium'><span style={{ color: 'var(--text-secondary)' }}>Department</span><input value={filters.department} onChange={(event) => setFilter('department', event.target.value)} placeholder='All departments' className='h-10 w-full rounded-xl border px-3 text-sm' style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-default)' }} /></label><label className='space-y-1.5 text-xs font-medium'><span style={{ color: 'var(--text-secondary)' }}>Recruitment stage</span><AppSelect value={filters.recruitmentStatus} onChange={(event) => setFilter('recruitmentStatus', event.target.value)}><option value=''>All stages</option>{['APPLIED', 'SCREENING', 'INTERVIEW', 'OFFERED', 'HIRED', 'REJECTED'].map((stage) => <option key={stage}>{stage}</option>)}</AppSelect></label><label className='space-y-1.5 text-xs font-medium'><span style={{ color: 'var(--text-secondary)' }}>Leave type</span><AppSelect value={filters.leaveType} onChange={(event) => setFilter('leaveType', event.target.value)}><option value=''>All leave types</option>{['ANNUAL', 'SICK', 'CASUAL', 'UNPAID', 'OTHER'].map((type) => <option key={type}>{type}</option>)}</AppSelect></label></div></SectionCard>; }
 

@@ -10,7 +10,6 @@ export interface ProgressDatum {
   id?: string;
   secondaryValue?: number;
 }
-
 export type AnalyticsDomain = 'overview' | 'employees' | 'attendance' | 'leave' | 'projects' | 'tasks' | 'recruitment' | 'teams';
 
 export interface AnalyticsFilters {
@@ -180,14 +179,4 @@ export interface TenantDashboardSnapshot {
   pendingApprovals: LeavePreview[];
   announcements: AnnouncementPreview[];
   notifications: NotificationPreview[];
-}
-
-export interface PlatformAnalyticsData {
-  totalTenants: number;
-  activeTenants: number;
-  suspendedTenants: number;
-  inactiveTenants: number;
-  newlyAddedThisMonth: number;
-  tenantStatusDistribution: DistributionDatum[];
-  tenantGrowthByMonth: ProgressDatum[];
 }
