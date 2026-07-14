@@ -31,10 +31,3 @@ export interface TenantSettingsBundle {
   workspace: WorkspaceSettings;
   preferences: PreferenceSettings;
 }
-
-export interface PlatformSettings {
-  platformName: string;
-  supportEmail: string;
-  maintenanceMode: boolean;
-  auditLogsRetentionDays: number;
-}

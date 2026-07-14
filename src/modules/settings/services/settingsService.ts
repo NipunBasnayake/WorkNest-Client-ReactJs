@@ -6,7 +6,6 @@ import { getMyEmployeeProfileApi } from "@/services/api/employeeApi";
 import { extractUploadedFileAssets } from "@/services/uploads/fileAssetParser";
 import { asRecord, firstDefined, getId, getString, toIsoDate } from "@/services/http/parsers";
 import type {
-  PlatformSettings,
   PreferenceSettings,
   ProfileSettings,
   TenantSettingsBundle,
@@ -15,7 +14,6 @@ import type {
 import type { ApiResponse, AuthUser } from "@/types";
 
 const TENANT_PREFERENCES_ROOT = "wn_local_tenant_preferences";
-const PLATFORM_SETTINGS_KEY = "wn_local_platform_settings";
 const LATENCY_MS = 120;
 
 function sleep(ms: number) {
@@ -140,40 +138,6 @@ function writeTenantPreferences(tenantKey: string, userId: string, preferences: 
   }
 }
 
-function defaultPlatformSettings(): PlatformSettings {
-  return {
-    platformName: "WorkNest Platform",
-    supportEmail: "support@worknest.app",
-    maintenanceMode: false,
-    auditLogsRetentionDays: 90,
-  };
-}
-
-function readPlatformSettings(): PlatformSettings {
-  let raw: string | null = null;
-  try {
-    raw = localStorage.getItem(PLATFORM_SETTINGS_KEY);
-  } catch {
-    return defaultPlatformSettings();
-  }
-  if (!raw) return defaultPlatformSettings();
-
-  try {
-    const parsed = JSON.parse(raw) as PlatformSettings;
-    return { ...defaultPlatformSettings(), ...parsed };
-  } catch {
-    return defaultPlatformSettings();
-  }
-}
-
-function writePlatformSettings(data: PlatformSettings) {
-  try {
-    localStorage.setItem(PLATFORM_SETTINGS_KEY, JSON.stringify(data));
-  } catch {
-    // Local platform settings are best-effort only.
-  }
-}
-
 async function getCurrentAuthUser(): Promise<AuthUser> {
   return getMeApi();
 }
@@ -266,15 +230,4 @@ export async function updateTenantPreferences(preferences: PreferenceSettings): 
   writeTenantPreferences(tenantKey, userId, preferences);
 
   return preferences;
-}
-
-export async function getPlatformSettings(): Promise<PlatformSettings> {
-  await sleep(LATENCY_MS);
-  return readPlatformSettings();
-}
-
-export async function updatePlatformSettings(settings: PlatformSettings): Promise<PlatformSettings> {
-  await sleep(LATENCY_MS);
-  writePlatformSettings(settings);
-  return settings;
 }

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AnnouncementsPage } from "@/pages/app/AnnouncementsPage";
 import { getAnnouncements, deleteAnnouncement } from "@/modules/announcements/services/announcementService";
 import type { Announcement } from "@/modules/announcements/types";
@@ -21,10 +22,13 @@ vi.mock("@/hooks/usePageMeta", () => ({
 }));
 
 function renderPage() {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
-    <MemoryRouter>
-      <AnnouncementsPage />
-    </MemoryRouter>
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter>
+        <AnnouncementsPage />
+      </MemoryRouter>
+    </QueryClientProvider>
   );
 }
 

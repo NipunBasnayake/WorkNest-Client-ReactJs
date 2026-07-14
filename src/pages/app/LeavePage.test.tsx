@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import { render, screen, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { LeavePage } from "@/pages/app/LeavePage";
 import { useAuthStore } from "@/store/authStore";
 import { getLeaveRequests } from "@/modules/leave/services/leaveService";
@@ -12,10 +13,13 @@ vi.mock("@/modules/leave/services/leaveService", () => ({
 }));
 
 function renderPage() {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
-    <MemoryRouter>
-      <LeavePage />
-    </MemoryRouter>
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter>
+        <LeavePage />
+      </MemoryRouter>
+    </QueryClientProvider>
   );
 }
 
