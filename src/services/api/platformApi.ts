@@ -7,6 +7,12 @@ import type {
   TenantProvisioningData,
   PlatformTenantStatus,
 } from "@/types";
+import type {
+  PlatformAuditEvent,
+  PlatformOperationsSnapshot,
+  PlatformTenantAdminActionResult,
+  PlatformUserRecord,
+} from "@/modules/platform/types";
 import { extractList } from "@/services/http/parsers";
 
 type TenantListPayload = Tenant[] | { tenants: Tenant[] };
@@ -63,4 +69,54 @@ export async function updateTenantStatusApi(tenantKey: string, status: PlatformT
     { status }
   );
   return unwrapApiData<Tenant>(data);
+}
+
+export async function updateTenantCompanyApi(tenantKey: string, companyName: string): Promise<Tenant> {
+  const { data } = await apiClient.put<ApiResponse<Tenant> | Tenant>(
+    `/api/platform/tenants/${encodeURIComponent(tenantKey)}`,
+    { companyName }
+  );
+  return unwrapApiData<Tenant>(data);
+}
+
+export async function getPlatformOperationsSnapshotApi(): Promise<PlatformOperationsSnapshot> {
+  const { data } = await apiClient.get<ApiResponse<PlatformOperationsSnapshot> | PlatformOperationsSnapshot>(
+    "/api/platform/operations/snapshot"
+  );
+  return unwrapApiData<PlatformOperationsSnapshot>(data);
+}
+
+export async function getPlatformUsersApi(): Promise<PlatformUserRecord[]> {
+  const { data } = await apiClient.get<ApiResponse<PlatformUserRecord[]> | PlatformUserRecord[]>(
+    "/api/platform/operations/users"
+  );
+  return unwrapApiData<PlatformUserRecord[]>(data);
+}
+
+export async function getPlatformAuditEventsApi(): Promise<PlatformAuditEvent[]> {
+  const { data } = await apiClient.get<ApiResponse<PlatformAuditEvent[]> | PlatformAuditEvent[]>(
+    "/api/platform/operations/audit-events"
+  );
+  return unwrapApiData<PlatformAuditEvent[]>(data);
+}
+
+export async function resetTenantAdminPasswordApi(tenantKey: string): Promise<PlatformTenantAdminActionResult> {
+  const { data } = await apiClient.post<ApiResponse<PlatformTenantAdminActionResult> | PlatformTenantAdminActionResult>(
+    `/api/platform/tenants/${encodeURIComponent(tenantKey)}/admin/reset-password`
+  );
+  return unwrapApiData<PlatformTenantAdminActionResult>(data);
+}
+
+export async function unlockTenantAdminApi(tenantKey: string): Promise<PlatformTenantAdminActionResult> {
+  const { data } = await apiClient.post<ApiResponse<PlatformTenantAdminActionResult> | PlatformTenantAdminActionResult>(
+    `/api/platform/tenants/${encodeURIComponent(tenantKey)}/admin/unlock`
+  );
+  return unwrapApiData<PlatformTenantAdminActionResult>(data);
+}
+
+export async function resendTenantWelcomeApi(tenantKey: string): Promise<PlatformTenantAdminActionResult> {
+  const { data } = await apiClient.post<ApiResponse<PlatformTenantAdminActionResult> | PlatformTenantAdminActionResult>(
+    `/api/platform/tenants/${encodeURIComponent(tenantKey)}/admin/resend-welcome`
+  );
+  return unwrapApiData<PlatformTenantAdminActionResult>(data);
 }

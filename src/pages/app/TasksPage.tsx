@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { LayoutGrid, PlusCircle, Trash2 } from "lucide-react";
+import { LayoutGrid, PlusCircle, Table2, Trash2 } from "lucide-react";
 import { FiEdit2, FiEye, FiTrash2 } from "react-icons/fi";
 import { Link } from "react-router-dom";
 import { usePageMeta } from "@/hooks/usePageMeta";
@@ -33,6 +33,8 @@ import { SearchField } from "@/components/common/SearchField";
 import { EmptyState, ErrorBanner, SkeletonRow } from "@/components/common/AppUI";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { tenantRoutes } from "@/utils/tenantRoutes";
+import { Pagination } from "@/components/common/Pagination";
+import { useClientPagination } from "@/hooks/useClientPagination";
 
 interface Option {
   id: string;
@@ -165,6 +167,10 @@ export function TasksPage() {
     statusFilter,
     teamFilter,
   ]);
+  const taskPagination = useClientPagination(filtered, {
+    storageKey: "tasks",
+    resetKey: `${search}|${statusFilter}|${priorityFilter}|${assigneeFilter}|${projectFilter}|${teamFilter}`,
+  });
 
   const teamOptions = useMemo<Option[]>(() => {
     const optionMap = new Map<string, Option>();
@@ -223,33 +229,30 @@ export function TasksPage() {
         title={isSelfOnlyTaskView ? "My Tasks" : "Task Management"}
         description={loading ? "Loading tasks..." : `${filtered.length} task${filtered.length === 1 ? "" : "s"} in workflow.`}
         actions={(
-          <>
-            <Button variant="outline" to={tenantRoutes.taskBoard()}>
-              <LayoutGrid size={16} />
-              Board View
+          canCreateScopedTask ? (
+            <Button variant="primary" to={tenantRoutes.taskCreate()}>
+              <PlusCircle size={16} />
+              Add Task
             </Button>
-            {canCreateScopedTask && (
-              <Button variant="primary" to={tenantRoutes.taskCreate()}>
-                <PlusCircle size={16} />
-                Add Task
-              </Button>
-            )}
-          </>
+          ) : undefined
         )}
       />
 
-      <SectionCard>
-        <div className="grid grid-cols-1 gap-3 xl:grid-cols-[1.4fr_0.8fr_0.8fr_1fr_1fr_1fr]">
+      <SectionCard variant="dense">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2.5">
           <SearchField
             label="Search tasks"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Search task title, assignee, or project..."
+            className="w-full sm:w-64"
           />
 
           <AppSelect
             value={statusFilter}
             onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)}
+            className="min-w-36 flex-1 sm:flex-none"
           >
             <option value="ALL">All Statuses</option>
             {TASK_STATUS_OPTIONS.map((status) => (
@@ -262,6 +265,7 @@ export function TasksPage() {
           <AppSelect
             value={priorityFilter}
             onChange={(event) => setPriorityFilter(event.target.value as typeof priorityFilter)}
+            className="min-w-36 flex-1 sm:flex-none"
           >
             <option value="ALL">All Priorities</option>
             {TASK_PRIORITY_OPTIONS.map((priority) => (
@@ -275,6 +279,7 @@ export function TasksPage() {
             value={assigneeFilter}
             onChange={(event) => setAssigneeFilter(event.target.value)}
             disabled={isSelfOnlyTaskView}
+            className="min-w-40 flex-1 sm:flex-none"
           >
             {isSelfOnlyTaskView && <option value="ALL">My Assigned Tasks</option>}
             {!isSelfOnlyTaskView && <option value="ALL">All Assignees</option>}
@@ -288,6 +293,7 @@ export function TasksPage() {
           <AppSelect
             value={projectFilter}
             onChange={(event) => setProjectFilter(event.target.value)}
+            className="min-w-40 flex-1 sm:flex-none"
           >
             <option value="ALL">All Projects</option>
             {projects.map((project) => (
@@ -300,6 +306,7 @@ export function TasksPage() {
           <AppSelect
             value={teamFilter}
             onChange={(event) => setTeamFilter(event.target.value)}
+            className="min-w-36 flex-1 sm:flex-none"
           >
             <option value="ALL">All Teams</option>
             {teamOptions.map((team) => (
@@ -308,6 +315,18 @@ export function TasksPage() {
               </option>
             ))}
           </AppSelect>
+          </div>
+
+          <div className="flex shrink-0 items-center gap-2 self-end sm:self-auto" aria-label="Task view">
+            <Button variant="outline" size="sm" to={tenantRoutes.taskBoard()}>
+              <LayoutGrid size={16} />
+              Board View
+            </Button>
+            <Button type="button" variant="primary" size="sm" aria-current="page">
+              <Table2 size={16} />
+              Table View
+            </Button>
+          </div>
         </div>
       </SectionCard>
 
@@ -350,7 +369,7 @@ export function TasksPage() {
           {!loading && filtered.length > 0 && (
             <>
               <div className="hidden min-w-[1080px] md:block">
-                {filtered.map((task) => {
+                {taskPagination.paginatedItems.map((task) => {
                   const isDone = task.status === "DONE";
                   const canUpdateStatus = canUpdateTaskStatus(task);
                   const teamRoles = task.assignedTeamId
@@ -448,7 +467,7 @@ export function TasksPage() {
               </div>
 
               <div className="space-y-3 p-4 md:hidden">
-                {filtered.map((task) => {
+                {taskPagination.paginatedItems.map((task) => {
                   const isDone = task.status === "DONE";
                   return (
                   <article
@@ -498,8 +517,18 @@ export function TasksPage() {
                 })}
               </div>
             </>
-          )}
+        )}
         </div>
+        {!loading && !error && filtered.length > 0 && (
+          <Pagination
+            currentPage={taskPagination.currentPage}
+            totalItems={filtered.length}
+            pageSize={taskPagination.pageSize}
+            onPageChange={taskPagination.setCurrentPage}
+            onPageSizeChange={taskPagination.setPageSize}
+            itemLabel="tasks"
+          />
+        )}
       </SectionCard>
 
       <ConfirmDialog

@@ -15,6 +15,8 @@ import { useRecruitmentCandidatesQuery } from "@/modules/recruitment/hooks/useRe
 import { createCandidate, uploadCandidateResume } from "@/modules/recruitment/services/recruitmentService";
 import type { RecruitmentCandidate, RecruitmentCandidateFormValues } from "@/modules/recruitment/types";
 import { getErrorMessage } from "@/utils/errorHandler";
+import { Pagination } from "@/components/common/Pagination";
+import { useClientPagination } from "@/hooks/useClientPagination";
 
 const EMPTY_FORM: RecruitmentCandidateFormValues = {
   fullName: "",
@@ -52,6 +54,10 @@ export function RecruitmentCandidatesPage() {
   }, [selectedCandidate]);
 
   const candidates = candidatesQuery.data?.items ?? [];
+  const candidatePagination = useClientPagination(candidates, {
+    storageKey: "recruitment-candidates",
+    resetKey: candidates.map((candidate) => candidate.id).join(","),
+  });
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -128,8 +134,9 @@ export function RecruitmentCandidatesPage() {
           ) : candidates.length === 0 ? (
             <EmptyState title="No candidates yet" description="Add a candidate to start building a hiring pipeline." />
           ) : (
+            <>
             <div className="divide-y" style={{ borderColor: "var(--border-default)" }}>
-              {candidates.map((candidate) => (
+              {candidatePagination.paginatedItems.map((candidate) => (
                 <button
                   key={candidate.id}
                   type="button"
@@ -149,6 +156,15 @@ export function RecruitmentCandidatesPage() {
                 </button>
               ))}
             </div>
+            <Pagination
+              currentPage={candidatePagination.currentPage}
+              totalItems={candidates.length}
+              pageSize={candidatePagination.pageSize}
+              onPageChange={candidatePagination.setCurrentPage}
+              onPageSizeChange={candidatePagination.setPageSize}
+              itemLabel="candidates"
+            />
+            </>
           )}
         </SectionCard>
       </div>

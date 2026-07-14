@@ -42,7 +42,7 @@ export function AuthGuard() {
 }
 
 export function PlatformGuard() {
-  const { isAuthenticated, isBootstrapping, sessionType, passwordChangeRequired } = useAuthStore();
+  const { isAuthenticated, isBootstrapping, sessionType, user, passwordChangeRequired } = useAuthStore();
   const location = useLocation();
 
   if (isBootstrapping) return <BootstrapLoader />;
@@ -52,7 +52,7 @@ export function PlatformGuard() {
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
-  if (sessionType !== "platform") {
+  if (sessionType !== "platform" || String(user?.role ?? "").toUpperCase() !== "PLATFORM_ADMIN") {
     return <Navigate to="/unauthorized" replace />;
   }
 
@@ -100,6 +100,18 @@ export function PermissionGuard({ permission }: PermissionGuardProps) {
     return <Navigate to="/unauthorized" replace />;
   }
 
+  return <Outlet />;
+}
+
+export function PlatformPermissionGuard({ permission }: PermissionGuardProps) {
+  const { isAuthenticated, isBootstrapping, sessionType, user, passwordChangeRequired } = useAuthStore();
+  const { hasPermission } = usePermission();
+  const location = useLocation();
+
+  if (isBootstrapping) return <BootstrapLoader />;
+  if (passwordChangeRequired) return <Navigate to="/force-password-change" state={{ from: location }} replace />;
+  if (!isAuthenticated) return <Navigate to="/login" state={{ from: location }} replace />;
+  if (sessionType !== "platform" || !user || !hasPermission(permission)) return <Navigate to="/unauthorized" replace />;
   return <Outlet />;
 }
 

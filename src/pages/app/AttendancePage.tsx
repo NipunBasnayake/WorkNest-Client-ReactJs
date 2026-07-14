@@ -14,6 +14,8 @@ import { Button } from "@/components/common/Button";
 import { InlineAlert } from "@/components/common/InlineAlert";
 import { TextareaField } from "@/components/common/TextareaField";
 import { EmptyState, ErrorBanner, SkeletonRow, StatCard } from "@/components/common/AppUI";
+import { Pagination } from "@/components/common/Pagination";
+import { useClientPagination } from "@/hooks/useClientPagination";
 import type { AttendanceRecord } from "@/modules/attendance/types";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { getEmployees, getMyEmployeeProfile } from "@/modules/employees/services/employeeService";
@@ -125,6 +127,10 @@ export function AttendancePage() {
   const visibleRecords = useMemo(() => {
     return records;
   }, [records]);
+  const attendancePagination = useClientPagination(visibleRecords, {
+    storageKey: "attendance",
+    resetKey: selectedDate,
+  });
 
   const selfRecord = useMemo(() => {
     if (!myEmployee) return null;
@@ -359,7 +365,7 @@ export function AttendancePage() {
         {!loading && visibleRecords.length > 0 && (
           <>
             <div className="hidden min-w-[900px] md:block">
-              {visibleRecords.map((record) => (
+              {attendancePagination.paginatedItems.map((record) => (
                 <div
                   key={record.id}
                   className="grid grid-cols-[1.4fr_1fr_1fr_1fr_1fr_0.9fr] items-center gap-3 border-b px-5 py-4"
@@ -378,7 +384,7 @@ export function AttendancePage() {
             </div>
 
             <div className="space-y-3 p-4 md:hidden">
-              {visibleRecords.map((record) => (
+              {attendancePagination.paginatedItems.map((record) => (
                 <article
                   key={record.id}
                   className="rounded-xl border p-4"
@@ -402,6 +408,15 @@ export function AttendancePage() {
           </>
         )}
         </div>
+        {!loading && !error && visibleRecords.length > 0 && (
+          <Pagination
+            currentPage={attendancePagination.currentPage}
+            totalItems={visibleRecords.length}
+            pageSize={attendancePagination.pageSize}
+            onPageChange={attendancePagination.setCurrentPage}
+            onPageSizeChange={attendancePagination.setPageSize}
+          />
+        )}
       </SectionCard>
     </div>
   );

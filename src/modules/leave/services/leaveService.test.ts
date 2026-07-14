@@ -4,6 +4,7 @@ import { createLeaveRequest, reviewLeaveRequest, updateLeaveRequest } from "@/mo
 import type { LeavePayload } from "@/modules/leave/types";
 
 vi.mock("@/services/http/client", () => ({
+  buildTenantApiUrl: (path: string) => `/api/tenant${path}`,
   apiClient: {
     get: vi.fn(),
     post: vi.fn(),

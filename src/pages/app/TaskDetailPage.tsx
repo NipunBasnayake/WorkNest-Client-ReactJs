@@ -90,7 +90,6 @@ export function TaskDetailPage() {
   const effectiveProjectDraft = isDraftForCurrentTask ? (projectDraft ?? "") : (task?.projectId ?? "");
   useEffect(() => {
     if (!task?.assignedTeamId) {
-      setAssigneeOptions([]);
       return;
     }
 
@@ -434,7 +433,7 @@ export function TaskDetailPage() {
                       disabled={!canManageAssignee || isTaskDone}
                     >
                       <option value="">Select active team member</option>
-                      {assigneeOptions.map((assignee) => (
+                      {(task.assignedTeamId ? assigneeOptions : []).map((assignee) => (
                         <option key={assignee.id} value={assignee.id}>
                           {assignee.subtitle ? `${assignee.label} - ${assignee.subtitle}` : assignee.label}
                         </option>

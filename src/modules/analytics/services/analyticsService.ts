@@ -4,7 +4,6 @@ import { asRecord, extractList, firstDefined, getNumber, getString, toIsoDate } 
 import { PERMISSIONS } from "@/constants/permissions";
 import { getRolePermissions, normalizeAppRole } from "@/constants/rolePermissionMap";
 import { useAuthStore } from "@/store/authStore";
-import { getPlatformTenants } from "@/modules/platform/services/platformTenantService";
 import { getEmployees } from "@/modules/employees/services/employeeService";
 import { getTeams } from "@/modules/teams/services/teamService";
 import { getProjects } from "@/modules/projects/services/projectService";
@@ -23,7 +22,6 @@ import type {
   DashboardLeaveStatusSummary,
   DashboardTaskStatusSummary,
   DistributionDatum,
-  PlatformAnalyticsData,
   ProgressDatum,
   TenantAnalyticsData,
   TenantDashboardSnapshot,
@@ -720,39 +718,4 @@ export async function getBusinessIntelligenceReport(filters: AnalyticsFilters): 
     '/api/tenant/analytics/business-intelligence', { params },
   );
   return unwrapApiData(data);
-}
-
-export async function getPlatformAnalyticsData(): Promise<PlatformAnalyticsData> {
-  const tenants = await getPlatformTenants();
-  const now = new Date();
-  const currentMonth = now.toISOString().slice(0, 7);
-
-  const statusCount = tenants.reduce<Record<string, number>>((acc, tenant) => {
-    const status = String(tenant.status ?? "active").toLowerCase();
-    acc[status] = (acc[status] ?? 0) + 1;
-    return acc;
-  }, {});
-
-  const growthMap = tenants.reduce<Record<string, number>>((acc, tenant) => {
-    if (!tenant.createdAt) return acc;
-    const month = String(tenant.createdAt).slice(0, 7);
-    if (!month) return acc;
-    acc[month] = (acc[month] ?? 0) + 1;
-    return acc;
-  }, {});
-
-  const tenantGrowthByMonth: ProgressDatum[] = Object.entries(growthMap)
-    .map(([label, value]) => ({ label, value }))
-    .sort((a, b) => a.label.localeCompare(b.label))
-    .slice(-6);
-
-  return {
-    totalTenants: tenants.length,
-    activeTenants: statusCount.active ?? 0,
-    suspendedTenants: statusCount.suspended ?? 0,
-    inactiveTenants: statusCount.inactive ?? 0,
-    newlyAddedThisMonth: growthMap[currentMonth] ?? 0,
-    tenantStatusDistribution: toDistribution(statusCount),
-    tenantGrowthByMonth,
-  };
 }

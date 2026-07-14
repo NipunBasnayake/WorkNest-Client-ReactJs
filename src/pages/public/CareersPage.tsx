@@ -34,8 +34,6 @@ export function CareersPage() {
 
   useEffect(() => {
     let active = true;
-    setLoading(true);
-    setError(null);
 
     getPublicCareers(tenantSlug)
       .then((result) => {
@@ -98,7 +96,7 @@ export function CareersPage() {
   if (error || !data) {
     return (
       <PageContainer size="lg">
-        <ErrorBanner message={error ?? "Unable to load careers."} onRetry={() => setRetryKey((value) => value + 1)} />
+        <ErrorBanner message={error ?? "Unable to load careers."} onRetry={() => { setLoading(true); setError(null); setRetryKey((value) => value + 1); }} />
       </PageContainer>
     );
   }

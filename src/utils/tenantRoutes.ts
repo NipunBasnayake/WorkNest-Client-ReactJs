@@ -101,10 +101,12 @@ export const platformRoutes = {
   },
   dashboard: () => platformRoutes.path("/dashboard"),
   analytics: () => platformRoutes.path("/analytics"),
+  reports: () => platformRoutes.path("/reports"),
   tenants: () => platformRoutes.path("/tenants"),
   tenantDetail: (tenantKey: string) => platformRoutes.path(`/tenants/${tenantKey}`),
+  users: () => platformRoutes.path("/users"),
+  auditLogs: () => platformRoutes.path("/audit-logs"),
   profile: () => platformRoutes.path("/profile"),
-  settings: () => platformRoutes.path("/settings"),
 };
 
 export const authRoutes = {

@@ -3,7 +3,7 @@ import { createBrowserRouter, Navigate, RouterProvider, useLocation, useParams }
 import { AuthLayout } from "@/app/layouts/AuthLayout";
 import { PublicLayout } from "@/app/layouts/PublicLayout";
 import { PlatformLayout, TenantLayout } from "@/app/layouts/AppLayout";
-import { AnnouncementManageGuard, GuestGuard, PermissionGuard, PlatformGuard, TenantGuard } from "@/app/guards/RouteGuards";
+import { AnnouncementManageGuard, GuestGuard, PermissionGuard, PlatformGuard, PlatformPermissionGuard, TenantGuard } from "@/app/guards/RouteGuards";
 import { PERMISSIONS } from "@/constants/permissions";
 import { useAuthStore } from "@/store/authStore";
 
@@ -94,9 +94,11 @@ const appSettingsSecurityPage = lazyElement(() => import("@/pages/app/settings/A
 
 const platformDashboardPage = lazyElement(() => import("@/pages/platform/PlatformDashboardPage"), "PlatformDashboardPage");
 const platformAnalyticsPage = lazyElement(() => import("@/pages/platform/PlatformAnalyticsPage"), "PlatformAnalyticsPage");
-const platformSettingsPage = lazyElement(() => import("@/pages/platform/PlatformSettingsPage"), "PlatformSettingsPage");
 const platformTenantsPage = lazyElement(() => import("@/pages/platform/PlatformTenantsPage"), "PlatformTenantsPage");
 const tenantDetailPlatformPage = lazyElement(() => import("@/pages/platform/TenantDetailPage"), "TenantDetailPage");
+const platformUsersPage = lazyElement(() => import("@/pages/platform/PlatformUsersPage"), "PlatformUsersPage");
+const platformAuditLogsPage = lazyElement(() => import("@/pages/platform/PlatformAuditLogsPage"), "PlatformAuditLogsPage");
+const platformReportsPage = lazyElement(() => import("@/pages/platform/PlatformReportsPage"), "PlatformReportsPage");
 
 const router = createBrowserRouter([
   {
@@ -321,12 +323,16 @@ const router = createBrowserRouter([
         element: <PlatformLayout />,
         children: [
           { path: "platform", element: <Navigate to="/platform/dashboard" replace /> },
-          { path: "platform/dashboard", element: platformDashboardPage },
-          { path: "platform/analytics", element: platformAnalyticsPage },
-          { path: "platform/tenants", element: platformTenantsPage },
-          { path: "platform/tenants/:tenantKey", element: tenantDetailPlatformPage },
+          { element: <PlatformPermissionGuard permission={PERMISSIONS.PLATFORM_DASHBOARD_VIEW} />, children: [{ path: "platform/dashboard", element: platformDashboardPage }] },
+          { element: <PlatformPermissionGuard permission={PERMISSIONS.PLATFORM_ANALYTICS_VIEW} />, children: [{ path: "platform/analytics", element: platformAnalyticsPage }] },
+          { element: <PlatformPermissionGuard permission={PERMISSIONS.PLATFORM_TENANTS_VIEW} />, children: [
+            { path: "platform/tenants", element: platformTenantsPage },
+            { path: "platform/tenants/:tenantKey", element: tenantDetailPlatformPage },
+          ] },
+          { element: <PlatformPermissionGuard permission={PERMISSIONS.PLATFORM_USERS_VIEW} />, children: [{ path: "platform/users", element: platformUsersPage }] },
+          { element: <PlatformPermissionGuard permission={PERMISSIONS.PLATFORM_AUDIT_LOGS_VIEW} />, children: [{ path: "platform/audit-logs", element: platformAuditLogsPage }] },
+          { element: <PlatformPermissionGuard permission={PERMISSIONS.PLATFORM_REPORTS_VIEW} />, children: [{ path: "platform/reports", element: platformReportsPage }] },
           { path: "platform/profile", element: profilePage },
-          { path: "platform/settings", element: platformSettingsPage },
           { path: "platform/*", element: notFoundPage },
         ],
       },

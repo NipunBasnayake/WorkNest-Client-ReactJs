@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { render, screen, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AnnouncementFormPage } from "@/pages/app/AnnouncementFormPage";
 import { useAuthStore } from "@/store/authStore";
 import { getAnnouncementById } from "@/modules/announcements/services/announcementService";
@@ -16,13 +17,16 @@ vi.mock("@/hooks/usePageMeta", () => ({
 }));
 
 function renderPage(path = "/demo/announcements/1/edit") {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
-    <MemoryRouter initialEntries={[path]}>
-      <Routes>
-        <Route path="/:tenantSlug/announcements/new" element={<AnnouncementFormPage />} />
-        <Route path="/:tenantSlug/announcements/:id/edit" element={<AnnouncementFormPage />} />
-      </Routes>
-    </MemoryRouter>
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={[path]}>
+        <Routes>
+          <Route path="/:tenantSlug/announcements/new" element={<AnnouncementFormPage />} />
+          <Route path="/:tenantSlug/announcements/:id/edit" element={<AnnouncementFormPage />} />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>
   );
 }
 

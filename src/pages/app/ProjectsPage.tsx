@@ -20,6 +20,8 @@ import type { Task } from "@/modules/tasks/types";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { formatDate } from "@/utils/formatting";
 import { tenantRoutes } from "@/utils/tenantRoutes";
+import { Pagination } from "@/components/common/Pagination";
+import { useClientPagination } from "@/hooks/useClientPagination";
 
 type ProjectStatusFilter = "all" | ProjectStatus;
 
@@ -93,6 +95,10 @@ export function ProjectsPage() {
       return matchesSearch && matchesStatus;
     });
   }, [search, statusFilter, visibleProjects]);
+  const projectPagination = useClientPagination(filtered, {
+    storageKey: "projects",
+    resetKey: `${search}|${statusFilter}`,
+  });
 
   return (
     <div className="space-y-6">
@@ -171,7 +177,7 @@ export function ProjectsPage() {
         {!loading && !errorMessage && filtered.length > 0 && (
           <>
             <div className="hidden min-w-[1020px] md:block">
-              {filtered.map((project) => {
+              {projectPagination.paginatedItems.map((project) => {
                 const summary = projectTaskSummary.get(project.id);
                 const progress = summary?.progress ?? project.progress;
                 const taskLabel = summary ? `${summary.open}/${summary.total} open` : "No task data";
@@ -226,7 +232,7 @@ export function ProjectsPage() {
             </div>
 
             <div className="space-y-3 p-4 md:hidden">
-              {filtered.map((project) => {
+              {projectPagination.paginatedItems.map((project) => {
                 const summary = projectTaskSummary.get(project.id);
                 const progress = summary?.progress ?? project.progress;
                 const isClosed = isClosedProject(project);
@@ -268,6 +274,15 @@ export function ProjectsPage() {
           </>
         )}
         </div>
+        {!loading && !errorMessage && filtered.length > 0 && (
+          <Pagination
+            currentPage={projectPagination.currentPage}
+            totalItems={filtered.length}
+            pageSize={projectPagination.pageSize}
+            onPageChange={projectPagination.setCurrentPage}
+            onPageSizeChange={projectPagination.setPageSize}
+          />
+        )}
       </SectionCard>
     </div>
   );

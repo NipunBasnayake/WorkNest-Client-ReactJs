@@ -39,9 +39,9 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             <input
               ref={ref}
               id={id}
-                className={cn(baseInputClasses, "rounded-none border-0 bg-transparent px-0")}
-                aria-invalid={error ? true : undefined}
-                aria-describedby={describedBy}
+              className={cn(baseInputClasses, "rounded-none border-0 bg-transparent px-4")}
+              aria-invalid={error ? true : undefined}
+              aria-describedby={describedBy}
               {...rest}
             />
             <div

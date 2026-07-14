@@ -4,7 +4,7 @@ export function slugifyTenantName(name: string): string {
     .toLowerCase()
     .trim()
     .replace(/[\s_]+/g, "-")
-    .replace(/[^a-z0-9\-]+/g, "")
+    .replace(/[^a-z0-9-]+/g, "")
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "");
 }

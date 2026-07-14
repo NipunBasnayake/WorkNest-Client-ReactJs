@@ -1,134 +1,118 @@
 import type { ReactNode } from "react";
-import { useState } from 'react';
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, Building2, Calendar, Key, Mail, Pencil } from "lucide-react";
+import { Activity, ArrowLeft, BarChart3, BriefcaseBusiness, Building2, Calendar, Database, FileClock, FileText, Key, ListTodo, Mail, Shield, Users } from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { usePlatformTenantDetailQuery } from "@/hooks/queries/usePlatformQueries";
 import { EmptyState, ErrorState, LoadingSkeleton } from "@/components/common/AsyncStates";
 import { SectionCard } from "@/components/common/SectionCard";
-import { formatDate } from "@/utils/formatting";
+import { formatDate, formatDateTime, formatRelativeTime } from "@/utils/formatting";
 import { getErrorMessage } from "@/utils/errorHandler";
-import { Button } from '@/components/common/Button';
-import { TenantStatusDialog } from '@/modules/platform/components/TenantStatusDialog';
+import { Button } from "@/components/common/Button";
+import { PlatformStatusBadge } from "@/modules/platform/components/PlatformStatusBadge";
+import { TenantActionsMenu } from "@/modules/platform/components/TenantActionsMenu";
 
 export function TenantDetailPage() {
   const { tenantKey } = useParams<{ tenantKey: string }>();
   usePageMeta({ title: tenantKey ?? "Tenant Detail", breadcrumb: ["Platform", "Tenants", tenantKey ?? ""] });
-
   const { data: tenant, error, isLoading, refetch } = usePlatformTenantDetailQuery(tenantKey, true);
-  const [statusEditorOpen, setStatusEditorOpen] = useState(false);
   const errorMessage = error ? getErrorMessage(error, "Failed to load tenant details.") : null;
-  const status = String(tenant?.status ?? 'inactive').toLowerCase();
-  const statusColor = status === 'active' ? '#10b981' : status === 'suspended' ? '#ef4444' : '#64748b';
 
-  if (isLoading) {
-    return (
-      <SectionCard>
-        <LoadingSkeleton lines={10} />
-      </SectionCard>
-    );
-  }
+  if (isLoading) return <SectionCard><LoadingSkeleton lines={12} /></SectionCard>;
 
   return (
-    <div>
-      <Link
-        to="/platform/tenants"
-        className="mb-6 inline-flex items-center gap-2 text-sm no-underline transition-colors hover:text-primary-500"
-        style={{ color: "var(--text-secondary)" }}
-      >
-        <ArrowLeft size={16} />
-        Back to tenants
-      </Link>
-
+    <div className="space-y-6">
+      <Link to="/platform/tenants" className="inline-flex items-center gap-2 text-sm no-underline transition-colors hover:text-primary-500" style={{ color: "var(--text-secondary)" }}><ArrowLeft size={16} />Back to tenant management</Link>
       {errorMessage ? <ErrorState message={errorMessage} onRetry={() => void refetch()} /> : null}
-
-      {!errorMessage && !tenant ? (
-        <EmptyState
-          title="Tenant not found"
-          description="The requested tenant does not exist or is no longer available."
-        />
-      ) : null}
+      {!errorMessage && !tenant ? <EmptyState title="Tenant not found" description="The requested tenant does not exist or is no longer available." /> : null}
 
       {!errorMessage && tenant ? (
-        <div
-          className="rounded-2xl border p-6 sm:p-8"
-          style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)" }}
-        >
-          <div className="mb-8 flex items-start gap-4">
-            <div
-              className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-2xl font-bold text-white"
-              style={{ background: "linear-gradient(135deg, #9332EA 0%, #7c1fd1 100%)" }}
-            >
-              {(tenant.companyName ?? tenant.tenantKey ?? "?")[0].toUpperCase()}
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>
-                {tenant.companyName ?? tenant.tenantKey}
-              </h1>
-              <div className="mt-1 flex items-center gap-1.5">
-                <span
-                  className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold"
-                  style={{ background: `${statusColor}18`, color: statusColor }}
-                >
-                  <span className='h-1.5 w-1.5 rounded-full' style={{ background: statusColor }} />
-                  {status}
-                </span>
+        <>
+          <div className="rounded-2xl border p-6 sm:p-8" style={{ background: "var(--bg-surface)", borderColor: "var(--border-default)", borderTop: "3px solid var(--color-primary-500)" }}>
+            <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-start">
+              <div className="flex min-w-0 items-start gap-4">
+                <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-purple-500/10 text-2xl font-bold text-purple-600">{(tenant.companyName ?? tenant.tenantKey ?? "?")[0].toUpperCase()}</div>
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h1 className="truncate text-2xl font-bold" style={{ color: "var(--text-primary)" }}>{tenant.companyName}</h1>
+                    <PlatformStatusBadge status={tenant.status} />
+                  </div>
+                  <p className="mt-1 font-mono text-sm" style={{ color: "var(--text-tertiary)" }}>{tenant.tenantKey}</p>
+                  <p className="mt-2 text-sm" style={{ color: "var(--text-secondary)" }}>Registered {formatDate(tenant.createdAt)} · Last activity {formatRelativeTime(tenant.lastActivityAt)}</p>
+                </div>
               </div>
+              <TenantActionsMenu tenant={tenant} buttonLabel="Actions" />
             </div>
-            <Button className='ml-auto' variant='outline' size='sm' onClick={() => setStatusEditorOpen(true)}><Pencil size={15} />Edit status</Button>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <FieldRow icon={<Key size={16} />} label="Workspace Key" value={tenant.tenantKey} />
-            <FieldRow icon={<Building2 size={16} />} label="Company Name" value={tenant.companyName} />
-            <FieldRow icon={<Mail size={16} />} label="Admin Email" value={tenant.adminEmail} />
-            <FieldRow icon={<Calendar size={16} />} label="Created" value={formatDate(tenant.createdAt)} />
-            <FieldRow icon={<Calendar size={16} />} label='Last Updated' value={formatDate(tenant.updatedAt)} />
+          <div className="grid gap-4 xl:grid-cols-2">
+            <SectionCard title="Company information" subtitle="Master-database identity and tenant routing information.">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <FieldRow icon={<Building2 size={16} />} label="Company name" value={tenant.companyName} />
+                <FieldRow icon={<Key size={16} />} label="Tenant key" value={tenant.tenantKey} mono />
+                <FieldRow icon={<Database size={16} />} label="Database" value={tenant.databaseName ?? "Not available"} mono />
+                <FieldRow icon={<Calendar size={16} />} label="Registered" value={formatDateTime(tenant.createdAt)} />
+                <FieldRow icon={<Activity size={16} />} label="Last platform update" value={formatDateTime(tenant.updatedAt)} />
+                <FieldRow icon={<Shield size={16} />} label="Lifecycle status" value={<PlatformStatusBadge status={tenant.status} />} />
+              </div>
+            </SectionCard>
+
+            <SectionCard title="Company administrator" subtitle="Primary tenant administrator identity and engagement.">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <FieldRow icon={<Users size={16} />} label="Administrator" value={tenant.adminName ?? "Not assigned"} />
+                <FieldRow icon={<Mail size={16} />} label="Email" value={tenant.adminEmail ?? "Not available"} />
+                <FieldRow icon={<Activity size={16} />} label="Last login" value={tenant.lastLoginAt ? formatDateTime(tenant.lastLoginAt) : "Never logged in"} />
+                <FieldRow icon={<Calendar size={16} />} label="Login recency" value={formatRelativeTime(tenant.lastLoginAt)} />
+              </div>
+            </SectionCard>
           </div>
 
-          {Object.keys(tenant).filter((key) => !["id", "tenantKey", "companyName", "adminEmail", "status", "createdAt"].includes(key)).length > 0 ? (
-            <div className="mt-6">
-              <h3 className="mb-3 text-sm font-semibold" style={{ color: "var(--text-tertiary)" }}>
-                Additional Data
-              </h3>
-              <div
-                className="overflow-auto rounded-xl p-4 font-mono text-xs"
-                style={{ backgroundColor: "var(--bg-muted)", color: "var(--text-secondary)" }}
-              >
-                <pre>{JSON.stringify(
-                  Object.fromEntries(
-                    Object.entries(tenant).filter(([key]) => !["id", "tenantKey", "companyName", "adminEmail", "status", "createdAt"].includes(key))
-                  ),
-                  null,
-                  2
-                )}</pre>
+          <SectionCard title="Workspace adoption" subtitle="Live operational counts from the tenant database; unavailable data is never estimated.">
+            {tenant.usageAvailable ? (
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <UsageMetric icon={<Users size={20} />} label="Employees" value={tenant.employeeCount ?? 0} color="#9332ea" />
+                <UsageMetric icon={<BriefcaseBusiness size={20} />} label="Projects" value={tenant.projectCount ?? 0} color="#2563eb" />
+                <UsageMetric icon={<Building2 size={20} />} label="Teams" value={tenant.teamCount ?? 0} color="#059669" />
+                <UsageMetric icon={<ListTodo size={20} />} label="Tasks" value={tenant.taskCount ?? 0} color="#d97706" />
               </div>
+            ) : (
+              <div className="rounded-xl border border-dashed p-6 text-center" style={{ borderColor: "var(--border-default)" }}>
+                <Database size={24} className="mx-auto text-slate-400" />
+                <p className="mt-2 text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Live usage unavailable</p>
+                <p className="mt-1 text-xs" style={{ color: "var(--text-secondary)" }}>Usage is not queried for inaccessible or non-active tenant databases.</p>
+              </div>
+            )}
+          </SectionCard>
+
+          <SectionCard title="Operational drill-down" subtitle="Open platform-wide tools already filtered to this company.">
+            <div className="flex flex-wrap gap-3">
+              <Button variant="outline" size="sm" to={`/platform/analytics?tenant=${encodeURIComponent(tenant.tenantKey)}`}><BarChart3 size={16} />View analytics</Button>
+              <Button variant="outline" size="sm" to={`/platform/audit-logs?tenant=${encodeURIComponent(tenant.tenantKey)}`}><FileClock size={16} />Audit logs</Button>
+              <Button variant="outline" size="sm" to={`/platform/reports?tenant=${encodeURIComponent(tenant.tenantKey)}`}><FileText size={16} />Reports</Button>
             </div>
-          ) : null}
-        </div>
+          </SectionCard>
+        </>
       ) : null}
-      {tenant && statusEditorOpen ? <TenantStatusDialog tenant={tenant} open onClose={() => setStatusEditorOpen(false)} /> : null}
     </div>
   );
 }
 
-function FieldRow({ icon, label, value }: { icon: ReactNode; label: string; value?: string }) {
+function FieldRow({ icon, label, value, mono = false }: { icon: ReactNode; label: string; value: ReactNode; mono?: boolean }) {
   return (
-    <div
-      className="flex items-start gap-3 rounded-xl border p-4"
-      style={{ backgroundColor: "var(--bg-muted)", borderColor: "var(--border-default)" }}
-    >
-      <span className="mt-0.5 shrink-0" style={{ color: "var(--color-primary-500)" }}>
-        {icon}
-      </span>
+    <div className="flex items-start gap-3 rounded-xl border p-4" style={{ background: "var(--bg-muted)", borderColor: "var(--border-default)" }}>
+      <span className="mt-0.5 shrink-0 text-purple-600">{icon}</span>
       <div className="min-w-0">
-        <div className="mb-1 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-tertiary)" }}>
-          {label}
-        </div>
-        <div className="truncate text-sm font-medium" style={{ color: "var(--text-primary)" }}>
-          {value ?? "-"}
-        </div>
+        <p className="mb-1 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-tertiary)" }}>{label}</p>
+        <div className={`truncate text-sm font-medium ${mono ? "font-mono" : ""}`} style={{ color: "var(--text-primary)" }}>{value}</div>
       </div>
+    </div>
+  );
+}
+
+function UsageMetric({ icon, label, value, color }: { icon: ReactNode; label: string; value: number; color: string }) {
+  return (
+    <div className="flex items-center gap-3 rounded-xl border p-4" style={{ borderColor: "var(--border-default)", background: "var(--bg-muted)" }}>
+      <span className="grid h-10 w-10 place-items-center rounded-xl" style={{ color, background: `${color}12` }}>{icon}</span>
+      <div><p className="text-xl font-semibold" style={{ color: "var(--text-primary)" }}>{value}</p><p className="text-xs" style={{ color: "var(--text-secondary)" }}>{label}</p></div>
     </div>
   );
 }

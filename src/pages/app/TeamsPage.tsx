@@ -19,6 +19,8 @@ import type { Project } from "@/modules/projects/types";
 import { getTeamMemberCount } from "@/modules/teams/utils/memberCount";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { tenantRoutes } from "@/utils/tenantRoutes";
+import { Pagination } from "@/components/common/Pagination";
+import { useClientPagination } from "@/hooks/useClientPagination";
 
 const EMPTY_TEAMS: Team[] = [];
 const EMPTY_PROJECTS: Project[] = [];
@@ -77,6 +79,10 @@ export function TeamsPage() {
       ].some((value) => value?.toLowerCase().includes(q));
     });
   }, [search, visibleTeams]);
+  const teamPagination = useClientPagination(filtered, {
+    storageKey: "teams",
+    resetKey: search,
+  });
 
   return (
     <div className="space-y-6">
@@ -144,7 +150,7 @@ export function TeamsPage() {
         {!loading && !errorMessage && filtered.length > 0 && (
           <>
             <div className="hidden min-w-[980px] md:block">
-              {filtered.map((team) => (
+              {teamPagination.paginatedItems.map((team) => (
                 <div
                   key={team.id}
                   className="grid grid-cols-[2fr_1.3fr_0.8fr_0.8fr_0.8fr_1.7fr] items-center gap-3 border-b px-5 py-4"
@@ -196,7 +202,7 @@ export function TeamsPage() {
             </div>
 
             <div className="space-y-3 p-4 md:hidden">
-              {filtered.map((team) => (
+              {teamPagination.paginatedItems.map((team) => (
                 <article
                   key={team.id}
                   className="rounded-xl border p-4"
@@ -222,6 +228,15 @@ export function TeamsPage() {
           </>
         )}
         </div>
+        {!loading && !errorMessage && filtered.length > 0 && (
+          <Pagination
+            currentPage={teamPagination.currentPage}
+            totalItems={filtered.length}
+            pageSize={teamPagination.pageSize}
+            onPageChange={teamPagination.setCurrentPage}
+            onPageSizeChange={teamPagination.setPageSize}
+          />
+        )}
       </SectionCard>
     </div>
   );

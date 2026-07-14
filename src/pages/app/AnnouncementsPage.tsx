@@ -15,6 +15,8 @@ import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { InlineAlert } from "@/components/common/InlineAlert";
 import { SearchField } from "@/components/common/SearchField";
 import { EmptyState, ErrorBanner } from "@/components/common/AppUI";
+import { Pagination } from "@/components/common/Pagination";
+import { useClientPagination } from "@/hooks/useClientPagination";
 import type { Announcement } from "@/modules/announcements/types";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { tenantRoutes } from "@/utils/tenantRoutes";
@@ -60,6 +62,10 @@ export function AnnouncementsPage() {
         .some((value) => value.toLowerCase().includes(query))
     );
   }, [announcements, search]);
+  const announcementPagination = useClientPagination(filtered, {
+    storageKey: "announcements",
+    resetKey: search,
+  });
 
   async function handleDelete() {
     if (!deleteTarget) return;
@@ -125,7 +131,7 @@ export function AnnouncementsPage() {
 
       {!loading && filtered.length > 0 && (
         <div className="space-y-4">
-          {filtered.map((announcement) => (
+          {announcementPagination.paginatedItems.map((announcement) => (
             <AnnouncementCard
               key={announcement.id}
               announcement={announcement}
@@ -134,6 +140,18 @@ export function AnnouncementsPage() {
             />
           ))}
         </div>
+      )}
+
+      {!loading && !error && filtered.length > 0 && (
+        <Pagination
+          currentPage={announcementPagination.currentPage}
+          totalItems={filtered.length}
+          pageSize={announcementPagination.pageSize}
+          onPageChange={announcementPagination.setCurrentPage}
+          onPageSizeChange={announcementPagination.setPageSize}
+          itemLabel="announcements"
+          className="rounded-2xl border"
+        />
       )}
 
       <ConfirmDialog

@@ -10,7 +10,7 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
-import { PlusCircle, Search, Table2 } from "lucide-react";
+import { LayoutGrid, PlusCircle, Table2 } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { invalidateWorkflowQueries } from "@/hooks/queries/workflowInvalidation";
@@ -29,7 +29,7 @@ import {
 } from "@/modules/tasks/services/taskService";
 import { KanbanColumn } from "@/modules/tasks/components/KanbanColumn";
 import { KanbanTaskCard } from "@/modules/tasks/components/KanbanTaskCard";
-import { TASK_STATUS_OPTIONS, type Task, type TaskStatus } from "@/modules/tasks/types";
+import { TASK_PRIORITY_OPTIONS, TASK_STATUS_OPTIONS, type Task, type TaskStatus } from "@/modules/tasks/types";
 import { canMoveTaskToStatus, getTaskAllowedStatuses, hasTeamWorkflowAccess } from "@/modules/tasks/utils/taskWorkflow";
 import { persistTasksViewPreference, resolveTasksViewFromQuery } from "@/modules/tasks/utils/tasksViewPreference";
 import { subscribeTaskRealtime } from "@/modules/tasks/services/taskRealtimeService";
@@ -38,6 +38,8 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { SectionCard } from "@/components/common/SectionCard";
 import { Button } from "@/components/common/Button";
 import { EmptyState, ErrorBanner } from "@/components/common/AppUI";
+import { AppSelect } from "@/components/common/AppSelect";
+import { SearchField } from "@/components/common/SearchField";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { tenantRoutes } from "@/utils/tenantRoutes";
 
@@ -48,6 +50,10 @@ const BOARD_LABELS: Record<typeof TASK_STATUS_OPTIONS[number], string> = {
   BLOCKED: "Blocked",
   DONE: "Done",
 };
+
+function toLabel(value: string): string {
+  return value.toLowerCase().replaceAll("_", " ").replace(/\b\w/g, (character) => character.toUpperCase());
+}
 
 export function TaskBoardPage() {
   usePageMeta({ title: "Task Management", breadcrumb: ["Workspace", "Tasks"] });
@@ -66,6 +72,8 @@ export function TaskBoardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [priorityFilter, setPriorityFilter] = useState("ALL");
+  const [projectFilter, setProjectFilter] = useState("ALL");
   const [feedback, setFeedback] = useState<string | null>(null);
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -171,12 +179,22 @@ export function TaskBoardPage() {
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
-    if (!query) return tasks;
-    return tasks.filter((task) =>
-      [task.title, task.description || "", task.assigneeName || "", task.assignedTeamName || "", task.projectName || ""]
-        .some((value) => value.toLowerCase().includes(query))
-    );
-  }, [search, tasks]);
+    return tasks.filter((task) => {
+      const matchesSearch = !query || [task.title, task.description || "", task.assigneeName || "", task.assignedTeamName || "", task.projectName || ""]
+        .some((value) => value.toLowerCase().includes(query));
+      const matchesPriority = priorityFilter === "ALL" || task.priority === priorityFilter;
+      const matchesProject = projectFilter === "ALL" || task.projectId === projectFilter;
+      return matchesSearch && matchesPriority && matchesProject;
+    });
+  }, [priorityFilter, projectFilter, search, tasks]);
+
+  const projectOptions = useMemo(() => {
+    const options = new Map<string, string>();
+    tasks.forEach((task) => {
+      if (task.projectId) options.set(task.projectId, task.projectName || `Project ${task.projectId}`);
+    });
+    return [...options.entries()].sort((left, right) => left[1].localeCompare(right[1]));
+  }, [tasks]);
 
   const grouped = useMemo(() => {
     const buckets: Record<typeof TASK_STATUS_OPTIONS[number], Task[]> = {
@@ -284,37 +302,49 @@ export function TaskBoardPage() {
   }, [employeeTeams, hasGlobalTaskWorkflow, queryClient, role, tasks, viewerIdentity]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageHeader
         title={isSelfOnlyBoard ? "My Tasks" : "Task Management"}
         description={isSelfOnlyBoard ? "Track your assigned tasks by workflow stage." : "Visualize tasks by workflow stage and quickly spot bottlenecks."}
         actions={(
-          <>
-            <Button variant="outline" to={`${tenantRoutes.tasks()}?view=list`}>
-              <Table2 size={16} />
-              Table View
+          canCreateScopedTask ? (
+            <Button variant="primary" to={tenantRoutes.taskCreate()}>
+              <PlusCircle size={16} />
+              Create Task
             </Button>
-            {canCreateScopedTask && (
-              <Button variant="primary" to={tenantRoutes.taskCreate()}>
-                <PlusCircle size={16} />
-                Create Task
-              </Button>
-            )}
-          </>
+          ) : undefined
         )}
       />
 
-      <SectionCard>
-        <div className="relative max-w-lg">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--text-tertiary)" }} />
-          <input
-            type="text"
+      <SectionCard variant="dense">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2.5">
+          <SearchField
+            label="Search board tasks"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Filter cards by task, team, project, or assignee..."
-            className="w-full rounded-xl border py-2.5 pl-9 pr-3 text-sm outline-none transition-all focus:ring-2 focus:ring-primary-500/30"
-            style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)", color: "var(--text-primary)" }}
+            className="w-full sm:w-72"
           />
+          <AppSelect value={priorityFilter} onChange={(event) => setPriorityFilter(event.target.value)} className="min-w-40 flex-1 sm:flex-none">
+            <option value="ALL">All Priorities</option>
+            {TASK_PRIORITY_OPTIONS.map((priority) => <option key={priority} value={priority}>{toLabel(priority)}</option>)}
+          </AppSelect>
+          <AppSelect value={projectFilter} onChange={(event) => setProjectFilter(event.target.value)} className="min-w-40 flex-1 sm:flex-none">
+            <option value="ALL">All Projects</option>
+            {projectOptions.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
+          </AppSelect>
+          </div>
+          <div className="flex shrink-0 items-center gap-2 self-end sm:self-auto" aria-label="Task view">
+            <Button type="button" variant="primary" size="sm" aria-current="page">
+              <LayoutGrid size={16} />
+              Board View
+            </Button>
+            <Button variant="outline" size="sm" to={`${tenantRoutes.tasks()}?view=list`}>
+              <Table2 size={16} />
+              Table View
+            </Button>
+          </div>
         </div>
       </SectionCard>
 
@@ -341,8 +371,8 @@ export function TaskBoardPage() {
 
       {!loading && !error && filtered.length === 0 && (
         <EmptyState
-          title={search ? "No matching board cards" : "No tasks available"}
-          description={search ? "Adjust your search to see matching tasks." : (isSelfOnlyBoard ? "No tasks are assigned to you right now." : "Create tasks to start using the Kanban board.")}
+          title={search || priorityFilter !== "ALL" || projectFilter !== "ALL" ? "No matching board cards" : "No tasks available"}
+          description={search || priorityFilter !== "ALL" || projectFilter !== "ALL" ? "Adjust your search or filters to see matching tasks." : (isSelfOnlyBoard ? "No tasks are assigned to you right now." : "Create tasks to start using the Kanban board.")}
           action={canCreateScopedTask ? <Button variant="outline" to={tenantRoutes.taskCreate()}>Create Task</Button> : undefined}
         />
       )}
@@ -355,7 +385,7 @@ export function TaskBoardPage() {
           onDragCancel={handleDragCancel}
           onDragEnd={handleDragEnd}
         >
-          <div className="overflow-x-auto pb-2" style={{ scrollBehavior: "smooth" }}>
+          <div className="overflow-x-auto pb-1" style={{ scrollBehavior: "smooth" }}>
             <div className="flex min-w-max gap-4">
               {TASK_STATUS_OPTIONS.map((status) => (
                 <KanbanColumn

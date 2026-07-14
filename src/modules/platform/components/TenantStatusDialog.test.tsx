@@ -22,9 +22,9 @@ describe('TenantStatusDialog', () => {
     render(<TenantStatusDialog tenant={tenant} open onClose={onClose} />);
 
     fireEvent.change(screen.getByLabelText('Tenant status'), { target: { value: 'SUSPENDED' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Save status' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Review change' }));
 
-    expect(screen.getByRole('dialog', { name: 'Suspend this tenant?' })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Suspend Acme Ltd?' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Suspend tenant' }));
 
     await waitFor(() => expect(mutateAsync).toHaveBeenCalledWith({ tenantKey: 'acme', status: 'SUSPENDED' }));
@@ -32,22 +32,23 @@ describe('TenantStatusDialog', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  it('updates ACTIVE to INACTIVE without the suspension confirmation', async () => {
+  it('confirms ACTIVE to INACTIVE before updating', async () => {
     mutateAsync.mockResolvedValue({ ...tenant, status: 'inactive' });
     render(<TenantStatusDialog tenant={tenant} open onClose={vi.fn()} />);
     fireEvent.change(screen.getByLabelText('Tenant status'), { target: { value: 'INACTIVE' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Save status' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Review change' }));
+    expect(screen.getByRole('dialog', { name: 'Deactivate Acme Ltd?' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Deactivate tenant' }));
     await waitFor(() => expect(mutateAsync).toHaveBeenCalledWith({ tenantKey: 'acme', status: 'INACTIVE' }));
-    expect(screen.queryByText('Suspend this tenant?')).not.toBeInTheDocument();
   });
 
   it('confirms SUSPENDED to ACTIVE reactivation', async () => {
     mutateAsync.mockResolvedValue({ ...tenant, status: 'active' });
     render(<TenantStatusDialog tenant={{ ...tenant, status: 'suspended' }} open onClose={vi.fn()} />);
     fireEvent.change(screen.getByLabelText('Tenant status'), { target: { value: 'ACTIVE' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Save status' }));
-    expect(screen.getByRole('dialog', { name: 'Reactivate this tenant?' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Reactivate tenant' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Review change' }));
+    expect(screen.getByRole('dialog', { name: 'Activate Acme Ltd?' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Activate tenant' }));
     await waitFor(() => expect(mutateAsync).toHaveBeenCalledWith({ tenantKey: 'acme', status: 'ACTIVE' }));
   });
 });
