@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { NotificationsPage } from "@/pages/app/NotificationsPage";
 import {
   getNotifications,
@@ -19,6 +20,20 @@ vi.mock("@/modules/notifications/services/notificationService", () => ({
 vi.mock("@/hooks/usePageMeta", () => ({
   usePageMeta: () => undefined,
 }));
+
+function renderPage() {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={["/"]}>
+        <Routes>
+          <Route path="/" element={<NotificationsPage />} />
+          <Route path="/:tenantSlug/announcements/:id" element={<div>Announcement Detail Page</div>} />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>
+  );
+}
 
 describe("NotificationsPage", () => {
   beforeEach(() => {
@@ -44,14 +59,7 @@ describe("NotificationsPage", () => {
       },
     ]);
 
-    render(
-      <MemoryRouter initialEntries={["/"]}>
-        <Routes>
-          <Route path="/" element={<NotificationsPage />} />
-          <Route path="/:tenantSlug/announcements/:id" element={<div>Announcement Detail Page</div>} />
-        </Routes>
-      </MemoryRouter>
-    );
+    renderPage();
 
     await waitFor(() => expect(getNotifications).toHaveBeenCalled());
     fireEvent.click(screen.getByText("Announcement"));
@@ -76,14 +84,7 @@ describe("NotificationsPage", () => {
       },
     ]);
 
-    render(
-      <MemoryRouter initialEntries={["/"]}>
-        <Routes>
-          <Route path="/" element={<NotificationsPage />} />
-          <Route path="/:tenantSlug/announcements/:id" element={<div>Announcement Detail Page</div>} />
-        </Routes>
-      </MemoryRouter>
-    );
+    renderPage();
 
     await waitFor(() => expect(getNotifications).toHaveBeenCalled());
     fireEvent.click(screen.getByText("System Notification"));

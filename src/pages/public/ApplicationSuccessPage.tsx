@@ -36,8 +36,6 @@ export function ApplicationSuccessPage() {
 
   useEffect(() => {
     let active = true;
-    setLoading(!initialApplication);
-    setError(null);
 
     if (!referenceNumber || initialApplication) {
       return () => {
@@ -72,7 +70,7 @@ export function ApplicationSuccessPage() {
   if (error || !application) {
     return (
       <PageContainer size="lg" className="space-y-5">
-        <ErrorBanner message={error ?? "Unable to load the submitted application."} onRetry={() => setRetryKey((value) => value + 1)} />
+        <ErrorBanner message={error ?? "Unable to load the submitted application."} onRetry={() => { setLoading(true); setError(null); setRetryKey((value) => value + 1); }} />
         <Button variant="secondary" to={`/${tenantSlug}/careers`}>Return to Careers</Button>
       </PageContainer>
     );
