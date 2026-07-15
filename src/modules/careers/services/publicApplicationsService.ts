@@ -51,19 +51,16 @@ export async function submitPublicApplication(
   onUploadProgress?: (progress: number) => void
 ): Promise<PublicApplicationResponse> {
   const formData = new FormData();
-  formData.append("firstName", values.firstName.trim());
-  formData.append("lastName", values.lastName.trim());
+  const nameParts = values.fullName.trim().split(/\s+/);
+  formData.append("firstName", nameParts[0] ?? "Candidate");
+  formData.append("lastName", nameParts.slice(1).join(" ") || "Applicant");
   formData.append("email", values.email.trim());
   appendIfPresent(formData, "phone", values.phone);
-  appendIfPresent(formData, "currentCity", values.currentCity);
-  appendIfPresent(formData, "country", values.country);
   appendIfPresent(formData, "linkedIn", values.linkedIn);
   appendIfPresent(formData, "portfolio", values.portfolio);
-  appendIfPresent(formData, "yearsOfExperience", values.yearsOfExperience);
   appendIfPresent(formData, "currentCompany", values.currentCompany);
   appendIfPresent(formData, "currentPosition", values.currentPosition);
   appendIfPresent(formData, "expectedSalary", values.expectedSalary);
-  appendIfPresent(formData, "availableFrom", values.availableFrom);
   appendIfPresent(formData, "coverLetter", values.coverLetter);
   if (values.resume) {
     formData.append("resume", values.resume);
