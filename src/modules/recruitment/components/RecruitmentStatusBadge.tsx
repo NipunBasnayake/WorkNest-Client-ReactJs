@@ -7,7 +7,7 @@ export function RecruitmentStatusBadge({ value }: { value: string }) {
       style={{ background: TONE_STYLE[tone].bg, color: TONE_STYLE[tone].text }}
     >
       <span className="h-1.5 w-1.5 rounded-full" style={{ background: TONE_STYLE[tone].dot }} />
-      {value.replaceAll("_", " ")}
+      {value.toUpperCase() === "OFFERED" ? "Offer" : value.replaceAll("_", " ")}
     </span>
   );
 }
@@ -23,7 +23,7 @@ const TONE_STYLE: Record<ReturnType<typeof getTone>, { bg: string; text: string;
 function getTone(value: string): "neutral" | "success" | "warning" | "danger" | "info" {
   const normalized = value.toUpperCase();
   if (normalized === "HIRED" || normalized === "OPEN" || normalized === "COMPLETED") return "success";
-  if (normalized === "OFFERED" || normalized === "INTERVIEW" || normalized === "SCHEDULED" || normalized === "SCREENING") return "info";
+  if (normalized === "OFFERED" || normalized === "INTERVIEW" || normalized === "SCHEDULED" || normalized === "SHORTLISTED" || normalized === "SCREENING") return "info";
   if (normalized === "PAUSED" || normalized === "HR_REVIEW" || normalized === "RESCHEDULED") return "warning";
   if (normalized === "REJECTED" || normalized === "WITHDRAWN" || normalized === "CANCELLED") return "danger";
   return "neutral";
