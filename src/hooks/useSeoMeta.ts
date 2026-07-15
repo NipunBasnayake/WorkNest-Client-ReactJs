@@ -6,6 +6,7 @@ interface SeoMetaOptions {
   canonicalPath?: string;
   ogTitle?: string;
   ogDescription?: string;
+  noIndex?: boolean;
 }
 
 const APP_NAME = "WorkNest";
@@ -63,6 +64,7 @@ export function useSeoMeta({
   canonicalPath,
   ogTitle,
   ogDescription,
+  noIndex = false,
 }: SeoMetaOptions) {
   useEffect(() => {
     const documentTitle = resolveTitle(title);
@@ -71,6 +73,7 @@ export function useSeoMeta({
     setPropertyMeta("og:title", ogTitle ?? documentTitle);
     setPropertyMeta("og:description", ogDescription ?? description);
     setPropertyMeta("og:type", "website");
+    setNamedMeta("robots", noIndex ? "noindex,nofollow" : "index,follow");
     setCanonical(canonicalPath);
-  }, [canonicalPath, description, ogDescription, ogTitle, title]);
+  }, [canonicalPath, description, noIndex, ogDescription, ogTitle, title]);
 }

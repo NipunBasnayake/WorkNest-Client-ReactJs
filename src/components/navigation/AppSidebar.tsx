@@ -6,6 +6,7 @@ import {
   ClipboardList, CalendarCheck, Bell, MessageSquare, Briefcase, BarChart3, CheckSquare, BellRing,
   Lock,
   FileText,
+  Mail,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { type Permission, PERMISSIONS } from "@/constants/permissions";
@@ -74,8 +75,11 @@ const TENANT_NAV_GROUPS: SidebarNavGroup[] = [
   {
     label: "Recruitment",
     items: [
-      { label: "Recruitment", to: (t: string) => tenantRoutes.recruitment(t), icon: <LayoutDashboard size={18} />, permission: PERMISSIONS.RECRUITMENT_VIEW },
+      { label: "Dashboard", to: (t: string) => tenantRoutes.recruitment(t), icon: <LayoutDashboard size={18} />, permission: PERMISSIONS.RECRUITMENT_VIEW },
+      { label: "Job Openings", to: (t: string) => tenantRoutes.recruitmentJobs(t), icon: <Briefcase size={18} />, permission: PERMISSIONS.RECRUITMENT_VIEW },
       { label: "Applications", to: (t: string) => tenantRoutes.recruitmentApplications(t), icon: <ClipboardList size={18} />, permission: PERMISSIONS.RECRUITMENT_VIEW },
+      { label: "Email Templates", to: (t: string) => tenantRoutes.recruitmentEmailTemplates(t), icon: <Mail size={18} />, permission: PERMISSIONS.RECRUITMENT_VIEW },
+      { label: "Reports", to: (t: string) => tenantRoutes.recruitmentReports(t), icon: <FileText size={18} />, permission: PERMISSIONS.RECRUITMENT_VIEW },
     ],
   },
   {

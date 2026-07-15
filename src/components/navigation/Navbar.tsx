@@ -19,6 +19,7 @@ export function Navbar() {
     ? [{ label: "Careers", href: `/${careersMatch.params.tenantSlug}/careers` }]
     : [];
   const visibleNavLinks = isLanding ? NAV_LINKS : tenantCareersLink;
+  const isCareers = Boolean(careersMatch);
 
   useEffect(() => {
     const handler = () => setScrolled(window.scrollY > 16);
@@ -71,17 +72,7 @@ export function Navbar() {
           {/* Desktop actions */}
           <div className="hidden md:flex items-center gap-2">
             <ThemeToggle />
-            <Button variant="ghost" size="sm" to="/login">
-              Sign In
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              to="/register-company"
-              className="shadow-md shadow-primary-500/25"
-            >
-              Get Started
-            </Button>
+            {!isCareers ? <><Button variant="ghost" size="sm" to="/login">Sign In</Button><Button variant="primary" size="sm" to="/register-company" className="shadow-md shadow-primary-500/25">Get Started</Button></> : null}
           </div>
 
           {/* Mobile toggle */}

@@ -45,6 +45,7 @@ function normalizeJobDetail(value: unknown): PublicCareerJobDetail {
     responsibilities: getString(record.responsibilities),
     requirements: getString(record.requirements),
     benefits: getString(record.benefits),
+    relatedJobs: extractList(record.relatedJobs).map(normalizeJobSummary),
   };
 }
 

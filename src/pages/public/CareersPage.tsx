@@ -53,7 +53,7 @@ export function CareersPage() {
     };
   }, [retryKey, tenantSlug]);
 
-  const jobs = data?.jobs ?? [];
+  const jobs = useMemo(() => data?.jobs ?? [], [data?.jobs]);
   const departments = useMemo(() => uniqueOptions<string>(jobs.map((job) => job.department)), [jobs]);
   const employmentTypes = useMemo(() => uniqueOptions<PublicEmploymentType>(jobs.map((job) => job.employmentType)), [jobs]);
   const filteredJobs = useMemo(() => {

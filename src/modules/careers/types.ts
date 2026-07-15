@@ -26,6 +26,7 @@ export interface PublicCareerJobDetail extends PublicCareerJobSummary {
   responsibilities?: string;
   requirements?: string;
   benefits?: string;
+  relatedJobs?: PublicCareerJobSummary[];
 }
 
 export interface PublicCareersResponse {
@@ -34,19 +35,14 @@ export interface PublicCareersResponse {
 }
 
 export interface PublicApplicationFormValues {
-  firstName: string;
-  lastName: string;
+  fullName: string;
   email: string;
   phone: string;
-  currentCity: string;
-  country: string;
   linkedIn: string;
   portfolio: string;
-  yearsOfExperience: string;
   currentCompany: string;
   currentPosition: string;
   expectedSalary: string;
-  availableFrom: string;
   coverLetter: string;
   resume: File | null;
 }

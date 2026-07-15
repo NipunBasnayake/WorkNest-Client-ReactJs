@@ -1,4 +1,5 @@
 import { Logo } from "@/components/common/Logo";
+import { matchPath, useLocation } from "react-router-dom";
 
 const quickLinks = [
   { label: "Features",     href: "#features" },
@@ -14,6 +15,14 @@ const productLinks = [
 
 export function Footer() {
   const year = new Date().getFullYear();
+  const location = useLocation();
+  const careers = matchPath("/:tenantSlug/careers/*", location.pathname)
+    ?? matchPath("/:tenantSlug/careers", location.pathname)
+    ?? matchPath("/:tenantSlug/applications/*", location.pathname);
+
+  if (careers) {
+    return <footer className="border-t" style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)" }}><div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-4 py-6 text-center sm:flex-row sm:text-left"><p className="text-sm" style={{ color: "var(--text-secondary)" }}>A simple, secure hiring experience.</p><p className="text-xs" style={{ color: "var(--text-tertiary)" }}>Hiring powered by WorkNest · © {year}</p></div></footer>;
+  }
 
   return (
     <footer
