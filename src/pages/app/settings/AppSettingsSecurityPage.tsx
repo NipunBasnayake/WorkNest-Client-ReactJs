@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { RefreshCw, ShieldCheck, LogOut, Smartphone, Monitor } from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { Button } from "@/components/common/Button";
@@ -18,7 +18,7 @@ export function AppSettingsSecurityPage() {
   const [actionPending, setActionPending] = useState<number | "all" | null>(null);
   const toast = useToast();
 
-  async function loadSessions() {
+  const loadSessions = useCallback(async () => {
     setLoading(true);
     try {
       const nextSessions = await getActiveSessionsApi();
@@ -28,11 +28,11 @@ export function AppSettingsSecurityPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [toast]);
 
   useEffect(() => {
     void loadSessions();
-  }, []);
+  }, [loadSessions]);
 
   async function handleRevokeSession(sessionId: number) {
     setActionPending(sessionId);

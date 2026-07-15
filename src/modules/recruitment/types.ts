@@ -1,27 +1,18 @@
 export type RecruitmentJobStatus = "OPEN" | "PAUSED" | "CLOSED";
 export type RecruitmentEmploymentType = "FULL_TIME" | "PART_TIME" | "CONTRACT" | "INTERN" | "REMOTE" | "HYBRID";
-export type RecruitmentStage =
-  | "APPLIED"
-  | "SCREENING"
-  | "INTERVIEW"
-  | "TECHNICAL"
-  | "HR_REVIEW"
-  | "OFFERED"
-  | "HIRED"
-  | "REJECTED"
-  | "WITHDRAWN";
+export type RecruitmentStage = "APPLIED" | "SHORTLISTED" | "INTERVIEW" | "OFFERED" | "HIRED" | "REJECTED";
 export type RecruitmentInterviewMode = "ONSITE" | "REMOTE" | "PHONE";
 export type RecruitmentInterviewStatus = "SCHEDULED" | "COMPLETED" | "CANCELLED" | "RESCHEDULED";
-export type RecruitmentInterviewRecommendation = "STRONG_HIRE" | "HIRE" | "HOLD" | "NO_HIRE";
-export type RecruitmentHireRole = "TENANT_ADMIN" | "ADMIN" | "MANAGER" | "HR" | "EMPLOYEE";
-export type RecruitmentHireTeamRole =
-  | "MEMBER"
-  | "TEAM_LEAD"
-  | "PROJECT_MANAGER"
-  | "BUSINESS_ANALYST"
-  | "DEVELOPER"
-  | "QA"
-  | "DESIGNER";
+export type RecruitmentHireRole = "MANAGER" | "EMPLOYEE";
+export type RecruitmentHireTeamRole = "MEMBER" | "TEAM_LEAD" | "PROJECT_MANAGER" | "BUSINESS_ANALYST" | "DEVELOPER" | "QA" | "DESIGNER";
+export type RecruitmentEmailTemplateType =
+  | "APPLICATION_RECEIVED"
+  | "SHORTLISTED"
+  | "INTERVIEW_INVITATION"
+  | "INTERVIEW_RESCHEDULED"
+  | "OFFER"
+  | "REJECTED"
+  | "WELCOME_EMPLOYEE";
 
 export interface PaginatedResult<T> {
   items: T[];
@@ -39,12 +30,14 @@ export interface RecruitmentJobPosition {
   description?: string;
   employmentType?: RecruitmentEmploymentType;
   location?: string;
+  experience?: string;
   openings?: number;
-  status?: RecruitmentJobStatus;
-  published?: boolean;
+  status: RecruitmentJobStatus;
+  published: boolean;
   visibleToExternalApplicants?: boolean;
   expiresAt?: string;
-  applicationCount?: number;
+  publishedAt?: string;
+  applicationCount: number;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -54,6 +47,11 @@ export interface RecruitmentCandidate {
   fullName: string;
   email: string;
   phone?: string;
+  currentCity?: string;
+  country?: string;
+  linkedinUrl?: string;
+  portfolioUrl?: string;
+  currentCompany?: string;
   currentTitle?: string;
   yearsOfExperience?: number;
   source?: string;
@@ -62,8 +60,26 @@ export interface RecruitmentCandidate {
   resumeFileUrl?: string;
   resumeMimeType?: string;
   resumeFileSizeBytes?: number;
-  createdAt?: string;
+}
+
+export interface RecruitmentApplication {
+  id: string;
+  referenceNumber?: string;
+  candidate: RecruitmentCandidate;
+  jobPosition: RecruitmentJobPosition;
+  status: RecruitmentStage;
+  coverLetter?: string;
+  expectedSalary?: number;
+  availableFrom?: string;
+  source?: string;
+  recruiterNotes?: string;
+  rejectedReason?: string;
+  appliedAt?: string;
   updatedAt?: string;
+  offeredAt?: string;
+  hiredAt?: string;
+  hiredEmployeeId?: string;
+  version?: number;
 }
 
 export interface RecruitmentCandidateComment {
@@ -74,31 +90,32 @@ export interface RecruitmentCandidateComment {
   author?: { id?: string; name?: string; email?: string } | null;
 }
 
-export interface RecruitmentApplication {
+export interface RecruitmentApplicationEvent {
   id: string;
-  candidate: RecruitmentCandidate;
-  jobPosition: RecruitmentJobPosition;
-  status: RecruitmentStage;
-  coverLetter?: string;
-  expectedSalary?: number | string;
-  recruiterNotes?: string;
-  rejectedReason?: string;
-  createdBy?: { id?: string; name?: string; email?: string } | null;
-  appliedAt?: string;
-  updatedAt?: string;
-  offeredAt?: string;
-  hiredAt?: string;
+  eventType: string;
+  title: string;
+  detail?: string;
+  occurredAt?: string;
+  actor?: { id?: string; name?: string; email?: string } | null;
 }
 
-export interface RecruitmentInterviewFeedback {
+export interface RecruitmentEmailLog {
   id: string;
-  interviewId: string;
-  rating?: number;
-  recommendation?: RecruitmentInterviewRecommendation;
-  strengths?: string;
-  concerns?: string;
-  notes?: string;
-  reviewer?: { id?: string; name?: string; email?: string } | null;
+  templateType: RecruitmentEmailTemplateType;
+  recipientEmail: string;
+  subject: string;
+  deliveryStatus: string;
+  sentAt?: string;
+}
+
+export interface RecruitmentEmailTemplate {
+  id: string;
+  type: RecruitmentEmailTemplateType;
+  subject: string;
+  bodyMarkdown: string;
+  enabled: boolean;
+  availableVariables: string[];
+  updatedAt?: string;
 }
 
 export interface RecruitmentInterview {
@@ -113,59 +130,35 @@ export interface RecruitmentInterview {
   location?: string;
   meetingLink?: string;
   notes?: string;
-  feedback?: RecruitmentInterviewFeedback | null;
 }
 
 export interface RecruitmentDashboard {
   openJobs: number;
   totalCandidates: number;
-  activeApplications: number;
+  applicationsReceived: number;
+  shortlisted: number;
+  interviewScheduled: number;
+  offersSent: number;
   hiredCandidates: number;
+  rejected: number;
+  activeApplications: number;
   upcomingInterviews: number;
   stageCounts: Array<{ stage: RecruitmentStage; count: number }>;
   jobCounts: Array<{ jobPositionId: string; title: string; count: number }>;
-}
-
-export interface RecruitmentPipelineColumn {
-  stage: RecruitmentStage;
-  label: string;
-  count: number;
-  applications: RecruitmentApplication[];
-}
-
-export interface RecruitmentPipeline {
-  columns: RecruitmentPipelineColumn[];
+  recentApplications: RecruitmentApplication[];
+  upcomingInterviewItems: RecruitmentInterview[];
+  recentlyPublishedJobs: RecruitmentJobPosition[];
 }
 
 export interface RecruitmentJobFormValues {
   title: string;
   department: string;
-  description: string;
   employmentType: RecruitmentEmploymentType;
   location: string;
+  experience: string;
+  expiresAt: string;
   openings: number;
-  status: RecruitmentJobStatus;
-  published: boolean;
-  visibleToExternalApplicants?: boolean;
-  expiresAt?: string;
-}
-
-export interface RecruitmentCandidateFormValues {
-  fullName: string;
-  email: string;
-  phone: string;
-  currentTitle: string;
-  yearsOfExperience: string;
-  source: string;
-  summary: string;
-}
-
-export interface RecruitmentApplicationFormValues {
-  candidateId: string;
-  jobPositionId: string;
-  status: RecruitmentStage;
-  coverLetter: string;
-  expectedSalary: string;
+  description: string;
 }
 
 export interface RecruitmentHireFormValues {
@@ -187,24 +180,13 @@ export interface RecruitmentHireResponse {
   teamId?: string;
   teamName?: string;
   accountProvisioned: boolean;
-  temporaryPassword?: string;
 }
 
 export interface RecruitmentInterviewFormValues {
   applicationId: string;
-  interviewerEmployeeId: string;
   scheduledAt: string;
   mode: RecruitmentInterviewMode;
   location: string;
   meetingLink: string;
-  notes: string;
-}
-
-export interface RecruitmentFeedbackFormValues {
-  interviewId: string;
-  rating: string;
-  recommendation: RecruitmentInterviewRecommendation;
-  strengths: string;
-  concerns: string;
   notes: string;
 }

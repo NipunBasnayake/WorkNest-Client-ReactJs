@@ -72,8 +72,8 @@ export function AuditLogsPage() {
     staleTime: 60_000,
   });
 
-  const logs = auditQuery.data?.items ?? [];
   const filteredLogs = useMemo(() => {
+    const logs = auditQuery.data?.items ?? [];
     const term = search.trim().toLowerCase();
     if (!term) return logs;
 
@@ -89,7 +89,7 @@ export function AuditLogsPage() {
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(term))
     );
-  }, [logs, search]);
+  }, [auditQuery.data?.items, search]);
 
   function updateFilter(next: Partial<AuditLogQuery>) {
     setQuery((current) => ({ ...current, ...next, page: 0 }));

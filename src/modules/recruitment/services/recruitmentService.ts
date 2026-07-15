@@ -5,32 +5,31 @@ import type { ApiResponse, Employee } from "@/types";
 import type {
   PaginatedResult,
   RecruitmentApplication,
-  RecruitmentApplicationFormValues,
+  RecruitmentApplicationEvent,
   RecruitmentCandidate,
   RecruitmentCandidateComment,
-  RecruitmentCandidateFormValues,
   RecruitmentDashboard,
-  RecruitmentFeedbackFormValues,
+  RecruitmentEmailLog,
+  RecruitmentEmailTemplate,
+  RecruitmentEmailTemplateType,
   RecruitmentHireFormValues,
   RecruitmentHireResponse,
   RecruitmentInterview,
   RecruitmentInterviewFormValues,
   RecruitmentJobFormValues,
   RecruitmentJobPosition,
-  RecruitmentPipeline,
+  RecruitmentStage,
 } from "@/modules/recruitment/types";
 
-function normalizeBoolean(value: unknown): boolean | undefined {
+type ListParams = { search?: string; page?: number; size?: number; sortBy?: string; sortDir?: "asc" | "desc" };
+export type ApplicationListParams = ListParams & { status?: RecruitmentStage | ""; jobPositionId?: string };
+
+function bool(value: unknown, fallback = false) {
   if (typeof value === "boolean") return value;
-  if (typeof value === "string") {
-    const normalized = value.trim().toLowerCase();
-    if (normalized === "true") return true;
-    if (normalized === "false") return false;
-  }
-  return undefined;
+  return typeof value === "string" ? value.toLowerCase() === "true" : fallback;
 }
 
-function normalizeEmployeeSummary(value: unknown) {
+function employeeSummary(value: unknown) {
   const record = asRecord(value);
   return {
     id: getId(firstDefined(record.id, record.employeeId, record.userId)),
@@ -39,65 +38,49 @@ function normalizeEmployeeSummary(value: unknown) {
   };
 }
 
-function normalizeEmployee(value: unknown): Employee {
-  const record = asRecord(value);
-  const firstName = firstDefined(getString(record.firstName), getString(record.first_name));
-  const lastName = firstDefined(getString(record.lastName), getString(record.last_name));
-  const name = firstDefined(
-    getString(record.name),
-    getString(record.fullName),
-    `${firstName ?? ""} ${lastName ?? ""}`.trim() || undefined
-  ) ?? "Employee";
-
-  return {
-    ...record,
-    id: getId(firstDefined(record.id, record.employeeId, record.userId)),
-    employeeCode: firstDefined(getString(record.employeeCode), getString(record.code)),
-    firstName,
-    lastName,
-    name,
-    email: firstDefined(getString(record.email), getString(record.workEmail)) ?? "",
-    phone: firstDefined(getString(record.phone), getString(record.mobile)),
-    designation: firstDefined(getString(record.designation), getString(record.position)),
-    position: firstDefined(getString(record.position), getString(record.designation)),
-    department: getString(record.department),
-    role: firstDefined(getString(record.role), getString(record.userRole)),
-    salary: getNumber(record.salary),
-    status: firstDefined(getString(record.status), getString(record.employeeStatus)),
-    joinedAt: firstDefined(getString(record.joinedAt), getString(record.joinedDate), getString(record.joinDate)),
-    joinedDate: firstDefined(getString(record.joinedDate), getString(record.joinedAt), getString(record.joinDate)),
-    avatarUrl: firstDefined(getString(record.avatarUrl), getString(record.profileImageUrl), getString(record.imageUrl)),
-  };
+function canonicalStage(value: unknown): RecruitmentStage {
+  const stage = (getString(value) ?? "APPLIED").toUpperCase();
+  if (stage === "SCREENING") return "SHORTLISTED";
+  if (stage === "TECHNICAL" || stage === "HR_REVIEW") return "INTERVIEW";
+  if (stage === "WITHDRAWN") return "REJECTED";
+  return stage as RecruitmentStage;
 }
 
-function normalizeJobPosition(value: unknown): RecruitmentJobPosition {
+function job(value: unknown): RecruitmentJobPosition {
   const record = asRecord(value);
   return {
     id: getId(record.id),
-    title: getString(record.title) ?? "Untitled position",
+    title: getString(record.title) ?? "Untitled job",
     slug: getString(record.slug),
     department: getString(record.department),
     description: getString(record.description),
     employmentType: getString(record.employmentType)?.toUpperCase() as RecruitmentJobPosition["employmentType"],
     location: getString(record.location),
+    experience: getString(record.experience),
     openings: getNumber(record.openings),
-    status: getString(record.status)?.toUpperCase() as RecruitmentJobPosition["status"],
-    published: normalizeBoolean(record.published),
-    visibleToExternalApplicants: normalizeBoolean(record.visibleToExternalApplicants),
+    status: (getString(record.status)?.toUpperCase() ?? "OPEN") as RecruitmentJobPosition["status"],
+    published: bool(record.published),
+    visibleToExternalApplicants: record.visibleToExternalApplicants == null ? true : bool(record.visibleToExternalApplicants),
     expiresAt: toIsoDateTime(record.expiresAt),
-    applicationCount: getNumber(record.applicationCount),
+    publishedAt: toIsoDateTime(record.publishedAt),
+    applicationCount: getNumber(record.applicationCount) ?? 0,
     createdAt: toIsoDateTime(record.createdAt),
     updatedAt: toIsoDateTime(record.updatedAt),
   };
 }
 
-function normalizeCandidate(value: unknown): RecruitmentCandidate {
+function candidate(value: unknown): RecruitmentCandidate {
   const record = asRecord(value);
   return {
     id: getId(record.id),
     fullName: getString(record.fullName) ?? "Unknown candidate",
     email: getString(record.email) ?? "",
     phone: getString(record.phone),
+    currentCity: getString(record.currentCity),
+    country: getString(record.country),
+    linkedinUrl: getString(record.linkedinUrl),
+    portfolioUrl: getString(record.portfolioUrl),
+    currentCompany: getString(record.currentCompany),
     currentTitle: getString(record.currentTitle),
     yearsOfExperience: getNumber(record.yearsOfExperience),
     source: getString(record.source),
@@ -106,303 +89,237 @@ function normalizeCandidate(value: unknown): RecruitmentCandidate {
     resumeFileUrl: getString(record.resumeFileUrl),
     resumeMimeType: getString(record.resumeMimeType),
     resumeFileSizeBytes: getNumber(record.resumeFileSizeBytes),
-    createdAt: toIsoDateTime(record.createdAt),
-    updatedAt: toIsoDateTime(record.updatedAt),
   };
 }
 
-function normalizeComment(value: unknown): RecruitmentCandidateComment {
+function application(value: unknown): RecruitmentApplication {
   const record = asRecord(value);
   return {
     id: getId(record.id),
-    candidateId: getId(record.candidateId),
-    message: getString(record.message) ?? "",
-    createdAt: toIsoDateTime(record.createdAt),
-    author: normalizeEmployeeSummary(record.author),
-  };
-}
-
-function normalizeApplication(value: unknown): RecruitmentApplication {
-  const record = asRecord(value);
-  return {
-    id: getId(record.id),
-    candidate: normalizeCandidate(record.candidate),
-    jobPosition: normalizeJobPosition(record.jobPosition),
-    status: (getString(record.status)?.toUpperCase() ?? "APPLIED") as RecruitmentApplication["status"],
+    referenceNumber: getString(record.referenceNumber),
+    candidate: candidate(record.candidate),
+    jobPosition: job(record.jobPosition),
+    status: canonicalStage(record.status),
     coverLetter: getString(record.coverLetter),
     expectedSalary: getNumber(record.expectedSalary),
+    availableFrom: getString(record.availableFrom),
+    source: getString(record.source),
     recruiterNotes: getString(record.recruiterNotes),
     rejectedReason: getString(record.rejectedReason),
-    createdBy: normalizeEmployeeSummary(record.createdBy),
     appliedAt: toIsoDateTime(record.appliedAt),
     updatedAt: toIsoDateTime(record.updatedAt),
     offeredAt: toIsoDateTime(record.offeredAt),
     hiredAt: toIsoDateTime(record.hiredAt),
+    hiredEmployeeId: record.hiredEmployeeId == null ? undefined : getId(record.hiredEmployeeId),
+    version: getNumber(record.version),
   };
 }
 
-function normalizeInterview(value: unknown): RecruitmentInterview {
+function interview(value: unknown): RecruitmentInterview {
   const record = asRecord(value);
   return {
     id: getId(record.id),
     applicationId: getId(record.applicationId),
-    candidate: normalizeCandidate(record.candidate),
-    jobPosition: normalizeJobPosition(record.jobPosition),
-    interviewer: normalizeEmployeeSummary(record.interviewer),
-    mode: getString(record.mode)?.toUpperCase() as RecruitmentInterview["mode"],
-    status: getString(record.status)?.toUpperCase() as RecruitmentInterview["status"],
+    candidate: candidate(record.candidate),
+    jobPosition: job(record.jobPosition),
+    interviewer: employeeSummary(record.interviewer),
+    mode: (getString(record.mode)?.toUpperCase() ?? "REMOTE") as RecruitmentInterview["mode"],
+    status: (getString(record.status)?.toUpperCase() ?? "SCHEDULED") as RecruitmentInterview["status"],
     scheduledAt: toIsoDateTime(record.scheduledAt),
     location: getString(record.location),
     meetingLink: getString(record.meetingLink),
     notes: getString(record.notes),
-    feedback: record.feedback ? normalizeInterviewFeedback(record.feedback) : null,
   };
 }
 
-function normalizeInterviewFeedback(value: unknown) {
+function note(value: unknown): RecruitmentCandidateComment {
+  const record = asRecord(value);
+  return { id: getId(record.id), candidateId: getId(record.candidateId), message: getString(record.message) ?? "", createdAt: toIsoDateTime(record.createdAt), author: employeeSummary(record.author) };
+}
+
+function event(value: unknown): RecruitmentApplicationEvent {
+  const record = asRecord(value);
+  return { id: getId(record.id), eventType: getString(record.eventType) ?? "UPDATE", title: getString(record.title) ?? "Application updated", detail: getString(record.detail), occurredAt: toIsoDateTime(record.occurredAt), actor: employeeSummary(record.actor) };
+}
+
+function emailLog(value: unknown): RecruitmentEmailLog {
   const record = asRecord(value);
   return {
     id: getId(record.id),
-    interviewId: getId(record.interviewId),
-    rating: getNumber(record.rating),
-    recommendation: getString(record.recommendation)?.toUpperCase() as RecruitmentInterview["feedback"] extends infer Feedback
-      ? Feedback extends { recommendation?: infer Recommendation }
-        ? Recommendation
-        : never
-      : never,
-    strengths: getString(record.strengths),
-    concerns: getString(record.concerns),
-    notes: getString(record.notes),
-    reviewer: normalizeEmployeeSummary(record.reviewer),
+    templateType: (getString(record.templateType)?.toUpperCase() ?? "APPLICATION_RECEIVED") as RecruitmentEmailTemplateType,
+    recipientEmail: getString(record.recipientEmail) ?? "",
+    subject: getString(record.subject) ?? "",
+    deliveryStatus: getString(record.deliveryStatus) ?? "QUEUED",
+    sentAt: toIsoDateTime(record.sentAt),
   };
 }
 
-function normalizeDashboard(value: unknown): RecruitmentDashboard {
+function emailTemplate(value: unknown): RecruitmentEmailTemplate {
   const record = asRecord(value);
   return {
-    openJobs: getNumber(record.openJobs) ?? 0,
-    totalCandidates: getNumber(record.totalCandidates) ?? 0,
-    activeApplications: getNumber(record.activeApplications) ?? 0,
-    hiredCandidates: getNumber(record.hiredCandidates) ?? 0,
-    upcomingInterviews: getNumber(record.upcomingInterviews) ?? 0,
-    stageCounts: extractList(record.stageCounts).map((item) => {
-      const stageRecord = asRecord(item);
-      return { stage: (getString(stageRecord.stage)?.toUpperCase() ?? "APPLIED") as RecruitmentDashboard["stageCounts"][number]["stage"], count: getNumber(stageRecord.count) ?? 0 };
-    }),
-    jobCounts: extractList(record.jobCounts).map((item) => {
-      const jobRecord = asRecord(item);
-      return { jobPositionId: getId(jobRecord.jobPositionId), title: getString(jobRecord.title) ?? "Untitled", count: getNumber(jobRecord.count) ?? 0 };
-    }),
+    id: getId(record.id),
+    type: (getString(record.type)?.toUpperCase() ?? "APPLICATION_RECEIVED") as RecruitmentEmailTemplateType,
+    subject: getString(record.subject) ?? "",
+    bodyMarkdown: getString(record.bodyMarkdown) ?? "",
+    enabled: bool(record.enabled, true),
+    availableVariables: extractList(record.availableVariables).map(getString).filter((item): item is string => Boolean(item)),
+    updatedAt: toIsoDateTime(record.updatedAt),
   };
 }
 
-function normalizePipeline(value: unknown): RecruitmentPipeline {
+function page<T>(value: unknown, normalize: (item: unknown) => T): PaginatedResult<T> {
   const record = asRecord(value);
-  return {
-    columns: extractList(record.columns).map((item) => {
-      const column = asRecord(item);
-      return {
-        stage: (getString(column.stage)?.toUpperCase() ?? "APPLIED") as RecruitmentPipeline["columns"][number]["stage"],
-        label: getString(column.label) ?? "Stage",
-        count: getNumber(column.count) ?? 0,
-        applications: extractList(column.applications).map(normalizeApplication),
-      };
-    }),
-  };
+  const items = extractList(firstDefined(record.items, record.content, record.results, record.data)).map(normalize);
+  return { items, page: getNumber(record.page) ?? 0, size: getNumber(record.size) ?? items.length, totalElements: getNumber(record.totalElements) ?? items.length, totalPages: getNumber(record.totalPages) ?? (items.length ? 1 : 0) };
 }
 
-function normalizeHireResponse(value: unknown): RecruitmentHireResponse {
-  const record = asRecord(value);
-  return {
-    application: normalizeApplication(record.application),
-    employee: normalizeEmployee(record.employee),
-    teamId: record.teamId === undefined || record.teamId === null ? undefined : getId(record.teamId),
-    teamName: getString(record.teamName),
-    accountProvisioned: normalizeBoolean(record.accountProvisioned) ?? false,
-    temporaryPassword: getString(record.temporaryPassword),
-  };
-}
-
-function normalizePagedResult<T>(payload: unknown, normalizer: (value: unknown) => T): PaginatedResult<T> {
-  const record = asRecord(payload);
-  const items = extractList(record.items ?? record.content ?? record.results ?? record.data).map(normalizer);
-  return {
-    items,
-    page: getNumber(record.page) ?? 0,
-    size: getNumber(record.size) ?? items.length,
-    totalElements: getNumber(record.totalElements) ?? items.length,
-    totalPages: getNumber(record.totalPages) ?? 1,
-  };
-}
-
-function normalizeListResponse<T>(payload: unknown, normalizer: (value: unknown) => T): T[] {
-  return extractList(payload).map(normalizer);
-}
-
-async function postJson<T>(url: string, body: unknown): Promise<T> {
-  const response = await apiClient.post<ApiResponse<T>>(url, body);
+async function data<T>(method: "get" | "post" | "put" | "patch" | "delete", url: string, body?: unknown, params?: unknown): Promise<T> {
+  const response = await apiClient.request<ApiResponse<T>>({ method, url, data: body, params });
   return unwrapApiData(response.data);
-}
-
-async function putJson<T>(url: string, body: unknown): Promise<T> {
-  const response = await apiClient.put<ApiResponse<T>>(url, body);
-  return unwrapApiData(response.data);
-}
-
-async function patchJson<T>(url: string, body: unknown): Promise<T> {
-  const response = await apiClient.patch<ApiResponse<T>>(url, body);
-  return unwrapApiData(response.data);
-}
-
-async function deleteJson(url: string): Promise<void> {
-  await apiClient.delete(url);
 }
 
 export async function getRecruitmentDashboard(): Promise<RecruitmentDashboard> {
-  const response = await apiClient.get<ApiResponse<unknown>>("/api/tenant/recruitment/dashboard");
-  return normalizeDashboard(unwrapApiData(response.data));
+  const record = asRecord(await data<unknown>("get", "/api/tenant/recruitment/dashboard"));
+  return {
+    openJobs: getNumber(record.openJobs) ?? 0,
+    totalCandidates: getNumber(record.totalCandidates) ?? 0,
+    applicationsReceived: getNumber(record.applicationsReceived) ?? getNumber(record.activeApplications) ?? 0,
+    shortlisted: getNumber(record.shortlisted) ?? 0,
+    interviewScheduled: getNumber(record.interviewScheduled) ?? getNumber(record.upcomingInterviews) ?? 0,
+    offersSent: getNumber(record.offersSent) ?? 0,
+    hiredCandidates: getNumber(record.hiredCandidates) ?? 0,
+    rejected: getNumber(record.rejected) ?? 0,
+    activeApplications: getNumber(record.activeApplications) ?? 0,
+    upcomingInterviews: getNumber(record.upcomingInterviews) ?? 0,
+    stageCounts: extractList(record.stageCounts).map((item) => ({ stage: canonicalStage(asRecord(item).stage), count: getNumber(asRecord(item).count) ?? 0 })),
+    jobCounts: extractList(record.jobCounts).map((item) => ({ jobPositionId: getId(asRecord(item).jobPositionId), title: getString(asRecord(item).title) ?? "Untitled job", count: getNumber(asRecord(item).count) ?? 0 })),
+    recentApplications: extractList(record.recentApplications).map(application),
+    upcomingInterviewItems: extractList(record.upcomingInterviewItems).map(interview),
+    recentlyPublishedJobs: extractList(record.recentlyPublishedJobs).map(job),
+  };
 }
 
-export async function getJobPositions(): Promise<PaginatedResult<RecruitmentJobPosition>> {
-  const response = await apiClient.get<ApiResponse<unknown>>("/api/tenant/recruitment/jobs");
-  return normalizePagedResult(unwrapApiData(response.data), normalizeJobPosition);
+export async function getJobPositions(params: ListParams = {}): Promise<PaginatedResult<RecruitmentJobPosition>> {
+  return page(await data<unknown>("get", "/api/tenant/recruitment/jobs", undefined, params), job);
+}
+
+export async function getAllJobPositions(): Promise<RecruitmentJobPosition[]> {
+  return collectAllPages((pageNumber) => getJobPositions({ page: pageNumber, size: 100, sortBy: "createdAt", sortDir: "desc" }));
+}
+
+export async function getJobPosition(id: string): Promise<RecruitmentJobPosition> {
+  return job(await data<unknown>("get", `/api/tenant/recruitment/jobs/${id}`));
+}
+
+function jobPayload(values: RecruitmentJobFormValues) {
+  return {
+    title: values.title.trim(), department: values.department.trim(), employmentType: values.employmentType,
+    location: values.location.trim() || null, experience: values.experience.trim() || null,
+    expiresAt: values.expiresAt ? `${values.expiresAt}T23:59:59` : null,
+    openings: values.openings, description: values.description.trim(), visibleToExternalApplicants: true,
+  };
 }
 
 export async function createJobPosition(values: RecruitmentJobFormValues): Promise<RecruitmentJobPosition> {
-  return postJson("/api/tenant/recruitment/jobs", values);
+  return job(await data<unknown>("post", "/api/tenant/recruitment/jobs", { ...jobPayload(values), status: "OPEN", published: false }));
 }
 
-export async function updateJobPosition(id: string, values: RecruitmentJobFormValues): Promise<RecruitmentJobPosition> {
-  return putJson(`/api/tenant/recruitment/jobs/${id}`, values);
+export async function updateJobPosition(id: string, values: RecruitmentJobFormValues, current: RecruitmentJobPosition): Promise<RecruitmentJobPosition> {
+  return job(await data<unknown>("put", `/api/tenant/recruitment/jobs/${id}`, { ...jobPayload(values), status: current.status, published: current.published }));
+}
+
+export async function runJobAction(id: string, action: "publish" | "unpublish" | "close" | "reopen" | "duplicate"): Promise<RecruitmentJobPosition> {
+  return job(await data<unknown>("post", `/api/tenant/recruitment/jobs/${id}/${action}`));
 }
 
 export async function deleteJobPosition(id: string): Promise<void> {
-  return deleteJson(`/api/tenant/recruitment/jobs/${id}`);
+  await data("delete", `/api/tenant/recruitment/jobs/${id}`);
 }
 
-export async function getCandidates(): Promise<PaginatedResult<RecruitmentCandidate>> {
-  const response = await apiClient.get<ApiResponse<unknown>>("/api/tenant/recruitment/candidates");
-  return normalizePagedResult(unwrapApiData(response.data), normalizeCandidate);
+export async function getApplications(params: ApplicationListParams = {}): Promise<PaginatedResult<RecruitmentApplication>> {
+  const query = { ...params, status: params.status || undefined };
+  return page(await data<unknown>("get", "/api/tenant/recruitment/applications", undefined, query), application);
 }
 
-export async function createCandidate(values: RecruitmentCandidateFormValues): Promise<RecruitmentCandidate> {
-  return postJson("/api/tenant/recruitment/candidates", {
-    ...values,
-    yearsOfExperience: values.yearsOfExperience ? Number(values.yearsOfExperience) : null,
-  });
+export async function getAllApplications(): Promise<RecruitmentApplication[]> {
+  return collectAllPages((pageNumber) => getApplications({ page: pageNumber, size: 100, sortBy: "appliedAt", sortDir: "desc" }));
 }
 
-export async function updateCandidate(id: string, values: RecruitmentCandidateFormValues): Promise<RecruitmentCandidate> {
-  return putJson(`/api/tenant/recruitment/candidates/${id}`, {
-    ...values,
-    yearsOfExperience: values.yearsOfExperience ? Number(values.yearsOfExperience) : null,
-  });
+export async function getApplication(id: string): Promise<RecruitmentApplication> {
+  return application(await data<unknown>("get", `/api/tenant/recruitment/applications/${id}`));
 }
 
-export async function uploadCandidateResume(id: string, file: File): Promise<RecruitmentCandidate> {
-  const formData = new FormData();
-  formData.append("file", file);
-  const response = await apiClient.post<ApiResponse<unknown>>(`/api/tenant/recruitment/candidates/${id}/resume`, formData, {
-    headers: { "Content-Type": "multipart/form-data" },
-  });
-  return normalizeCandidate(unwrapApiData(response.data));
+export async function updateApplicationStatus(id: string, status: RecruitmentStage, rejectedReason?: string): Promise<RecruitmentApplication> {
+  return application(await data<unknown>("patch", `/api/tenant/recruitment/applications/${id}/status`, { status, rejectedReason }));
 }
 
-export async function getCandidateComments(candidateId: string): Promise<RecruitmentCandidateComment[]> {
-  const response = await apiClient.get<ApiResponse<unknown>>(`/api/tenant/recruitment/candidates/${candidateId}/comments`);
-  return normalizeListResponse(unwrapApiData(response.data), normalizeComment);
+export async function getApplicationNotes(id: string): Promise<RecruitmentCandidateComment[]> {
+  return extractList(await data<unknown>("get", `/api/tenant/recruitment/applications/${id}/notes`)).map(note);
 }
 
-export async function addCandidateComment(candidateId: string, message: string): Promise<RecruitmentCandidateComment> {
-  return postJson("/api/tenant/recruitment/candidates/comments", { candidateId, message });
+export async function addApplicationNote(id: string, message: string): Promise<RecruitmentCandidateComment> {
+  return note(await data<unknown>("post", `/api/tenant/recruitment/applications/${id}/notes`, { message }));
 }
 
-export async function getApplications(): Promise<PaginatedResult<RecruitmentApplication>> {
-  const response = await apiClient.get<ApiResponse<unknown>>("/api/tenant/recruitment/applications");
-  return normalizePagedResult(unwrapApiData(response.data), normalizeApplication);
+export async function getApplicationTimeline(id: string): Promise<RecruitmentApplicationEvent[]> {
+  return extractList(await data<unknown>("get", `/api/tenant/recruitment/applications/${id}/timeline`)).map(event);
 }
 
-export async function updateApplicationStatus(applicationId: string, status: RecruitmentApplication["status"]): Promise<RecruitmentApplication> {
-  return patchJson(`/api/tenant/recruitment/applications/${applicationId}/status`, { status });
+export async function getApplicationEmails(id: string): Promise<RecruitmentEmailLog[]> {
+  return extractList(await data<unknown>("get", `/api/tenant/recruitment/applications/${id}/emails`)).map(emailLog);
 }
 
-export async function hireApplication(applicationId: string, values: RecruitmentHireFormValues): Promise<RecruitmentHireResponse> {
-  const payload = {
-    employeeCode: values.employeeCode.trim() || null,
-    role: values.role,
-    designation: values.designation.trim() || null,
-    department: values.department.trim() || null,
-    joinedDate: values.joinedDate,
-    temporaryPassword: values.temporaryPassword.trim() || null,
-    teamId: values.teamId ? Number(values.teamId) : null,
-    teamFunctionalRole: values.teamFunctionalRole,
-    salary: values.salary.trim() ? Number(values.salary) : null,
-    recruiterNotes: values.recruiterNotes.trim() || null,
-  };
-  const response = await postJson<unknown>(`/api/tenant/recruitment/applications/${applicationId}/hire`, payload);
-  return normalizeHireResponse(response);
+export async function sendApplicationEmail(id: string, templateType: RecruitmentEmailTemplateType): Promise<RecruitmentEmailLog> {
+  return emailLog(await data<unknown>("post", `/api/tenant/recruitment/applications/${id}/emails`, { templateType }));
 }
 
-export async function createApplication(values: RecruitmentApplicationFormValues): Promise<RecruitmentApplication> {
-  return postJson("/api/tenant/recruitment/applications", {
-    candidateId: values.candidateId,
-    jobPositionId: values.jobPositionId,
-    status: values.status,
-    coverLetter: values.coverLetter,
-    expectedSalary: values.expectedSalary ? Number(values.expectedSalary) : null,
-  });
+export async function getApplicationInterviews(id: string): Promise<RecruitmentInterview[]> {
+  return extractList(await data<unknown>("get", `/api/tenant/recruitment/applications/${id}/interviews`)).map(interview);
 }
 
-export async function updateApplication(applicationId: string, status: RecruitmentApplication["status"], recruiterNotes?: string, rejectedReason?: string): Promise<RecruitmentApplication> {
-  return patchJson(`/api/tenant/recruitment/applications/${applicationId}`, {
-    status,
-    recruiterNotes,
-    rejectedReason,
-  });
-}
-
-export async function getPipeline(jobPositionId?: string): Promise<RecruitmentPipeline> {
-  const params = jobPositionId ? { jobPositionId } : undefined;
-  const response = await apiClient.get<ApiResponse<unknown>>("/api/tenant/recruitment/pipeline", { params });
-  return normalizePipeline(unwrapApiData(response.data));
-}
-
-export async function getInterviews(): Promise<RecruitmentInterview[]> {
-  const response = await apiClient.get<ApiResponse<unknown>>("/api/tenant/recruitment/interviews");
-  return normalizeListResponse(unwrapApiData(response.data), normalizeInterview);
+export async function getInterviews(params?: { from?: string; to?: string }): Promise<RecruitmentInterview[]> {
+  return extractList(await data<unknown>("get", "/api/tenant/recruitment/interviews", undefined, params)).map(interview);
 }
 
 export async function scheduleInterview(values: RecruitmentInterviewFormValues): Promise<RecruitmentInterview> {
-  return postJson("/api/tenant/recruitment/interviews", {
-    applicationId: values.applicationId,
-    interviewerEmployeeId: values.interviewerEmployeeId,
-    scheduledAt: values.scheduledAt,
-    mode: values.mode,
-    location: values.location,
-    meetingLink: values.meetingLink,
-    notes: values.notes,
-  });
+  return interview(await data<unknown>("post", "/api/tenant/recruitment/interviews", values));
 }
 
-export async function updateInterview(interviewId: string, values: RecruitmentInterviewFormValues): Promise<RecruitmentInterview> {
-  return putJson(`/api/tenant/recruitment/interviews/${interviewId}`, {
-    applicationId: values.applicationId,
-    interviewerEmployeeId: values.interviewerEmployeeId,
-    scheduledAt: values.scheduledAt,
-    mode: values.mode,
-    location: values.location,
-    meetingLink: values.meetingLink,
-    notes: values.notes,
-  });
+export async function updateInterview(id: string, values: RecruitmentInterviewFormValues): Promise<RecruitmentInterview> {
+  return interview(await data<unknown>("put", `/api/tenant/recruitment/interviews/${id}`, values));
 }
 
-export async function submitInterviewFeedback(values: RecruitmentFeedbackFormValues): Promise<RecruitmentInterview> {
-  return postJson("/api/tenant/recruitment/interviews/feedback", {
-    interviewId: values.interviewId,
-    rating: values.rating ? Number(values.rating) : null,
-    recommendation: values.recommendation,
-    strengths: values.strengths,
-    concerns: values.concerns,
-    notes: values.notes,
-  });
+function normalizeEmployee(value: unknown): Employee {
+  const record = asRecord(value);
+  const firstName = getString(record.firstName);
+  const lastName = getString(record.lastName);
+  return { ...record, id: getId(record.id), firstName, lastName, name: getString(record.fullName) ?? `${firstName ?? ""} ${lastName ?? ""}`.trim(), email: getString(record.email) ?? "" };
+}
+
+export async function hireApplication(id: string, values: RecruitmentHireFormValues): Promise<RecruitmentHireResponse> {
+  const payload = {
+    employeeCode: values.employeeCode.trim() || null, role: values.role, designation: values.designation.trim(),
+    department: values.department.trim(), joinedDate: values.joinedDate, temporaryPassword: values.temporaryPassword.trim() || null,
+    teamId: values.teamId ? Number(values.teamId) : null, teamFunctionalRole: values.teamFunctionalRole,
+    salary: values.salary ? Number(values.salary) : null, recruiterNotes: values.recruiterNotes.trim() || null,
+  };
+  const record = asRecord(await data<unknown>("post", `/api/tenant/recruitment/applications/${id}/hire`, payload));
+  return { application: application(record.application), employee: normalizeEmployee(record.employee), teamId: record.teamId == null ? undefined : getId(record.teamId), teamName: getString(record.teamName), accountProvisioned: bool(record.accountProvisioned) };
+}
+
+export async function getEmailTemplates(): Promise<RecruitmentEmailTemplate[]> {
+  return extractList(await data<unknown>("get", "/api/tenant/recruitment/email-templates")).map(emailTemplate);
+}
+
+export async function updateEmailTemplate(template: RecruitmentEmailTemplate): Promise<RecruitmentEmailTemplate> {
+  return emailTemplate(await data<unknown>("put", `/api/tenant/recruitment/email-templates/${template.type}`, { subject: template.subject, bodyMarkdown: template.bodyMarkdown, enabled: template.enabled }));
+}
+
+async function collectAllPages<T>(fetchPage: (pageNumber: number) => Promise<PaginatedResult<T>>): Promise<T[]> {
+  const firstPage = await fetchPage(0);
+  const items = [...firstPage.items];
+  for (let pageNumber = 1; pageNumber < firstPage.totalPages; pageNumber += 1) {
+    items.push(...(await fetchPage(pageNumber)).items);
+  }
+  return items;
 }

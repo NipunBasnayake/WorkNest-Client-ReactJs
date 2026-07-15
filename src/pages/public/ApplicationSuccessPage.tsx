@@ -31,7 +31,7 @@ export function ApplicationSuccessPage() {
   useSeoMeta({
     title,
     description: "Your application has been submitted.",
-    canonicalPath: tenantSlug && referenceNumber ? `/${tenantSlug}/applications/${referenceNumber}/success` : undefined,
+    noIndex: true,
   });
 
   useEffect(() => {
@@ -80,7 +80,7 @@ export function ApplicationSuccessPage() {
     <PageContainer size="lg" className="space-y-7">
       <PageHeader
         title="Application Submitted"
-        description="We'll contact you if your profile matches."
+        description="Your application is safely with the HR team. A confirmation email is on its way."
         status={<Badge variant="success">Submitted</Badge>}
       />
 
@@ -96,7 +96,6 @@ export function ApplicationSuccessPage() {
             <dl className="mt-6 grid gap-4 sm:grid-cols-2">
               <Detail label="Reference Number" value={application.referenceNumber} />
               <Detail label="Submitted Date" value={formatPublicDate(application.submittedDate)} />
-              {"status" in application && application.status ? <Detail label="Status" value={application.status.replaceAll("_", " ")} /> : null}
             </dl>
 
             <div className="mt-6 flex flex-wrap gap-2">

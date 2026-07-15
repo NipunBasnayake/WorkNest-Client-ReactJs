@@ -82,9 +82,12 @@ const auditLogsPage = lazyElement(() => import("@/pages/app/AuditLogsPage"), "Au
 const profilePage = lazyElement(() => import("@/pages/app/ProfilePage"), "ProfilePage");
 const recruitmentDashboardPage = lazyElement(() => import("@/modules/recruitment/pages/RecruitmentDashboardPage"), "RecruitmentDashboardPage");
 const recruitmentJobsPage = lazyElement(() => import("@/modules/recruitment/pages/RecruitmentJobsPage"), "RecruitmentJobsPage");
-const recruitmentCandidatesPage = lazyElement(() => import("@/modules/recruitment/pages/RecruitmentCandidatesPage"), "RecruitmentCandidatesPage");
-const recruitmentPipelinePage = lazyElement(() => import("@/modules/recruitment/pages/RecruitmentPipelinePage"), "RecruitmentPipelinePage");
-const recruitmentInterviewsPage = lazyElement(() => import("@/modules/recruitment/pages/RecruitmentInterviewsPage"), "RecruitmentInterviewsPage");
+const recruitmentJobFormPage = lazyElement(() => import("@/modules/recruitment/pages/RecruitmentJobFormPage"), "RecruitmentJobFormPage");
+const recruitmentJobPreviewPage = lazyElement(() => import("@/modules/recruitment/pages/RecruitmentJobPreviewPage"), "RecruitmentJobPreviewPage");
+const recruitmentApplicationsPage = lazyElement(() => import("@/modules/recruitment/pages/RecruitmentApplicationsPage"), "RecruitmentApplicationsPage");
+const recruitmentApplicationDetailPage = lazyElement(() => import("@/modules/recruitment/pages/RecruitmentApplicationDetailPage"), "RecruitmentApplicationDetailPage");
+const recruitmentEmailTemplatesPage = lazyElement(() => import("@/modules/recruitment/pages/RecruitmentEmailTemplatesPage"), "RecruitmentEmailTemplatesPage");
+const recruitmentReportsPage = lazyElement(() => import("@/modules/recruitment/pages/RecruitmentReportsPage"), "RecruitmentReportsPage");
 
 const appSettingsLayoutPage = lazyElement(() => import("@/pages/app/settings/AppSettingsLayoutPage"), "AppSettingsLayoutPage");
 const appSettingsProfilePage = lazyElement(() => import("@/pages/app/settings/AppSettingsProfilePage"), "AppSettingsProfilePage");
@@ -285,11 +288,17 @@ const router = createBrowserRouter([
             children: [
               { path: "recruitment", element: recruitmentDashboardPage },
               { path: "recruitment/dashboard", element: <RecruitmentRouteRedirect target="overview" /> },
-              { path: "recruitment/pipeline", element: <RecruitmentRouteRedirect target="applications" boardView /> },
+              { path: "recruitment/pipeline", element: <RecruitmentRouteRedirect target="applications" /> },
               { path: "recruitment/jobs", element: recruitmentJobsPage },
-              { path: "recruitment/applications", element: recruitmentPipelinePage },
-              { path: "recruitment/candidates", element: recruitmentCandidatesPage },
-              { path: "recruitment/interviews", element: recruitmentInterviewsPage },
+              { path: "recruitment/jobs/new", element: recruitmentJobFormPage },
+              { path: "recruitment/jobs/:jobId/edit", element: recruitmentJobFormPage },
+              { path: "recruitment/jobs/:jobId/preview", element: recruitmentJobPreviewPage },
+              { path: "recruitment/applications", element: recruitmentApplicationsPage },
+              { path: "recruitment/applications/:applicationId", element: recruitmentApplicationDetailPage },
+              { path: "recruitment/email-templates", element: recruitmentEmailTemplatesPage },
+              { path: "recruitment/reports", element: recruitmentReportsPage },
+              { path: "recruitment/candidates", element: <RecruitmentRouteRedirect target="applications" /> },
+              { path: "recruitment/interviews", element: <RecruitmentRouteRedirect target="applications" /> },
             ],
           },
 
@@ -362,10 +371,8 @@ function TenantRouteRedirect({ target }: { target: string }) {
 }
 function RecruitmentRouteRedirect({
   target,
-  boardView = false,
 }: {
   target: "overview" | "applications";
-  boardView?: boolean;
 }) {
   const { tenantSlug = useAuthStore.getState().tenantKey ?? "app" } = useParams();
   const location = useLocation();
@@ -373,10 +380,6 @@ function RecruitmentRouteRedirect({
     ? `/${tenantSlug}/recruitment`
     : `/${tenantSlug}/recruitment/applications`;
   const searchParams = new URLSearchParams(location.search);
-
-  if (boardView && !searchParams.has("view")) {
-    searchParams.set("view", "board");
-  }
 
   const search = searchParams.toString();
   const nextPath = `${basePath}${search ? `?${search}` : ""}${location.hash}`;
