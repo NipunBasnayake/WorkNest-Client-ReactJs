@@ -44,7 +44,7 @@ export function PlatformAuditLogsPage() {
       </div>
       {errorMessage ? <ErrorState message={errorMessage} onRetry={() => void refetch()} /> : null}
       <SectionCard variant="table">
-        <div className="overflow-x-auto"><table className="w-full min-w-[900px] text-left">
+        <div className="overflow-x-auto"><table className="worknest-data-table w-full min-w-[900px] text-left">
           <thead><tr className="border-b text-xs font-semibold uppercase tracking-wider" style={{ borderColor: "var(--border-default)", background: "var(--bg-muted)", color: "var(--text-tertiary)" }}><th className="px-5 py-3">Event</th><th className="px-4 py-3">Actor</th><th className="px-4 py-3">Transition</th><th className="px-5 py-3">Occurred</th></tr></thead>
           <tbody>
             {isLoading ? <tr><td colSpan={4}>{Array.from({ length: 6 }).map((_, index) => <SkeletonRow key={index} cols={4} />)}</td></tr> : null}

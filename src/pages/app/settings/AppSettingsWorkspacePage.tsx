@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { Input } from "@/components/common/Input";
+import { Button } from "@/components/common/Button";
+import { FileUploadField } from "@/components/common/FileUploadField";
 import { SectionCard } from "@/components/common/SectionCard";
 import { ErrorBanner } from "@/components/common/AppUI";
-import { getTenantSettings } from "@/modules/settings/services/settingsService";
+import { getTenantSettings, updateTenantWorkspace } from "@/modules/settings/services/settingsService";
 import type { WorkspaceSettings } from "@/modules/settings/types";
 
 export function AppSettingsWorkspacePage() {
@@ -17,6 +19,8 @@ export function AppSettingsWorkspacePage() {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
     getTenantSettings()
@@ -25,9 +29,24 @@ export function AppSettingsWorkspacePage() {
       .finally(() => setLoading(false));
   }, []);
 
+  async function handleSave() {
+    setSaving(true);
+    setError(null);
+    setMessage(null);
+    try {
+      setValues(await updateTenantWorkspace(values));
+      setMessage("Workspace settings saved.");
+    } catch {
+      setError("Unable to save workspace settings.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <div className="space-y-4">
       {error && <ErrorBanner message={error} />}
+      {message ? <div className="rounded-xl border px-4 py-3 text-sm text-emerald-600">{message}</div> : null}
 
       <SectionCard title="Workspace Information" subtitle="Tenant identity values are backend-backed where available and read-only in this module.">
         {loading ? (
@@ -39,6 +58,21 @@ export function AppSettingsWorkspacePage() {
               label="Workspace Name"
               value={values.workspaceName}
               onChange={(event) => setValues((prev) => ({ ...prev, workspaceName: event.target.value }))}
+            />
+
+            <FileUploadField
+              id="workspace-logo"
+              label="Company Logo"
+              hint="Used across workspace branding and public careers pages."
+              folder="companies/logos"
+              category="WORKSPACE_LOGO"
+              kind="image"
+              disabled={saving}
+              value={values.logo ? [values.logo] : []}
+              onChange={(assets) => {
+                const logo = assets[0] ?? null;
+                setValues((previous) => ({ ...previous, logo, logoUrl: logo?.url }));
+              }}
             />
 
             <Input
@@ -61,6 +95,12 @@ export function AppSettingsWorkspacePage() {
 
             <div className="rounded-xl border border-dashed p-4 text-sm" style={{ borderColor: "var(--border-default)", color: "var(--text-secondary)" }}>
               Data source: {values.dataSource === "backend" ? "Backend tenant registry" : "Inferred from authenticated tenant context"}.
+            </div>
+
+            <div className="flex justify-end">
+              <Button variant="primary" onClick={() => void handleSave()} disabled={saving || !values.workspaceName.trim()}>
+                {saving ? "Saving..." : "Save Workspace"}
+              </Button>
             </div>
           </div>
         )}

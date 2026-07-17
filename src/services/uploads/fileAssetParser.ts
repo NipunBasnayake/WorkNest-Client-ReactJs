@@ -27,7 +27,13 @@ function normalizeUploadedFileAsset(input: unknown): UploadedFileAsset | null {
 
   if (!url) return null;
 
+  const managedFileId = firstDefined(
+    getString(value.fileId),
+    url.match(/\/files\/(\d+)(?:\/|$)/)?.[1]
+  );
+
   return {
+    id: managedFileId,
     name: firstDefined(getString(value.name), getString(value.fileName), inferName(url)) ?? "file",
     url,
     path: firstDefined(getString(value.path), getString(value.storagePath)),
@@ -35,6 +41,7 @@ function normalizeUploadedFileAsset(input: unknown): UploadedFileAsset | null {
     size: firstDefined(getNumber(value.size), getNumber(value.fileSize)),
     bucket: firstDefined(getString(value.bucket), getString(value.bucketName)),
     uploadedAt: firstDefined(getString(value.uploadedAt), getString(value.createdAt), getString(value.updatedAt)),
+    temporary: false,
   };
 }
 

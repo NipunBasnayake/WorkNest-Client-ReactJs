@@ -62,7 +62,7 @@ export function PlatformUsersPage() {
       {errorMessage ? <ErrorState message={errorMessage} onRetry={() => void refetch()} /> : null}
       <SectionCard variant="table">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[980px] text-left">
+          <table className="worknest-data-table w-full min-w-[980px] text-left">
             <thead><tr className="border-b text-xs font-semibold uppercase tracking-wider" style={{ borderColor: "var(--border-default)", background: "var(--bg-muted)", color: "var(--text-tertiary)" }}>
               <th className="px-5 py-3">User</th><th className="px-4 py-3">Company</th><th className="px-4 py-3">Role</th><th className="px-4 py-3">Last login</th><th className="px-4 py-3">Sessions</th><th className="px-5 py-3">Status</th>
             </tr></thead>

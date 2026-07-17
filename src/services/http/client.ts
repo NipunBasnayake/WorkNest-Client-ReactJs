@@ -14,14 +14,12 @@ export { tokenStorage };
 
 export const publicClient: AxiosInstance = axios.create({
   baseURL: BASE_URL,
-  headers: { "Content-Type": "application/json" },
   withCredentials: true,
   timeout: 15_000,
 });
 
 export const apiClient: AxiosInstance = axios.create({
   baseURL: BASE_URL,
-  headers: { "Content-Type": "application/json" },
   withCredentials: true,
   timeout: 15_000,
 });
@@ -88,6 +86,11 @@ function redirectTo(path: string) {
   }
 }
 
+export function isAnonymousRecruitmentPath(pathname: string): boolean {
+  return /^\/[^/]+\/careers(?:\/.*)?\/?$/.test(pathname)
+    || /^\/[^/]+\/applications\/[^/]+\/success\/?$/.test(pathname);
+}
+
 async function getAuthStoreState(): Promise<AuthStoreState | null> {
   try {
     const { useAuthStore } = await import("@/store/authStore");
@@ -115,14 +118,21 @@ async function applyTokenRefresh(accessToken: string, tenantKey: string | null) 
 }
 
 async function hardLogout(redirectPath = LOGIN_ROUTE) {
+  const keepAnonymousPageOpen = typeof window !== "undefined"
+    && redirectPath === LOGIN_ROUTE
+    && isAnonymousRecruitmentPath(window.location.pathname);
   const authStore = await getAuthStoreState();
   if (authStore) {
+    if (keepAnonymousPageOpen) {
+      tokenStorage.clear();
+      return;
+    }
     authStore.hardLogout(redirectPath);
     return;
   }
 
   tokenStorage.clear();
-  redirectTo(redirectPath);
+  if (!keepAnonymousPageOpen) redirectTo(redirectPath);
 }
 
 function readResponseMessage(payload: unknown): string | null {
@@ -165,6 +175,13 @@ function onRequestSucceeded() {
   useNetworkStore.getState().markApiHealthy();
 }
 
+function preserveBrowserMultipartBoundary(config: InternalAxiosRequestConfig) {
+  if (typeof FormData !== "undefined" && config.data instanceof FormData) {
+    // Axios/browser must generate this header so it includes the matching boundary.
+    config.headers.delete("Content-Type");
+  }
+}
+
 publicClient.interceptors.response.use(
   (response) => {
     onRequestSucceeded();
@@ -174,6 +191,25 @@ publicClient.interceptors.response.use(
 );
 
 publicClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+  preserveBrowserMultipartBoundary(config);
+
+  // Public recruitment endpoints are deliberately URL-tenant-scoped and anonymous.
+  // Keep these requests independent of any browser session so opening a shared link
+  // never depends on cookies, stored tokens, device headers, or a CORS preflight for
+  // non-essential custom headers.
+  if (config.url?.startsWith("/api/public/")) {
+    config.withCredentials = false;
+    delete config.headers.Authorization;
+    delete config.headers["X-CSRF-Token"];
+    delete config.headers["X-CSRF-TOKEN"];
+    delete config.headers["X-Device-Id"];
+    delete config.headers["X-Device-Name"];
+    delete config.headers["X-Tenant-Slug"];
+    delete config.headers["X-Tenant-ID"];
+    if (!config.data) config.headers.delete("Content-Type");
+    return config;
+  }
+
   const csrfToken = tokenStorage.getCsrf();
   if (csrfToken) {
     config.headers["X-CSRF-Token"] = csrfToken;
@@ -196,6 +232,8 @@ publicClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
 });
 
 apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+  preserveBrowserMultipartBoundary(config);
+
   const token = tokenStorage.getAccess();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;

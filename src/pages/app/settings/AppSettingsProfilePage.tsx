@@ -135,6 +135,7 @@ export function AppSettingsProfilePage() {
               label="Profile Image"
               hint="Upload a square profile image for the workspace shell."
               folder="profiles/images"
+              category="EMPLOYEE_AVATAR"
               kind="image"
               disabled={saving}
               value={values.avatar ? [values.avatar] : []}
