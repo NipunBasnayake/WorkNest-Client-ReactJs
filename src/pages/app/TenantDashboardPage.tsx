@@ -28,6 +28,7 @@ import { formatDate, formatDateTime, formatMinutes, getDaytimeGreeting, toReadab
 import { getErrorMessage } from "@/utils/errorHandler";
 import { tenantRoutes } from "@/utils/tenantRoutes";
 import type { DashboardTaskStatusSummary, TenantDashboardSnapshot } from "@/modules/analytics/types";
+import { RecruitmentDashboardWidget } from "@/modules/recruitment/components/RecruitmentDashboardWidget";
 
 interface QuickAction {
   label: string;
@@ -43,6 +44,8 @@ const ADMIN_QUICK_ACTIONS: QuickAction[] = [
   { label: "Create Project", description: "Initialize a project workspace", icon: <FolderOpen size={18} />, to: () => tenantRoutes.projectNew(), permission: PERMISSIONS.PROJECTS_MANAGE },
   { label: "Create Task", description: "Assign work and due dates", icon: <CheckSquare size={18} />, to: () => tenantRoutes.taskCreate(), permission: PERMISSIONS.TASKS_MANAGE },
   { label: "Publish Announcement", description: "Share company-wide updates", icon: <Megaphone size={18} />, to: () => tenantRoutes.announcementNew(), permission: PERMISSIONS.ANNOUNCEMENTS_MANAGE },
+  { label: "New Job Opening", description: "Create a new role for publication", icon: <Briefcase size={18} />, to: () => tenantRoutes.recruitmentJobNew(), permission: PERMISSIONS.RECRUITMENT_MANAGE },
+  { label: "Review Applications", description: "Move candidates through the hiring pipeline", icon: <ClipboardList size={18} />, to: () => tenantRoutes.recruitmentApplications(), permission: PERMISSIONS.RECRUITMENT_VIEW },
 ];
 
 const USER_QUICK_ACTIONS: QuickAction[] = [
@@ -127,6 +130,10 @@ export function TenantDashboardPage() {
           <TenantAdminDashboard snapshot={snapshot} quickActions={adminQuickActions} canViewAnalytics={canViewAnalytics} />
         )
       )}
+
+      {!isLoading && !errorMessage && snapshot?.recruitment && hasPermission(PERMISSIONS.RECRUITMENT_VIEW) ? (
+        <RecruitmentDashboardWidget summary={snapshot.recruitment} />
+      ) : null}
     </div>
   );
 }

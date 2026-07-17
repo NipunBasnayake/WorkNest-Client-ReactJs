@@ -35,6 +35,7 @@ import { getErrorMessage } from "@/utils/errorHandler";
 import { tenantRoutes } from "@/utils/tenantRoutes";
 import { Pagination } from "@/components/common/Pagination";
 import { useClientPagination } from "@/hooks/useClientPagination";
+import { ReadOnlyIndicator } from "@/components/common/ReadOnlyIndicator";
 
 interface Option {
   id: string;
@@ -456,9 +457,7 @@ export function TasksPage() {
                           </>
                         )}
                         {canManageTaskRecord(task) && isDone && (
-                          <span className="text-xs font-medium" style={{ color: "var(--text-tertiary)" }}>
-                            Locked
-                          </span>
+                          <ReadOnlyIndicator message="This task is completed and is read-only." />
                         )}
                       </div>
                     </div>
@@ -507,9 +506,7 @@ export function TasksPage() {
                         </>
                       )}
                       {canManageTaskRecord(task) && isDone && (
-                        <span className="inline-flex items-center rounded-xl px-3 py-2 text-xs font-semibold" style={{ color: "var(--text-tertiary)", backgroundColor: "var(--bg-muted)" }}>
-                          Locked
-                        </span>
+                        <ReadOnlyIndicator message="This task is completed and is read-only." />
                       )}
                     </div>
                   </article>

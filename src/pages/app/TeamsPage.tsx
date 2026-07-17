@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
-import { Users, UserPlus2 } from "lucide-react";
-import { FiEdit2, FiEye, FiUsers } from "react-icons/fi";
+import { Trash2, Users, UserPlus2 } from "lucide-react";
+import { FiEdit2, FiUsers } from "react-icons/fi";
 import { Link } from "react-router-dom";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { useAuth } from "@/hooks/useAuth";
@@ -17,10 +17,13 @@ import { SearchField } from "@/components/common/SearchField";
 import type { Team } from "@/modules/teams/types";
 import type { Project } from "@/modules/projects/types";
 import { getTeamMemberCount } from "@/modules/teams/utils/memberCount";
+import { deleteTeam } from "@/modules/teams/services/teamService";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { tenantRoutes } from "@/utils/tenantRoutes";
 import { Pagination } from "@/components/common/Pagination";
 import { useClientPagination } from "@/hooks/useClientPagination";
+import { ConfirmDialog } from "@/components/common/ConfirmDialog";
+import { InlineAlert } from "@/components/common/InlineAlert";
 
 const EMPTY_TEAMS: Team[] = [];
 const EMPTY_PROJECTS: Project[] = [];
@@ -34,6 +37,9 @@ export function TeamsPage() {
   const isEmployeeOnly = role === "EMPLOYEE" && !canManageTeams;
 
   const [search, setSearch] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<Team | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [feedback, setFeedback] = useState<string | null>(null);
 
   const allTeamsQuery = useTeamsQuery(!isEmployeeOnly);
   const myTeamsQuery = useMyTeamsQuery(isEmployeeOnly);
@@ -84,6 +90,23 @@ export function TeamsPage() {
     resetKey: search,
   });
 
+  async function handleDeleteTeam() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    setFeedback(null);
+    try {
+      await deleteTeam(deleteTarget.id);
+      setDeleteTarget(null);
+      setFeedback("Team deleted successfully.");
+      await teamsQuery.refetch();
+      if (shouldLoadProjects) await projectsQuery.refetch();
+    } catch (error: unknown) {
+      setFeedback(getErrorMessage(error, "Unable to delete this team."));
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -109,6 +132,10 @@ export function TeamsPage() {
           placeholder="Search by team name, manager, members, or description..."
         />
       </SectionCard>
+
+      {feedback && (
+        <InlineAlert tone={feedback.toLowerCase().includes("unable") ? "error" : "success"} message={feedback} />
+      )}
 
       {errorMessage && <ErrorState message={errorMessage} onRetry={retryFetch} />}
 
@@ -165,15 +192,6 @@ export function TeamsPage() {
                   <span className="text-sm" style={{ color: "var(--text-secondary)" }}>{projectCountByTeam.get(team.id) ?? 0}</span>
                   <StatusBadge status={team.status} />
                   <div className="flex items-center justify-end gap-2">
-                    <Link
-                      to={tenantRoutes.teamDetail(team.id)}
-                      title="View team"
-                      aria-label="View team"
-                      className="inline-flex items-center justify-center p-1 transition-opacity hover:opacity-80"
-                      style={{ color: "var(--text-secondary)" }}
-                    >
-                      <FiEye size={15} />
-                    </Link>
                     {canManageTeams && (
                       <Link
                         to={tenantRoutes.teamEdit(team.id)}
@@ -195,6 +213,18 @@ export function TeamsPage() {
                       >
                         <FiUsers size={15} />
                       </Link>
+                    )}
+                    {canManageTeams && (
+                      <button
+                        type="button"
+                        onClick={() => setDeleteTarget(team)}
+                        title="Delete team"
+                        aria-label="Delete team"
+                        className="inline-flex items-center justify-center p-1 transition-opacity hover:opacity-80"
+                        style={{ color: "#ef4444" }}
+                      >
+                        <Trash2 size={15} />
+                      </button>
                     )}
                   </div>
                 </div>
@@ -219,8 +249,9 @@ export function TeamsPage() {
                     <StatusBadge status={team.status} />
                   </div>
                   <div className="mt-4 flex flex-wrap gap-2">
-                    <Button variant="ghost" size="sm" to={tenantRoutes.teamDetail(team.id)}>View</Button>
                     {canManageTeams && <Button variant="outline" size="sm" to={tenantRoutes.teamEdit(team.id)}>Edit</Button>}
+                    {canManageTeams && <Button variant="outline" size="sm" to={`${tenantRoutes.teamDetail(team.id)}#members`}><FiUsers size={14} />Manage Members</Button>}
+                    {canManageTeams && <Button variant="danger" size="sm" onClick={() => setDeleteTarget(team)}><Trash2 size={14} />Delete</Button>}
                   </div>
                 </article>
               ))}
@@ -238,6 +269,16 @@ export function TeamsPage() {
           />
         )}
       </SectionCard>
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title="Delete team?"
+        description={deleteTarget ? `This will permanently remove ${deleteTarget.name}.` : ""}
+        confirmLabel="Delete Team"
+        loading={deleting}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={handleDeleteTeam}
+      />
     </div>
   );
 }

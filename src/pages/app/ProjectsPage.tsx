@@ -22,6 +22,7 @@ import { formatDate } from "@/utils/formatting";
 import { tenantRoutes } from "@/utils/tenantRoutes";
 import { Pagination } from "@/components/common/Pagination";
 import { useClientPagination } from "@/hooks/useClientPagination";
+import { ReadOnlyIndicator } from "@/components/common/ReadOnlyIndicator";
 
 type ProjectStatusFilter = "all" | ProjectStatus;
 
@@ -221,9 +222,7 @@ export function ProjectsPage() {
                         </Link>
                       )}
                       {canManageProjects && isClosed && (
-                        <span className="text-xs font-medium" style={{ color: "var(--text-tertiary)" }}>
-                          Locked
-                        </span>
+                        <ReadOnlyIndicator message={getProjectReadOnlyMessage(project)} />
                       )}
                     </div>
                   </div>
@@ -262,9 +261,7 @@ export function ProjectsPage() {
                       <Button variant="ghost" size="sm" to={tenantRoutes.projectDetail(project.id)}>View</Button>
                       {canManageProjects && !isClosed && <Button variant="outline" size="sm" to={tenantRoutes.projectEdit(project.id)}>Edit</Button>}
                       {canManageProjects && isClosed && (
-                        <span className="inline-flex items-center rounded-xl px-3 py-2 text-xs font-semibold" style={{ color: "var(--text-tertiary)", backgroundColor: "var(--bg-muted)" }}>
-                          Locked
-                        </span>
+                        <ReadOnlyIndicator message={getProjectReadOnlyMessage(project)} />
                       )}
                     </div>
                   </article>
@@ -294,4 +291,10 @@ function getProjectTeamCount(project: Project): number {
 
 function isClosedProject(project: Project): boolean {
   return project.status === "completed" || project.status === "cancelled";
+}
+
+function getProjectReadOnlyMessage(project: Project): string {
+  return project.status === "completed"
+    ? "This project is completed and is read-only."
+    : "This project is cancelled and is read-only.";
 }
