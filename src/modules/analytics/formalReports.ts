@@ -8,16 +8,20 @@ import { getProjects } from '@/modules/projects/services/projectService';
 import { getTasks } from '@/modules/tasks/services/taskService';
 import { getTeams } from '@/modules/teams/services/teamService';
 import { getNotifications } from '@/modules/notifications/services/notificationService';
-import { getApplications, getInterviews } from '@/modules/recruitment/services/recruitmentService';
 import { getAuditLogs } from '@/modules/audit/services/auditLogService';
 import { getBusinessIntelligenceReport, getTenantAnalyticsData } from '@/modules/analytics/services/analyticsService';
-import { asRecord, firstDefined, getNumber, getString } from '@/services/http/parsers';
+import { apiClient } from '@/services/http/client';
+import { unwrapApiData } from '@/services/http/response';
+import { asRecord, extractList, firstDefined, getNumber, getString } from '@/services/http/parsers';
+import type { ApiResponse } from '@/types';
 
-export type FormalReportId = 'employees' | 'attendance' | 'leave' | 'projects' | 'tasks' | 'recruitment' | 'teams' | 'audit' | 'notifications' | 'organization' | 'system-health' | 'departments' | 'new-joiners' | 'employee-status' | 'interviews' | 'project-progress' | 'workload';
-export interface FormalReportDefinition { id: FormalReportId; title: string; description: string; group: string; }
+export type FormalReportId = 'employees' | 'attendance' | 'leave' | 'projects' | 'tasks' | 'recruitment-jobs' | 'recruitment-applications' | 'recruitment-interviews' | 'recruitment-hiring' | 'teams' | 'audit' | 'notifications' | 'organization' | 'system-health' | 'departments' | 'new-joiners' | 'employee-status' | 'project-progress' | 'workload';
+export interface FormalReportDefinition { id: FormalReportId; title: string; description: string; group: string; serverPaginated?: boolean; }
 export interface FormalReportColumn { key: string; label: string; align?: 'left' | 'right'; }
 export interface FormalReportSupportingChart { title: string; subtitle: string; variant: 'bar' | 'horizontalBar' | 'donut' | 'pie'; data: Array<{ label: string; value: number; secondaryValue: null; tertiaryValue: null; id: null }>; }
-export interface FormalReportData { title: string; description: string; columns: FormalReportColumn[]; rows: Array<Record<string, ReportCell>>; summary: Array<{ label: string; value: string | number }>; supportingCharts: FormalReportSupportingChart[]; generatedAt: string; }
+export interface FormalReportPagination { page: number; size: number; totalElements: number; totalPages: number; }
+export interface FormalReportRequest { page: number; size: number; search: string; sort: { key: string; direction: 'asc' | 'desc' } | null; columnFilters: Record<string, string>; }
+export interface FormalReportData { title: string; description: string; columns: FormalReportColumn[]; rows: Array<Record<string, ReportCell>>; summary: Array<{ label: string; value: string | number }>; supportingCharts: FormalReportSupportingChart[]; generatedAt: string; pagination?: FormalReportPagination; }
 
 const definitions: Record<FormalReportId, FormalReportDefinition> = {
   employees: { id: 'employees', title: 'Employee Report', description: 'Auditable employee directory, role, department, status, and joining information.', group: 'People' },
@@ -25,7 +29,10 @@ const definitions: Record<FormalReportId, FormalReportDefinition> = {
   leave: { id: 'leave', title: 'Leave Report', description: 'Leave requests, utilization dates, decision status, and employee ownership.', group: 'People' },
   projects: { id: 'projects', title: 'Project Report', description: 'Portfolio register with ownership, schedule, and delivery status.', group: 'Delivery' },
   tasks: { id: 'tasks', title: 'Task Report', description: 'Detailed work register for assignments, priorities, deadlines, and workflow status.', group: 'Delivery' },
-  recruitment: { id: 'recruitment', title: 'Recruitment Report', description: 'Candidate applications by position, pipeline stage, and application date.', group: 'Talent' },
+  'recruitment-jobs': { id: 'recruitment-jobs', title: 'Job Openings Report', description: 'Openings, publishing state, deadlines, capacity, and applicant demand.', group: 'Recruitment', serverPaginated: true },
+  'recruitment-applications': { id: 'recruitment-applications', title: 'Applications Report', description: 'Candidate applications by position, department, pipeline stage, and application date.', group: 'Recruitment', serverPaginated: true },
+  'recruitment-interviews': { id: 'recruitment-interviews', title: 'Interview Report', description: 'Interview schedule, candidate, interviewer, mode, and outcome status.', group: 'Recruitment', serverPaginated: true },
+  'recruitment-hiring': { id: 'recruitment-hiring', title: 'Hiring Report', description: 'Completed hires and their employee-account conversion state.', group: 'Recruitment', serverPaginated: true },
   teams: { id: 'teams', title: 'Team Report', description: 'Team register with management ownership and active membership.', group: 'Organization' },
   audit: { id: 'audit', title: 'Audit Report', description: 'Governance-ready history of actors, actions, entities, and timestamps.', group: 'Governance' },
   notifications: { id: 'notifications', title: 'Notification Report', description: 'Notification delivery and read-status register for the current administrator.', group: 'System' },
@@ -34,16 +41,15 @@ const definitions: Record<FormalReportId, FormalReportDefinition> = {
   departments: { id: 'departments', title: 'Department Report', description: 'Department-level workforce totals for capacity review.', group: 'People' },
   'new-joiners': { id: 'new-joiners', title: 'New Joiners Report', description: 'Employees who joined within the selected reporting period.', group: 'People' },
   'employee-status': { id: 'employee-status', title: 'Employee Status Report', description: 'Employee account and employment status register.', group: 'People' },
-  interviews: { id: 'interviews', title: 'Interview Report', description: 'Interview schedule, candidate, interviewer, mode, and outcome status.', group: 'Talent' },
   'project-progress': { id: 'project-progress', title: 'Project Progress Report', description: 'Project completion statement based on completed and total work.', group: 'Delivery' },
   workload: { id: 'workload', title: 'Workload Report', description: 'Assigned work totals by employee for resource planning.', group: 'Delivery' },
 };
 
 export function getReportCatalog(role: NormalizedAppRole | null): FormalReportDefinition[] {
   const ids: FormalReportId[] = role === 'TENANT_ADMIN'
-    ? ['employees', 'attendance', 'leave', 'projects', 'tasks', 'recruitment', 'teams', 'audit', 'notifications', 'organization', 'system-health']
+    ? ['employees', 'attendance', 'leave', 'projects', 'tasks', 'recruitment-jobs', 'recruitment-applications', 'recruitment-interviews', 'recruitment-hiring', 'teams', 'audit', 'notifications', 'organization', 'system-health']
     : role === 'HR'
-      ? ['employees', 'attendance', 'leave', 'recruitment', 'departments', 'new-joiners', 'employee-status', 'interviews']
+      ? ['employees', 'attendance', 'leave', 'recruitment-jobs', 'recruitment-applications', 'recruitment-interviews', 'recruitment-hiring', 'departments', 'new-joiners', 'employee-status']
       : role === 'MANAGER'
         ? ['teams', 'project-progress', 'tasks', 'workload']
         : [];
@@ -55,8 +61,9 @@ const date = (value: unknown) => { const raw = getString(value); return raw ? ne
 const dateTime = (value: unknown) => { const raw = getString(value); return raw ? new Date(raw).toLocaleString() : '—'; };
 const daysBetween = (start: unknown, end: unknown) => { const from = getString(start); const to = getString(end); if (!from || !to) return '—'; return Math.max(1, Math.round((new Date(to).getTime() - new Date(from).getTime()) / 86_400_000) + 1); };
 
-export async function loadFormalReport(id: FormalReportId, filters: AnalyticsFilters, role: NormalizedAppRole): Promise<FormalReportData> {
+export async function loadFormalReport(id: FormalReportId, filters: AnalyticsFilters, role: NormalizedAppRole, request?: FormalReportRequest): Promise<FormalReportData> {
   const definition = definitions[id];
+  if (isRecruitmentReport(id)) return loadRecruitmentReport(definition, id, filters, request);
   let columns: FormalReportColumn[] = [];
   let rows: Array<Record<string, ReportCell>> = [];
   if (id === 'employees' || id === 'new-joiners' || id === 'employee-status') {
@@ -80,14 +87,6 @@ export async function loadFormalReport(id: FormalReportId, filters: AnalyticsFil
     const items = await getTasks();
     columns = [{ key: 'title', label: 'Task' }, { key: 'project', label: 'Project' }, { key: 'team', label: 'Team' }, { key: 'assignee', label: 'Assignee' }, { key: 'priority', label: 'Priority' }, { key: 'status', label: 'Status' }, { key: 'due', label: 'Due date' }];
     rows = items.map((item) => ({ title: item.title, project: text(item.projectName), team: text(item.assignedTeamName), assignee: text(item.assigneeName), priority: item.priority, status: item.status, due: date(item.dueDate), recordDate: text(item.dueDate, '') }));
-  } else if (id === 'recruitment') {
-    const result = await getApplications();
-    columns = [{ key: 'candidate', label: 'Candidate' }, { key: 'email', label: 'Email' }, { key: 'position', label: 'Position' }, { key: 'department', label: 'Department' }, { key: 'stage', label: 'Pipeline stage' }, { key: 'applied', label: 'Applied' }];
-    rows = result.items.map((item) => ({ candidate: item.candidate.fullName, email: item.candidate.email, position: item.jobPosition.title, department: text(item.jobPosition.department), stage: item.status, applied: dateTime(item.appliedAt), recordDate: text(item.appliedAt, '').slice(0, 10) }));
-  } else if (id === 'interviews') {
-    const items = await getInterviews();
-    columns = [{ key: 'candidate', label: 'Candidate' }, { key: 'position', label: 'Position' }, { key: 'interviewer', label: 'Interviewer' }, { key: 'scheduled', label: 'Scheduled' }, { key: 'mode', label: 'Mode' }, { key: 'status', label: 'Status' }];
-    rows = items.map((item) => ({ candidate: item.candidate.fullName, position: item.jobPosition.title, interviewer: text(item.interviewer?.name), scheduled: dateTime(item.scheduledAt), recordDate: text(item.scheduledAt, '').slice(0, 10), mode: text(item.mode), status: text(item.status) }));
   } else if (id === 'teams') {
     const items = await getTeams();
     columns = [{ key: 'name', label: 'Team' }, { key: 'manager', label: 'Manager' }, { key: 'members', label: 'Members', align: 'right' }, { key: 'description', label: 'Description' }];
@@ -113,6 +112,96 @@ export async function loadFormalReport(id: FormalReportId, filters: AnalyticsFil
   }
   rows = applyStructuredFilters(rows, filters);
   return { title: definition.title, description: definition.description, columns, rows, summary: buildSummary(id, rows), supportingCharts: buildSupportingCharts(id, rows), generatedAt: new Date().toISOString() };
+}
+
+export async function loadFullFormalReport(id: FormalReportId, filters: AnalyticsFilters, role: NormalizedAppRole, request: FormalReportRequest): Promise<FormalReportData> {
+  if (!isRecruitmentReport(id)) return loadFormalReport(id, filters, role);
+  const first = await loadFormalReport(id, filters, role, { ...request, page: 0, size: 200 });
+  const rows = [...first.rows];
+  const totalPages = first.pagination?.totalPages ?? 1;
+  for (let page = 1; page < totalPages; page += 1) {
+    const next = await loadFormalReport(id, filters, role, { ...request, page, size: 200 });
+    rows.push(...next.rows);
+  }
+  return { ...first, rows, pagination: undefined };
+}
+
+function isRecruitmentReport(id: FormalReportId): id is Extract<FormalReportId, `recruitment-${string}`> {
+  return id.startsWith('recruitment-');
+}
+
+async function loadRecruitmentReport(definition: FormalReportDefinition, id: Extract<FormalReportId, `recruitment-${string}`>, filters: AnalyticsFilters, request?: FormalReportRequest): Promise<FormalReportData> {
+  const reportType = id.replace('recruitment-', '');
+  const pageRequest = request ?? { page: 0, size: 20, search: '', sort: null, columnFilters: {} };
+  const params: Record<string, string | number> = {
+    page: pageRequest.page,
+    size: pageRequest.size,
+  };
+  if (pageRequest.search) params.search = pageRequest.search;
+  if (filters.fromDate) params.fromDate = filters.fromDate;
+  if (filters.toDate) params.toDate = filters.toDate;
+  if (filters.department) params.department = filters.department;
+  const selectedStatus = filters.recruitmentStatus || filters.status;
+  if (selectedStatus) params.status = selectedStatus;
+  if (pageRequest.sort) {
+    params.sortBy = pageRequest.sort.key;
+    params.sortDir = pageRequest.sort.direction;
+  }
+  Object.entries(pageRequest.columnFilters).forEach(([key, value]) => {
+    if (value.trim()) params[`column.${key}`] = value.trim();
+  });
+
+  const response = await apiClient.get<ApiResponse<unknown> | unknown>(`/api/tenant/reports/recruitment/${reportType}`, { params });
+  const payload = asRecord(unwrapApiData(response.data));
+  const columns = recruitmentColumns(id);
+  const rows = extractList(payload.rows).map((item) => formatRecruitmentRow(id, asRecord(item)));
+  const summaryRecord = asRecord(payload.summary);
+  const summary = Object.entries(summaryRecord).map(([label, value]) => ({ label, value: getNumber(value) ?? 0 }));
+  const chartData = summary.slice(1).map((item) => ({ label: item.label, value: Number(item.value), secondaryValue: null, tertiaryValue: null, id: null }));
+  return {
+    title: definition.title,
+    description: definition.description,
+    columns,
+    rows,
+    summary,
+    supportingCharts: chartData.length ? [chart(`${definition.title} summary`, 'Distribution across the filtered report scope', id === 'recruitment-applications' ? 'horizontalBar' : 'bar', chartData)] : [],
+    generatedAt: getString(payload.generatedAt) ?? new Date().toISOString(),
+    pagination: {
+      page: getNumber(payload.page) ?? pageRequest.page,
+      size: getNumber(payload.size) ?? pageRequest.size,
+      totalElements: getNumber(payload.totalElements) ?? rows.length,
+      totalPages: getNumber(payload.totalPages) ?? 1,
+    },
+  };
+}
+
+function recruitmentColumns(id: Extract<FormalReportId, `recruitment-${string}`>): FormalReportColumn[] {
+  if (id === 'recruitment-jobs') return [
+    { key: 'job', label: 'Job opening' }, { key: 'department', label: 'Department' }, { key: 'status', label: 'Status' },
+    { key: 'publishing', label: 'Publishing' }, { key: 'deadline', label: 'Deadline' },
+    { key: 'openings', label: 'Openings', align: 'right' }, { key: 'applicants', label: 'Applicants', align: 'right' },
+  ];
+  if (id === 'recruitment-applications') return [
+    { key: 'candidate', label: 'Candidate' }, { key: 'email', label: 'Email' }, { key: 'position', label: 'Position' },
+    { key: 'department', label: 'Department' }, { key: 'stage', label: 'Pipeline stage' }, { key: 'applied', label: 'Applied' },
+  ];
+  if (id === 'recruitment-interviews') return [
+    { key: 'candidate', label: 'Candidate' }, { key: 'position', label: 'Position' }, { key: 'interviewer', label: 'Interviewer' },
+    { key: 'scheduled', label: 'Scheduled' }, { key: 'mode', label: 'Mode' }, { key: 'status', label: 'Status' },
+  ];
+  return [
+    { key: 'candidate', label: 'Candidate' }, { key: 'email', label: 'Email' }, { key: 'position', label: 'Position' },
+    { key: 'department', label: 'Department' }, { key: 'hiredAt', label: 'Hired' }, { key: 'employeeId', label: 'Employee ID' },
+  ];
+}
+
+function formatRecruitmentRow(id: Extract<FormalReportId, `recruitment-${string}`>, row: Record<string, unknown>): Record<string, ReportCell> {
+  const formatted = { ...row } as Record<string, ReportCell>;
+  if (id === 'recruitment-jobs') formatted.deadline = date(row.deadline);
+  if (id === 'recruitment-applications') formatted.applied = dateTime(row.applied);
+  if (id === 'recruitment-interviews') formatted.scheduled = dateTime(row.scheduled);
+  if (id === 'recruitment-hiring') formatted.hiredAt = dateTime(row.hiredAt);
+  return formatted;
 }
 
 function applyStructuredFilters(rows: Array<Record<string, ReportCell>>, filters: AnalyticsFilters) {
@@ -142,8 +231,6 @@ function buildSummary(id: FormalReportId, rows: Array<Record<string, ReportCell>
   if (id === 'leave') return [{ label: 'Pending', value: status('PENDING') }, { label: 'Approved', value: status('APPROVED') }, { label: 'Rejected', value: status('REJECTED') }, { label: 'Cancelled', value: status('CANCELLED') }];
   if (id === 'projects') return [{ label: 'Projects', value: rows.length }, { label: 'Active', value: status('IN_PROGRESS') }, { label: 'Completed', value: status('COMPLETED') }, { label: 'On hold', value: status('ON_HOLD') }];
   if (id === 'tasks') return [{ label: 'Completed', value: status('DONE') }, { label: 'Overdue', value: rows.filter((row) => String(row.recordDate ?? '') < new Date().toISOString().slice(0, 10) && row.status !== 'DONE').length }, { label: 'Blocked', value: status('BLOCKED') }, { label: 'High priority', value: rows.filter((row) => ['HIGH', 'CRITICAL'].includes(String(row.priority))).length }];
-  if (id === 'recruitment') return [{ label: 'Applications', value: rows.length }, { label: 'Interviews', value: status('INTERVIEW') }, { label: 'Offers', value: status('OFFERED') }, { label: 'Hired', value: status('HIRED') }];
-  if (id === 'interviews') return [{ label: 'Interviews', value: rows.length }, { label: 'Scheduled', value: status('SCHEDULED') }, { label: 'Completed', value: status('COMPLETED') }, { label: 'Cancelled', value: status('CANCELLED') }];
   if (id === 'teams') return [{ label: 'Teams', value: rows.length }, { label: 'Members', value: sum('members') }, { label: 'Average team size', value: avg('members') }, { label: 'Managed teams', value: rows.filter((row) => row.manager !== '—').length }];
   if (id === 'audit') return [{ label: 'Audit events', value: rows.length }, { label: 'Creates', value: rows.filter((row) => row.action === 'CREATE').length }, { label: 'Updates', value: rows.filter((row) => row.action === 'UPDATE').length }, { label: 'Actors', value: distinct('actor') }];
   if (id === 'notifications') return [{ label: 'Notifications', value: rows.length }, { label: 'Unread', value: status('UNREAD') }, { label: 'Read', value: status('READ') }, { label: 'Types', value: distinct('type') }];
@@ -166,8 +253,6 @@ function buildSupportingCharts(id: FormalReportId, rows: Array<Record<string, Re
   if (id === 'leave') return [chart('Leave utilization', 'Requests by leave type', 'donut', group('type')), chart('Decision status', 'Approval workflow outcomes', 'bar', group('status'))];
   if (id === 'projects') return [chart('Project status', 'Portfolio by delivery status', 'donut', group('status'))];
   if (id === 'tasks') return [chart('Task status', 'Work by workflow state', 'donut', group('status')), chart('Priority distribution', 'Tasks by urgency', 'bar', group('priority'))];
-  if (id === 'recruitment') return [chart('Recruitment pipeline', 'Applications by stage', 'horizontalBar', group('stage')), chart('Applications by department', 'Talent demand by function', 'bar', group('department'))];
-  if (id === 'interviews') return [chart('Interview status', 'Scheduled interview outcomes', 'donut', group('status')), chart('Interview mode', 'Interview delivery channels', 'bar', group('mode'))];
   if (id === 'teams') return [chart('Members per team', 'Active team size comparison', 'horizontalBar', direct('name', 'members'))];
   if (id === 'audit') return [chart('Audit actions', 'Events by action type', 'bar', group('action')), chart('Audited entities', 'Events by entity type', 'horizontalBar', group('entity'))];
   if (id === 'notifications') return [chart('Read status', 'Read compared with unread', 'donut', group('status')), chart('Notification types', 'Messages by notification type', 'bar', group('type'))];

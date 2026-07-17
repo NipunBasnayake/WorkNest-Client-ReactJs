@@ -13,7 +13,12 @@ describe('formal report catalog', () => {
     const hr = getReportCatalog('HR').map((item) => item.id);
     const manager = getReportCatalog('MANAGER').map((item) => item.id);
     expect(hr).toContain('new-joiners');
-    expect(hr).toContain('interviews');
+    expect(hr).toEqual(expect.arrayContaining([
+      'recruitment-jobs',
+      'recruitment-applications',
+      'recruitment-interviews',
+      'recruitment-hiring',
+    ]));
     expect(manager).toEqual(['teams', 'project-progress', 'tasks', 'workload']);
   });
 

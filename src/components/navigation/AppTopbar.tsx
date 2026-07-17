@@ -4,6 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/hooks/useTheme";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useProtectedFileUrl } from "@/hooks/useProtectedFileUrl";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -68,6 +69,7 @@ export function AppTopbar({ area, pageTitle, breadcrumb, onMobileMenuToggle }: A
   const displayEmail = user?.email || "No email available";
   const roleLabel = formatRoleLabel(role ?? user?.role);
   const tenantSlug = tenantKey ?? undefined;
+  const avatarUrl = useProtectedFileUrl(user?.avatarUrl);
 
   const refreshNotifications = useCallback(async () => {
     if (!isTenantArea) return;
@@ -322,7 +324,7 @@ export function AppTopbar({ area, pageTitle, breadcrumb, onMobileMenuToggle }: A
                 aria-label="Open user menu"
               >
                 <Avatar className="h-7 w-7">
-                  <AvatarImage src={user.avatarUrl} alt={displayName} />
+                  <AvatarImage src={avatarUrl ?? undefined} alt={displayName} />
                   <AvatarFallback className="bg-primary-100 text-[11px] text-primary-700 dark:bg-primary-950 dark:text-primary-200">
                     {getInitials(displayName, displayEmail)}
                   </AvatarFallback>
@@ -333,7 +335,7 @@ export function AppTopbar({ area, pageTitle, breadcrumb, onMobileMenuToggle }: A
             <DropdownMenuContent align="end" sideOffset={10} className="w-72 p-2 bg-[var(--bg-surface)] text-[var(--text-primary)] border-[var(--border-default)]">
               <div className="flex items-start gap-3 px-2 py-2.5">
                 <Avatar className="h-10 w-10">
-                  <AvatarImage src={user.avatarUrl} alt={displayName} />
+                  <AvatarImage src={avatarUrl ?? undefined} alt={displayName} />
                   <AvatarFallback className="bg-primary-100 text-sm text-primary-700 dark:bg-primary-950 dark:text-primary-200">
                     {getInitials(displayName, displayEmail)}
                   </AvatarFallback>
