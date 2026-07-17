@@ -10,6 +10,7 @@ import { Button } from "@/components/common/Button";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { EmptyState, ErrorBanner } from "@/components/common/AppUI";
 import type { Announcement } from "@/modules/announcements/types";
+import { FileAssetList } from "@/components/common/FileAssetList";
 import { canDeleteAnnouncement, canEditAnnouncement } from "@/modules/announcements/access";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { tenantRoutes } from "@/utils/tenantRoutes";
@@ -138,6 +139,10 @@ export function AnnouncementDetailPage() {
             <article className="whitespace-pre-line text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>
               {announcement.content}
             </article>
+          </SectionCard>
+
+          <SectionCard title="Attachments">
+            <FileAssetList items={announcement.attachments ?? []} emptyLabel="No files attached to this announcement." />
           </SectionCard>
         </>
       )}

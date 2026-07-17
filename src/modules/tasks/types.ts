@@ -58,7 +58,6 @@ export interface TaskCreateRequest {
   priority: TaskPriority;
   assigneeId?: string;
   dueDate?: string;
-  attachmentUrls?: string[];
 }
 
 export interface TaskUpdateRequest {
@@ -70,7 +69,6 @@ export interface TaskUpdateRequest {
   assignedEmployeeId?: string;
   assigneeId?: string;
   dueDate?: string;
-  attachmentUrls?: string[];
 }
 
 export interface TaskComment {

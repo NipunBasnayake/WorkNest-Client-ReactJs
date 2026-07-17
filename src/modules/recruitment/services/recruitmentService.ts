@@ -8,7 +8,6 @@ import type {
   RecruitmentApplicationEvent,
   RecruitmentCandidate,
   RecruitmentCandidateComment,
-  RecruitmentDashboard,
   RecruitmentEmailLog,
   RecruitmentEmailTemplate,
   RecruitmentEmailTemplateType,
@@ -176,27 +175,6 @@ function page<T>(value: unknown, normalize: (item: unknown) => T): PaginatedResu
 async function data<T>(method: "get" | "post" | "put" | "patch" | "delete", url: string, body?: unknown, params?: unknown): Promise<T> {
   const response = await apiClient.request<ApiResponse<T>>({ method, url, data: body, params });
   return unwrapApiData(response.data);
-}
-
-export async function getRecruitmentDashboard(): Promise<RecruitmentDashboard> {
-  const record = asRecord(await data<unknown>("get", "/api/tenant/recruitment/dashboard"));
-  return {
-    openJobs: getNumber(record.openJobs) ?? 0,
-    totalCandidates: getNumber(record.totalCandidates) ?? 0,
-    applicationsReceived: getNumber(record.applicationsReceived) ?? getNumber(record.activeApplications) ?? 0,
-    shortlisted: getNumber(record.shortlisted) ?? 0,
-    interviewScheduled: getNumber(record.interviewScheduled) ?? getNumber(record.upcomingInterviews) ?? 0,
-    offersSent: getNumber(record.offersSent) ?? 0,
-    hiredCandidates: getNumber(record.hiredCandidates) ?? 0,
-    rejected: getNumber(record.rejected) ?? 0,
-    activeApplications: getNumber(record.activeApplications) ?? 0,
-    upcomingInterviews: getNumber(record.upcomingInterviews) ?? 0,
-    stageCounts: extractList(record.stageCounts).map((item) => ({ stage: canonicalStage(asRecord(item).stage), count: getNumber(asRecord(item).count) ?? 0 })),
-    jobCounts: extractList(record.jobCounts).map((item) => ({ jobPositionId: getId(asRecord(item).jobPositionId), title: getString(asRecord(item).title) ?? "Untitled job", count: getNumber(asRecord(item).count) ?? 0 })),
-    recentApplications: extractList(record.recentApplications).map(application),
-    upcomingInterviewItems: extractList(record.upcomingInterviewItems).map(interview),
-    recentlyPublishedJobs: extractList(record.recentlyPublishedJobs).map(job),
-  };
 }
 
 export async function getJobPositions(params: ListParams = {}): Promise<PaginatedResult<RecruitmentJobPosition>> {

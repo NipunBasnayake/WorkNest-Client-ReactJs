@@ -207,6 +207,7 @@ export function TaskForm({
         label="Attachments"
         hint="Share screenshots, requirement notes, or supporting PDFs."
         folder="tasks/attachments"
+        category="TASK_ATTACHMENT"
         kind="document"
         multiple
         disabled={submitting}

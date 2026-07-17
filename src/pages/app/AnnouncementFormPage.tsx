@@ -58,6 +58,7 @@ export function AnnouncementFormPage() {
           title: item.title,
           content: item.content,
           pinned: item.pinned,
+          attachments: item.attachments ?? [],
         });
       })
       .catch((err: unknown) => {
