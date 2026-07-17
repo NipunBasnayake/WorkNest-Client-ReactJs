@@ -80,14 +80,12 @@ const analyticsPage = lazyElement(() => import("@/pages/app/AnalyticsPage"), "An
 const reportsPage = lazyElement(() => import("@/pages/app/ReportsPage"), "ReportsPage");
 const auditLogsPage = lazyElement(() => import("@/pages/app/AuditLogsPage"), "AuditLogsPage");
 const profilePage = lazyElement(() => import("@/pages/app/ProfilePage"), "ProfilePage");
-const recruitmentDashboardPage = lazyElement(() => import("@/modules/recruitment/pages/RecruitmentDashboardPage"), "RecruitmentDashboardPage");
 const recruitmentJobsPage = lazyElement(() => import("@/modules/recruitment/pages/RecruitmentJobsPage"), "RecruitmentJobsPage");
 const recruitmentJobFormPage = lazyElement(() => import("@/modules/recruitment/pages/RecruitmentJobFormPage"), "RecruitmentJobFormPage");
 const recruitmentJobPreviewPage = lazyElement(() => import("@/modules/recruitment/pages/RecruitmentJobPreviewPage"), "RecruitmentJobPreviewPage");
 const recruitmentApplicationsPage = lazyElement(() => import("@/modules/recruitment/pages/RecruitmentApplicationsPage"), "RecruitmentApplicationsPage");
 const recruitmentApplicationDetailPage = lazyElement(() => import("@/modules/recruitment/pages/RecruitmentApplicationDetailPage"), "RecruitmentApplicationDetailPage");
 const recruitmentEmailTemplatesPage = lazyElement(() => import("@/modules/recruitment/pages/RecruitmentEmailTemplatesPage"), "RecruitmentEmailTemplatesPage");
-const recruitmentReportsPage = lazyElement(() => import("@/modules/recruitment/pages/RecruitmentReportsPage"), "RecruitmentReportsPage");
 
 const appSettingsLayoutPage = lazyElement(() => import("@/pages/app/settings/AppSettingsLayoutPage"), "AppSettingsLayoutPage");
 const appSettingsProfilePage = lazyElement(() => import("@/pages/app/settings/AppSettingsProfilePage"), "AppSettingsProfilePage");
@@ -286,8 +284,8 @@ const router = createBrowserRouter([
           {
             element: <PermissionGuard permission={PERMISSIONS.RECRUITMENT_VIEW} />,
             children: [
-              { path: "recruitment", element: recruitmentDashboardPage },
-              { path: "recruitment/dashboard", element: <RecruitmentRouteRedirect target="overview" /> },
+              { path: "recruitment", element: <RecruitmentRouteRedirect target="jobs" /> },
+              { path: "recruitment/dashboard", element: <RecruitmentRouteRedirect target="dashboard" /> },
               { path: "recruitment/pipeline", element: <RecruitmentRouteRedirect target="applications" /> },
               { path: "recruitment/jobs", element: recruitmentJobsPage },
               { path: "recruitment/jobs/new", element: recruitmentJobFormPage },
@@ -296,7 +294,7 @@ const router = createBrowserRouter([
               { path: "recruitment/applications", element: recruitmentApplicationsPage },
               { path: "recruitment/applications/:applicationId", element: recruitmentApplicationDetailPage },
               { path: "recruitment/email-templates", element: recruitmentEmailTemplatesPage },
-              { path: "recruitment/reports", element: recruitmentReportsPage },
+              { path: "recruitment/reports", element: <RecruitmentRouteRedirect target="reports" /> },
               { path: "recruitment/candidates", element: <RecruitmentRouteRedirect target="applications" /> },
               { path: "recruitment/interviews", element: <RecruitmentRouteRedirect target="applications" /> },
             ],
@@ -372,14 +370,19 @@ function TenantRouteRedirect({ target }: { target: string }) {
 function RecruitmentRouteRedirect({
   target,
 }: {
-  target: "overview" | "applications";
+  target: "jobs" | "dashboard" | "reports" | "applications";
 }) {
   const { tenantSlug = useAuthStore.getState().tenantKey ?? "app" } = useParams();
   const location = useLocation();
-  const basePath = target === "overview"
-    ? `/${tenantSlug}/recruitment`
-    : `/${tenantSlug}/recruitment/applications`;
+  const basePath = target === "dashboard"
+    ? `/${tenantSlug}/dashboard`
+    : target === "reports"
+      ? `/${tenantSlug}/reports`
+      : target === "jobs"
+        ? `/${tenantSlug}/recruitment/jobs`
+        : `/${tenantSlug}/recruitment/applications`;
   const searchParams = new URLSearchParams(location.search);
+  if (target === "reports") searchParams.set("category", "recruitment");
 
   const search = searchParams.toString();
   const nextPath = `${basePath}${search ? `?${search}` : ""}${location.hash}`;

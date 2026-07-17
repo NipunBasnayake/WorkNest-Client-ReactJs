@@ -367,7 +367,7 @@ export function useChat(currentUserId: string | undefined, currentUserRole: stri
   );
 
   const sendMessage = useCallback(
-    async (text: string): Promise<void> => {
+    async (text: string, attachments: import("@/types").UploadedFileAsset[] = []): Promise<void> => {
       const selected = selectedConversationRef.current;
       const resolvedViewerId = viewerEmployeeIdRef.current;
       if (!selected || !selected.id) return;
@@ -392,6 +392,7 @@ export function useChat(currentUserId: string | undefined, currentUserRole: stri
           conversationId: selected.id,
           senderEmployeeId: resolvedViewerId,
           message: trimmed,
+          attachments,
         });
 
         const fallbackMessage: ChatMessage = {
@@ -405,6 +406,7 @@ export function useChat(currentUserId: string | undefined, currentUserRole: stri
           editedAt: created.editedAt,
           senderId: created.senderId || created.senderEmployeeId || resolvedViewerId,
           content: created.content || created.message || trimmed,
+          attachments: created.attachments ?? attachments,
         };
         seenRealtimeMessageIdsRef.current.set(createRealtimeMessageKey(fallbackMessage), Date.now());
         trimSeenRealtimeMap(seenRealtimeMessageIdsRef.current);

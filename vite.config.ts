@@ -167,9 +167,6 @@ function localStoragePlugin() {
 
 export default defineConfig({
   plugins: [react(), tailwindcss(), localStoragePlugin()],
-  define: {
-    global: "window",
-  },
   build: {
     rollupOptions: {
       output: {
