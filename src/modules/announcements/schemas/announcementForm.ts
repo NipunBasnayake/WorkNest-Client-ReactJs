@@ -4,6 +4,7 @@ export const DEFAULT_ANNOUNCEMENT_FORM: AnnouncementFormValues = {
   title: "",
   content: "",
   pinned: false,
+  attachments: [],
 };
 
 export function validateAnnouncementForm(values: AnnouncementFormValues): AnnouncementFormErrors {

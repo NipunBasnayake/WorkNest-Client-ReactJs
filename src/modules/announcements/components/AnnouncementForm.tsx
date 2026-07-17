@@ -1,6 +1,7 @@
 import { Input } from "@/components/common/Input";
 import { Button } from "@/components/common/Button";
 import { TextareaField } from "@/components/common/TextareaField";
+import { FileUploadField } from "@/components/common/FileUploadField";
 import type { AnnouncementFormErrors, AnnouncementFormValues } from "@/modules/announcements/types";
 
 interface AnnouncementFormProps {
@@ -58,6 +59,19 @@ export function AnnouncementForm({
         />
         Pin this announcement at the top of the feed.
       </label>
+
+      <FileUploadField
+        id="announcement-attachments"
+        label="Attachments"
+        hint="Attach supporting documents or images to this announcement."
+        folder="announcements/attachments"
+        category="ANNOUNCEMENT_ATTACHMENT"
+        kind="document"
+        multiple
+        disabled={submitting}
+        value={values.attachments}
+        onChange={(attachments) => onChange({ ...values, attachments })}
+      />
 
       <div className="flex flex-wrap items-center justify-end gap-2 pt-2">
         <Button type="button" variant="ghost" onClick={onCancel} disabled={submitting}>

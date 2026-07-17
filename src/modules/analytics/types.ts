@@ -64,15 +64,6 @@ export interface BusinessInsight {
   actionTo?: string;
 }
 
-export interface RecruitmentAnalytics {
-  openJobs: number;
-  totalCandidates: number;
-  activeApplications: number;
-  hiredCandidates: number;
-  upcomingInterviews: number;
-  stageDistribution: DistributionDatum[];
-}
-
 export interface AttendanceTrendDatum {
   date: string;
   present: number;
@@ -155,7 +146,6 @@ export interface TenantAnalyticsData {
   employeeRoleDistribution: DistributionDatum[];
   employeeDesignationDistribution: DistributionDatum[];
   teamWorkload: ProgressDatum[];
-  recruitment?: RecruitmentAnalytics;
   filterOptions: AnalyticsFilterOptions;
   insights: BusinessInsight[];
   generatedAt: string;
@@ -179,4 +169,5 @@ export interface TenantDashboardSnapshot {
   pendingApprovals: LeavePreview[];
   announcements: AnnouncementPreview[];
   notifications: NotificationPreview[];
+  recruitment?: import("@/modules/recruitment/types").RecruitmentDashboardSummary;
 }

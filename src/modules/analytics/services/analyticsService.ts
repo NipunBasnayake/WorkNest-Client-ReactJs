@@ -1,6 +1,6 @@
 import { apiClient } from "@/services/http/client";
 import { unwrapApiData } from "@/services/http/response";
-import { asRecord, extractList, firstDefined, getNumber, getString, toIsoDate } from "@/services/http/parsers";
+import { asRecord, extractList, firstDefined, getId, getNumber, getString, toIsoDate } from "@/services/http/parsers";
 import { PERMISSIONS } from "@/constants/permissions";
 import { getRolePermissions, normalizeAppRole } from "@/constants/rolePermissionMap";
 import { useAuthStore } from "@/store/authStore";
@@ -33,7 +33,7 @@ import type { LeaveRequest } from "@/modules/leave/types";
 import type { Task } from "@/modules/tasks/types";
 
 import type { AnalyticsFilters, BusinessInsight } from '@/modules/analytics/types';
-import { getRecruitmentDashboard } from '@/modules/recruitment/services/recruitmentService';
+import type { RecruitmentDashboardSummary, RecruitmentInterviewMode, RecruitmentStage } from '@/modules/recruitment/types';
 import { tenantRoutes } from '@/utils/tenantRoutes';
 
 const STATUS_COLORS: Record<string, string> = {
@@ -314,6 +314,49 @@ function toLeaveStatusSummary(leaves: LeaveRequest[], dashboardStatusMap: Record
   };
 }
 
+function normalizeRecruitmentStage(value: unknown): RecruitmentStage {
+  const status = (getString(value) ?? "APPLIED").toUpperCase();
+  if (status === "SCREENING") return "SHORTLISTED";
+  if (status === "TECHNICAL" || status === "HR_REVIEW") return "INTERVIEW";
+  if (status === "WITHDRAWN") return "REJECTED";
+  return status as RecruitmentStage;
+}
+
+function normalizeRecruitmentSummary(value: unknown): RecruitmentDashboardSummary | undefined {
+  const record = asRecord(value);
+  if (Object.keys(record).length === 0) return undefined;
+
+  return {
+    openJobs: getNumber(record.openJobs) ?? 0,
+    applicationsReceived: getNumber(record.applicationsReceived) ?? 0,
+    shortlisted: getNumber(record.shortlisted) ?? 0,
+    interviewsScheduled: getNumber(record.interviewsScheduled) ?? 0,
+    offers: getNumber(record.offers) ?? 0,
+    hired: getNumber(record.hired) ?? 0,
+    recentApplications: extractList(record.recentApplications).map((item) => {
+      const application = asRecord(item);
+      return {
+        id: getId(application.id),
+        candidateName: getString(application.candidateName) ?? "Unknown candidate",
+        jobTitle: getString(application.jobTitle) ?? "Untitled job",
+        status: normalizeRecruitmentStage(application.status),
+        appliedAt: getString(application.appliedAt),
+      };
+    }).filter((item) => Boolean(item.id)),
+    upcomingInterviews: extractList(record.upcomingInterviews).map((item) => {
+      const interview = asRecord(item);
+      return {
+        id: getId(interview.id),
+        applicationId: getId(interview.applicationId),
+        candidateName: getString(interview.candidateName) ?? "Unknown candidate",
+        jobTitle: getString(interview.jobTitle) ?? "Untitled job",
+        mode: (getString(interview.mode)?.toUpperCase() ?? "REMOTE") as RecruitmentInterviewMode,
+        scheduledAt: getString(interview.scheduledAt) ?? "",
+      };
+    }).filter((item) => Boolean(item.id && item.applicationId)),
+  };
+}
+
 export async function getTenantDashboardSnapshot(): Promise<TenantDashboardSnapshot> {
   try {
     const raw = asRecord(await fetchDashboardRaw());
@@ -537,6 +580,7 @@ export async function getTenantDashboardSnapshot(): Promise<TenantDashboardSnaps
       read: notification.read,
       link: notification.link,
     })),
+    recruitment: normalizeRecruitmentSummary(raw.recruitment),
     };
   } catch {
     return createEmptyTenantDashboardSnapshot();
@@ -637,13 +681,12 @@ export async function getTenantAnalyticsData(filters?: AnalyticsFilters): Promis
     (!range.fromDate || !task.dueDate || task.dueDate >= range.fromDate) && (!range.toDate || !task.dueDate || task.dueDate <= range.toDate)
   );
   const leaves = leavesRaw.filter((leave) => (!range.employeeId || leave.employeeId === range.employeeId) && (!range.status || leave.status === range.status) && (!range.fromDate || leave.endDate >= range.fromDate) && (!range.toDate || leave.startDate <= range.toDate));
-  const [assigneeRaw, progressRaw, attendanceRaw, rolesRaw, designationsRaw, recruitmentRaw] = await Promise.all([
+  const [assigneeRaw, progressRaw, attendanceRaw, rolesRaw, designationsRaw] = await Promise.all([
     canWork ? safePayload('/api/tenant/analytics/tasks/by-assignee') : Promise.resolve([]),
     canWork ? safePayload('/api/tenant/analytics/projects/progress') : Promise.resolve([]),
     canWorkforce ? safePayload('/api/tenant/analytics/attendance/trend', { fromDate: range.fromDate, toDate: range.toDate }) : Promise.resolve([]),
     canWorkforce ? safePayload('/api/tenant/analytics/employees/role-distribution') : Promise.resolve([]),
     canWorkforce ? safePayload('/api/tenant/analytics/employees/designation-distribution') : Promise.resolve([]),
-    canWorkforce ? getRecruitmentDashboard().catch(() => undefined) : Promise.resolve(undefined),
   ]);
   const taskCounts = tasks.reduce<Record<string, number>>((map, task) => ({ ...map, [task.status]: (map[task.status] ?? 0) + 1 }), {});
   const leaveCounts = leaves.reduce<Record<string, number>>((map, leave) => ({ ...map, [leave.status]: (map[leave.status] ?? 0) + 1 }), {});
@@ -688,12 +731,6 @@ export async function getTenantAnalyticsData(filters?: AnalyticsFilters): Promis
     employeeRoleDistribution: toDistributionFromUnknown(rolesRaw),
     employeeDesignationDistribution: toDistributionFromUnknown(designationsRaw),
     teamWorkload,
-    recruitment: recruitmentRaw ? {
-      openJobs: recruitmentRaw.openJobs, totalCandidates: recruitmentRaw.totalCandidates,
-      activeApplications: recruitmentRaw.activeApplications, hiredCandidates: recruitmentRaw.hiredCandidates,
-      upcomingInterviews: recruitmentRaw.upcomingInterviews,
-      stageDistribution: recruitmentRaw.stageCounts.map((item) => ({ label: labelize(item.stage), value: item.count, color: STATUS_COLORS[item.stage] ?? '#9332ea' })),
-    } : undefined,
     filterOptions: {
       departments: [...new Set(employees.map((item) => item.department).filter(Boolean))].sort().map((item) => ({ value: String(item), label: String(item) })),
       projects: projects.map((item) => ({ value: item.id, label: item.name })),
