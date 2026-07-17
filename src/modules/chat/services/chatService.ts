@@ -26,6 +26,8 @@ import type {
   SendChatMessageInput,
   SendMessagePayload,
 } from "@/modules/chat/types";
+import { extractUploadedFileAssets } from "@/services/uploads/fileAssetParser";
+import type { UploadedFileAsset } from "@/types";
 import { asRecord, extractList, firstDefined, getId, getNumber, getString, isRecord, toIsoDateTime } from "@/services/http/parsers";
 import { subscribeRealtime, type RealtimeListener } from "@/services/realtime/stompService";
 import { tokenStorage } from "@/services/http/client";
@@ -218,6 +220,7 @@ function normalizeMessage(
     editedAt,
     senderId: senderEmployeeId,
     content: text,
+    attachments: extractUploadedFileAssets(value.attachments),
   };
 }
 
@@ -306,10 +309,16 @@ export async function listHrConversationMessages(conversationId: string): Promis
   );
 }
 
-export async function sendHrMessage(conversationId: string, senderEmployeeId: ChatId, message: string): Promise<ChatMessage> {
+export async function sendHrMessage(
+  conversationId: string,
+  senderEmployeeId: ChatId,
+  message: string,
+  attachments: UploadedFileAsset[] = []
+): Promise<ChatMessage> {
   const dto = await postHrConversationMessage(conversationId, {
     senderEmployeeId,
     message,
+    attachmentReferences: attachments.map((attachment) => attachment.path ?? attachment.url),
   });
 
   return normalizeMessage(dto, { conversationId, type: "HR" });
@@ -351,10 +360,16 @@ export async function listTeamConversationMessages(conversationId: string): Prom
   );
 }
 
-export async function sendTeamMessage(conversationId: string, senderEmployeeId: ChatId, message: string): Promise<ChatMessage> {
+export async function sendTeamMessage(
+  conversationId: string,
+  senderEmployeeId: ChatId,
+  message: string,
+  attachments: UploadedFileAsset[] = []
+): Promise<ChatMessage> {
   const dto = await postTeamConversationMessage(conversationId, {
     senderEmployeeId,
     message,
+    attachmentReferences: attachments.map((attachment) => attachment.path ?? attachment.url),
   });
 
   return normalizeMessage(dto, { conversationId, type: "TEAM" });
@@ -407,10 +422,10 @@ export async function listConversationMessages(type: ChatType, conversationId: s
 
 export async function sendConversationMessage(input: SendChatMessageInput): Promise<ChatMessage> {
   if (input.type === "HR") {
-    return sendHrMessage(input.conversationId, input.senderEmployeeId, input.message);
+    return sendHrMessage(input.conversationId, input.senderEmployeeId, input.message, input.attachments);
   }
 
-  return sendTeamMessage(input.conversationId, input.senderEmployeeId, input.message);
+  return sendTeamMessage(input.conversationId, input.senderEmployeeId, input.message, input.attachments);
 }
 
 export async function markConversationMessagesAsRead(options: {

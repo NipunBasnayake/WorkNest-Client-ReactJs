@@ -37,6 +37,7 @@ export interface ChatMessage {
   // Backward-compatible aliases used by legacy components.
   senderId: string;
   content: string;
+  attachments: UploadedFileAsset[];
 }
 
 export interface ChatReadReceipt {
@@ -53,6 +54,7 @@ export interface SendChatMessageInput {
   conversationId: string;
   senderEmployeeId: string;
   message: string;
+  attachments?: UploadedFileAsset[];
 }
 
 // Backward-compatible alias used by legacy chat page implementation.
@@ -63,3 +65,4 @@ export interface SendMessagePayload {
   content: string;
 }
 
+import type { UploadedFileAsset } from "@/types";

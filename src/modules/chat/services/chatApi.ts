@@ -1,7 +1,7 @@
 import type { AxiosRequestConfig, AxiosResponse } from "axios";
 import { apiClient } from "@/services/http/client";
 import { unwrapApiData } from "@/services/http/response";
-import type { ApiResponse } from "@/types";
+import type { ApiResponse, UploadedFileAsset } from "@/types";
 
 export type ChatId = string | number;
 export type ChatTypeDto = "TEAM" | "HR";
@@ -30,6 +30,7 @@ export interface HrConversationDto {
   unreadMessages?: number;
   lastMessageAt?: string;
   updatedAt?: string;
+  attachments?: UploadedFileAsset[];
   createdAt?: string;
 }
 
@@ -96,6 +97,7 @@ export interface CreateHrConversationRequest {
 export interface SendHrMessageRequest {
   senderEmployeeId: ChatId;
   message: string;
+  attachmentReferences?: string[];
 }
 
 export interface CreateTeamConversationRequest {
@@ -105,6 +107,7 @@ export interface CreateTeamConversationRequest {
 export interface SendTeamMessageRequest {
   senderEmployeeId: ChatId;
   message: string;
+  attachmentReferences?: string[];
 }
 
 export interface CreateReadReceiptRequest {

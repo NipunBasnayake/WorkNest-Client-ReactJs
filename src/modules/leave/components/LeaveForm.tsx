@@ -77,6 +77,7 @@ export function LeaveForm({ values, errors, submitting, submitLabel, onChange, o
         label="Supporting Documents"
         hint="Attach medical notes or supporting documents when needed."
         folder="leave/attachments"
+        category="LEAVE_ATTACHMENT"
         kind="document"
         multiple
         disabled={submitting}
