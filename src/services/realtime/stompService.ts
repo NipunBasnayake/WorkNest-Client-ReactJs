@@ -1,5 +1,9 @@
-import { Client, type IMessage, type StompSubscription } from "@stomp/stompjs";
-import SockJS from "sockjs-client";
+import {
+  Client,
+  ReconnectionTimeMode,
+  type IMessage,
+  type StompSubscription,
+} from "@stomp/stompjs";
 import { tokenStorage } from "@/services/http/client";
 import { unwrapApiData } from "@/services/http/response";
 
@@ -12,14 +16,35 @@ interface SubscriptionEntry {
   sockets: StompSubscription[];
 }
 
-function resolveHttpWsUrl(): string {
-  const configured = import.meta.env.VITE_WS_URL as string | undefined;
-  if (configured?.trim()) {
-    return configured.trim().replace(/^ws(s)?:\/\//, (_, ssl) => ssl ? "https://" : "http://");
+function toNativeWebSocketUrl(rawUrl: string, source: string): string {
+  let url: URL;
+  try {
+    url = new URL(rawUrl);
+  } catch {
+    throw new Error(`${source} must be a valid absolute URL. Received "${rawUrl}".`);
   }
 
-  const apiBase = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? "http://localhost:8080";
-  return `${apiBase}/ws`;
+  if (url.protocol === "http:") {
+    url.protocol = "ws:";
+  } else if (url.protocol === "https:") {
+    url.protocol = "wss:";
+  } else if (url.protocol !== "ws:" && url.protocol !== "wss:") {
+    throw new Error(`${source} must use http, https, ws, or wss. Received "${url.protocol}".`);
+  }
+
+  return url.toString();
+}
+
+export function resolveWebSocketUrl(): string {
+  const configured = import.meta.env.VITE_WS_URL as string | undefined;
+  if (configured?.trim()) {
+    return toNativeWebSocketUrl(configured.trim(), "VITE_WS_URL");
+  }
+
+  const apiBase = ((import.meta.env.VITE_API_BASE_URL as string | undefined) ?? "http://localhost:8080")
+    .trim()
+    .replace(/\/+$/, "");
+  return toNativeWebSocketUrl(`${apiBase}/ws`, "VITE_API_BASE_URL");
 }
 
 function parsePayload(message: IMessage): unknown {
@@ -56,8 +81,6 @@ interface RealtimeStompConfig {
   initialReconnectDelay: number;
   /** Maximum reconnect delay cap in ms. */
   maxReconnectDelay: number;
-  /** Maximum reconnection attempts before giving up (-1 = unlimited). */
-  maxReconnectAttempts: number;
   /** Heartbeat interval in ms for incoming frames. */
   heartbeatIncoming: number;
   /** Heartbeat interval in ms for outgoing frames. */
@@ -67,7 +90,6 @@ interface RealtimeStompConfig {
 const DEFAULT_CONFIG: RealtimeStompConfig = {
   initialReconnectDelay: 1_000,
   maxReconnectDelay: 30_000,
-  maxReconnectAttempts: 10,
   heartbeatIncoming: 10_000,
   heartbeatOutgoing: 10_000,
 };
@@ -76,8 +98,6 @@ class RealtimeStompClient {
   private client: Client | null = null;
   private entries = new Map<string, SubscriptionEntry>();
   private connected = false;
-  private destroyed = false;
-  private reconnectAttempts = 0;
   private config: RealtimeStompConfig;
 
   constructor(config: Partial<RealtimeStompConfig> = {}) {
@@ -120,14 +140,15 @@ class RealtimeStompClient {
     if (!this.hasConnectContext()) return;
 
     const client = new Client({
-      webSocketFactory: () => new SockJS(resolveHttpWsUrl()),
-      reconnectDelay: this.computeDelay(),
+      brokerURL: resolveWebSocketUrl(),
+      reconnectDelay: this.config.initialReconnectDelay,
+      maxReconnectDelay: this.config.maxReconnectDelay,
+      reconnectTimeMode: ReconnectionTimeMode.EXPONENTIAL,
       heartbeatIncoming: this.config.heartbeatIncoming,
       heartbeatOutgoing: this.config.heartbeatOutgoing,
       beforeConnect: () => {
         if (!this.hasConnectContext()) {
           this.connected = false;
-          this.destroyed = true;
           void client.deactivate();
           return;
         }
@@ -138,8 +159,6 @@ class RealtimeStompClient {
     client.onConnect = () => {
       if (this.client !== client) return;
       this.connected = true;
-      this.reconnectAttempts = 0;
-      this.destroyed = false;
       this.entries.forEach((entry) => {
         if (entry.sockets.length === 0) {
           this.attach(entry);
@@ -155,11 +174,6 @@ class RealtimeStompClient {
       });
       if (!this.hasConnectContext()) {
         this.resetClient({ deactivate: true });
-        return;
-      }
-      // Drive exponential backoff — this.reconnectAttempts is read by computeDelay()
-      if (!this.destroyed && this.reconnectAttempts < this.config.maxReconnectAttempts) {
-        this.reconnectAttempts += 1;
       }
     };
 
@@ -180,23 +194,6 @@ class RealtimeStompClient {
 
     this.client = client;
     client.activate();
-  }
-
-  /**
-   * Exponential backoff: starts at initialReconnectDelay and doubles up to maxReconnectDelay.
-   * Adds jitter (± 20%) to prevent thundering herd on reconnect.
-   */
-  private computeDelay(): number {
-    if (this.reconnectAttempts === 0) return this.config.initialReconnectDelay;
-
-    const exponential = Math.min(
-      this.config.initialReconnectDelay * Math.pow(2, this.reconnectAttempts - 1),
-      this.config.maxReconnectDelay
-    );
-
-    // Add ±20% jitter
-    const jitter = 0.8 + Math.random() * 0.4;
-    return Math.round(exponential * jitter);
   }
 
   private getHeaders(): Record<string, string> {
@@ -281,8 +278,6 @@ class RealtimeStompClient {
   private resetClient(options: { deactivate: boolean }) {
     const client = this.client;
     this.connected = false;
-    this.destroyed = true;
-    this.reconnectAttempts = 0;
     this.entries.forEach((entry) => {
       entry.sockets = [];
     });

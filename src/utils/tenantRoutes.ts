@@ -72,8 +72,7 @@ export const tenantRoutes = {
   leaveNew: (tenantOverride?: string) => tenantRoutes.path("/leave/new", tenantOverride),
   leaveEdit: (id: string, tenantOverride?: string) => tenantRoutes.path(`/leave/${id}/edit`, tenantOverride),
 
-  recruitment: (tenantOverride?: string) => tenantRoutes.path("/recruitment", tenantOverride),
-  recruitmentDashboard: (tenantOverride?: string) => tenantRoutes.recruitment(tenantOverride),
+  recruitment: (tenantOverride?: string) => tenantRoutes.recruitmentJobs(tenantOverride),
   recruitmentPipeline: (tenantOverride?: string) => tenantRoutes.recruitmentApplications(tenantOverride),
   recruitmentJobs: (tenantOverride?: string) => tenantRoutes.path("/recruitment/jobs", tenantOverride),
   recruitmentJobNew: (tenantOverride?: string) => tenantRoutes.path("/recruitment/jobs/new", tenantOverride),
@@ -83,7 +82,6 @@ export const tenantRoutes = {
   recruitmentApplications: (tenantOverride?: string) => tenantRoutes.path("/recruitment/applications", tenantOverride),
   recruitmentApplication: (id: string, tenantOverride?: string) => tenantRoutes.path(`/recruitment/applications/${id}`, tenantOverride),
   recruitmentEmailTemplates: (tenantOverride?: string) => tenantRoutes.path("/recruitment/email-templates", tenantOverride),
-  recruitmentReports: (tenantOverride?: string) => tenantRoutes.path("/recruitment/reports", tenantOverride),
 
   announcements: (tenantOverride?: string) => tenantRoutes.path("/announcements", tenantOverride),
   announcementDetail: (id: string, tenantOverride?: string) => tenantRoutes.path(`/announcements/${id}`, tenantOverride),

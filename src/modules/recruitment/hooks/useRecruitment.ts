@@ -10,7 +10,6 @@ import {
   getEmailTemplates,
   getJobPosition,
   getJobPositions,
-  getRecruitmentDashboard,
   type ApplicationListParams,
 } from "@/modules/recruitment/services/recruitmentService";
 
@@ -18,11 +17,6 @@ function useRecruitmentEnabled() {
   const authReady = useAuthStore((state) => state.authReady);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   return authReady && isAuthenticated;
-}
-
-export function useRecruitmentDashboardQuery() {
-  const enabled = useRecruitmentEnabled();
-  return useQuery({ queryKey: ["recruitment", "dashboard"], queryFn: getRecruitmentDashboard, enabled });
 }
 
 export function useRecruitmentJobsQuery(params: { search?: string; page?: number; size?: number } = {}) {

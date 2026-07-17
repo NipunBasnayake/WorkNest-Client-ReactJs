@@ -1,5 +1,19 @@
 @import "tailwindcss";
 
+/* Canonical row dividers for every WorkNest data table. */
+table {
+  border-collapse: collapse;
+}
+
+table thead > tr,
+table tbody > tr {
+  border-bottom: 1px solid var(--border-default);
+}
+
+table tbody > tr:last-child {
+  border-bottom: 0;
+}
+
 /* ──────────────────────────────────────────
   WorkNest Design Tokens — Neutral SaaS Foundation
   ────────────────────────────────────────── */

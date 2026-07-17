@@ -177,6 +177,7 @@ Notes:
 
 - If `VITE_WS_URL` is not set, the websocket URL can be derived from the API base URL in the realtime layer
 - If `VITE_REALTIME_DISABLED` is `true`, STOMP subscriptions stay inactive
+- Realtime uses native WebSocket with STOMP. SockJS fallback is intentionally not part of the supported browser contract; all supported browsers provide WebSocket, and avoiding SockJS also avoids its deprecated global `unload` lifecycle listener.
 - Topic variables accept comma-separated destination strings
 
 ## 9. Running the Project

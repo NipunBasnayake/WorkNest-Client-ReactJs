@@ -12,7 +12,7 @@ const components: Components = {
   li: ({ children, className }) => <li className={className}>{children}</li>,
   blockquote: ({ children }) => <blockquote className="my-5 border-l-4 border-purple-400 bg-purple-500/5 px-5 py-1 italic" style={{ color: "var(--text-secondary)" }}>{children}</blockquote>,
   hr: () => <hr className="my-8" style={{ borderColor: "var(--border-default)" }} />,
-  table: ({ children }) => <div className="my-6 overflow-x-auto rounded-xl border" style={{ borderColor: "var(--border-default)" }}><table className="w-full border-collapse text-left text-sm">{children}</table></div>,
+  table: ({ children }) => <div className="my-6 overflow-x-auto rounded-xl border" style={{ borderColor: "var(--border-default)" }}><table className="worknest-data-table w-full text-left text-sm">{children}</table></div>,
   th: ({ children }) => <th className="border-b px-4 py-3 font-semibold" style={{ background: "var(--bg-muted)", borderColor: "var(--border-default)", color: "var(--text-primary)" }}>{children}</th>,
   td: ({ children }) => <td className="border-b px-4 py-3 last:border-b-0" style={{ borderColor: "var(--border-default)", color: "var(--text-secondary)" }}>{children}</td>,
   pre: ({ children }) => <pre className="my-5 overflow-x-auto rounded-xl bg-slate-950 p-4 text-sm text-slate-100 shadow-inner">{children}</pre>,

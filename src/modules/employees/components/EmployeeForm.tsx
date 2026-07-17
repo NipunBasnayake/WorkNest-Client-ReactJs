@@ -9,6 +9,7 @@ interface EmployeeFormProps {
   submitting: boolean;
   isEdit: boolean;
   submitLabel: string;
+  preventSelfDeactivation?: boolean;
   onChange: (next: EmployeeFormValues) => void;
   onSubmit: () => void;
   onCancel: () => void;
@@ -20,6 +21,7 @@ export function EmployeeForm({
   submitting,
   isEdit,
   submitLabel,
+  preventSelfDeactivation = false,
   onChange,
   onSubmit,
   onCancel,
@@ -169,8 +171,9 @@ export function EmployeeForm({
             onChange={(e) => onChange({ ...values, status: e.target.value as EmployeeFormValues["status"] })}
           >
             <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
+            {!preventSelfDeactivation && <option value="inactive">Inactive</option>}
           </AppSelect>
+          {preventSelfDeactivation && <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>Your own account must remain active.</p>}
         </div>
       </div>
 

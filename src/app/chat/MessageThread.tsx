@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDown, ArrowLeft } from "lucide-react";
 import type { ChatConversation, ChatMessage } from "@/modules/chat/types";
 import { buildConversationKey, formatMessageDay, formatMessageTime } from "@/app/chat/chatUtils";
+import { FileAssetList } from "@/components/common/FileAssetList";
 
 interface MessageThreadProps {
   conversation: ChatConversation | null;
@@ -237,6 +238,11 @@ export function MessageThread({
                       }}
                     >
                       <p className="whitespace-pre-wrap break-words text-sm leading-6">{messageText || "-"}</p>
+                      {data.attachments.length > 0 ? (
+                        <div className="mt-2">
+                          <FileAssetList items={data.attachments} />
+                        </div>
+                      ) : null}
                     </div>
 
                     <p

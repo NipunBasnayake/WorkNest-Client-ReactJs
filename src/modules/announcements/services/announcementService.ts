@@ -3,6 +3,7 @@ import { unwrapApiData } from "@/services/http/response";
 import { asRecord, extractList, firstDefined, getBoolean, getId, getString, toIsoDateTime } from "@/services/http/parsers";
 import type { Announcement, AnnouncementPayload } from "@/modules/announcements/types";
 import type { ApiResponse } from "@/types";
+import { listEntityAttachments, syncEntityAttachments } from "@/services/uploads/attachmentService";
 
 function normalizeAnnouncement(input: unknown): Announcement {
   const value = asRecord(input);
@@ -39,6 +40,7 @@ function normalizeAnnouncement(input: unknown): Announcement {
     canDelete: getBoolean(value.canDelete) ?? false,
     createdAt: toIsoDateTime(firstDefined(value.createdAt, value.createdDate)),
     updatedAt: toIsoDateTime(firstDefined(value.updatedAt, value.updatedDate, value.modifiedAt)),
+    attachments: [],
   };
 }
 
@@ -55,7 +57,9 @@ export async function getAnnouncements(): Promise<Announcement[]> {
 
 export async function getAnnouncementById(id: string): Promise<Announcement> {
   const { data } = await apiClient.get<ApiResponse<unknown> | unknown>(`/api/tenant/announcements/${id}`);
-  return normalizeAnnouncement(unwrapApiData<unknown>(data));
+  const announcement = normalizeAnnouncement(unwrapApiData<unknown>(data));
+  announcement.attachments = await listEntityAttachments("ANNOUNCEMENT", id);
+  return announcement;
 }
 
 export async function createAnnouncement(payload: AnnouncementPayload): Promise<Announcement> {
@@ -66,16 +70,20 @@ export async function createAnnouncement(payload: AnnouncementPayload): Promise<
     pinned: Boolean(payload.pinned),
     ...(Number.isFinite(teamId) ? { teamId } : {}),
   });
-  return normalizeAnnouncement(unwrapApiData<unknown>(data));
+  const announcement = normalizeAnnouncement(unwrapApiData<unknown>(data));
+  await syncEntityAttachments("ANNOUNCEMENT", announcement.id, payload.attachments ?? []);
+  return getAnnouncementById(announcement.id);
 }
 
-export async function updateAnnouncement(id: string, payload: Pick<AnnouncementPayload, "title" | "content" | "pinned">): Promise<Announcement> {
+export async function updateAnnouncement(id: string, payload: Pick<AnnouncementPayload, "title" | "content" | "pinned" | "attachments">): Promise<Announcement> {
   const { data } = await apiClient.put<ApiResponse<unknown> | unknown>(`/api/tenant/announcements/${id}`, {
     title: payload.title.trim(),
     content: payload.content.trim(),
     pinned: Boolean(payload.pinned),
   });
-  return normalizeAnnouncement(unwrapApiData<unknown>(data));
+  const announcement = normalizeAnnouncement(unwrapApiData<unknown>(data));
+  await syncEntityAttachments("ANNOUNCEMENT", announcement.id, payload.attachments ?? []);
+  return getAnnouncementById(announcement.id);
 }
 
 export async function deleteAnnouncement(id: string): Promise<void> {

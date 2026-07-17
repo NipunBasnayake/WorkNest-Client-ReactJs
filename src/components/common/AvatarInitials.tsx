@@ -1,4 +1,5 @@
 import { FaUser } from "react-icons/fa6";
+import { useProtectedFileUrl } from "@/hooks/useProtectedFileUrl";
 
 interface AvatarInitialsProps {
   name: string;
@@ -13,10 +14,11 @@ const SIZE_CLASS: Record<NonNullable<AvatarInitialsProps["size"]>, string> = {
 };
 
 export function AvatarInitials({ name, size = "md", src }: AvatarInitialsProps) {
-  if (src) {
+  const protectedSrc = useProtectedFileUrl(src);
+  if (protectedSrc) {
     return (
       <img
-        src={src}
+        src={protectedSrc}
         alt={name}
         className={`${SIZE_CLASS[size]} shrink-0 rounded-full object-cover`}
         title={name}

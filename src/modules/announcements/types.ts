@@ -1,3 +1,5 @@
+import type { UploadedFileAsset } from "@/types";
+
 export interface Announcement {
   id: string;
   title: string;
@@ -13,6 +15,7 @@ export interface Announcement {
   canDelete: boolean;
   createdAt: string;
   updatedAt: string;
+  attachments?: UploadedFileAsset[];
 }
 
 export interface AnnouncementPayload {
@@ -20,12 +23,14 @@ export interface AnnouncementPayload {
   content: string;
   pinned?: boolean;
   teamId?: string;
+  attachments?: UploadedFileAsset[];
 }
 
 export interface AnnouncementFormValues {
   title: string;
   content: string;
   pinned: boolean;
+  attachments: UploadedFileAsset[];
 }
 
 export type AnnouncementFormErrors = Partial<Record<keyof AnnouncementFormValues, string>>;

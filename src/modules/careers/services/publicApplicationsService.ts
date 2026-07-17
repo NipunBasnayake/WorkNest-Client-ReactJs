@@ -52,25 +52,30 @@ export async function submitPublicApplication(
 ): Promise<PublicApplicationResponse> {
   const formData = new FormData();
   const nameParts = values.fullName.trim().split(/\s+/);
-  formData.append("firstName", nameParts[0] ?? "Candidate");
-  formData.append("lastName", nameParts.slice(1).join(" ") || "Applicant");
-  formData.append("email", values.email.trim());
-  appendIfPresent(formData, "phone", values.phone);
-  appendIfPresent(formData, "linkedIn", values.linkedIn);
-  appendIfPresent(formData, "portfolio", values.portfolio);
-  appendIfPresent(formData, "currentCompany", values.currentCompany);
-  appendIfPresent(formData, "currentPosition", values.currentPosition);
-  appendIfPresent(formData, "expectedSalary", values.expectedSalary);
-  appendIfPresent(formData, "coverLetter", values.coverLetter);
-  if (values.resume) {
-    formData.append("resume", values.resume);
-  }
+  const application = {
+    firstName: nameParts[0] ?? "Candidate",
+    lastName: nameParts.slice(1).join(" ") || "Applicant",
+    email: values.email.trim(),
+    phone: optionalValue(values.phone),
+    linkedIn: optionalValue(values.linkedIn),
+    portfolio: optionalValue(values.portfolio),
+    currentCompany: optionalValue(values.currentCompany),
+    currentPosition: optionalValue(values.currentPosition),
+    expectedSalary: optionalValue(values.expectedSalary),
+    coverLetter: optionalValue(values.coverLetter),
+  };
+
+  formData.append(
+    "application",
+    new Blob([JSON.stringify(application)], { type: "application/json" })
+  );
+  if (!values.resume) throw new Error("Resume is required.");
+  formData.append("resume", values.resume);
 
   const { data } = await publicClient.post<ApiResponse<unknown> | unknown>(
     `/api/public/${encodeURIComponent(tenantSlug)}/careers/${encodeURIComponent(jobSlug)}/apply`,
     formData,
     {
-      headers: { "Content-Type": "multipart/form-data" },
       onUploadProgress: (event: AxiosProgressEvent) => {
         if (!onUploadProgress || !event.total) return;
         onUploadProgress(Math.round((event.loaded / event.total) * 100));
@@ -90,9 +95,7 @@ export async function getPublicApplicationStatus(
   return normalizeApplicationStatus(unwrapApiData<unknown>(data));
 }
 
-function appendIfPresent(formData: FormData, key: string, value: string) {
+function optionalValue(value: string): string | undefined {
   const trimmed = value.trim();
-  if (trimmed) {
-    formData.append(key, trimmed);
-  }
+  return trimmed || undefined;
 }

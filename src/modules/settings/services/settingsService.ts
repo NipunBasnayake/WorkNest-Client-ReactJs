@@ -90,6 +90,8 @@ async function resolveWorkspace(authUser: AuthUser | null): Promise<WorkspaceSet
       status: (getString(payload.status) ?? "ACTIVE").toUpperCase(),
       createdAt: toIsoDate(firstDefined(payload.createdAt, payload.createdDate)),
       databaseName: getString(payload.databaseName),
+      logoUrl: getString(payload.logoUrl),
+      logo: extractUploadedFileAssets(payload.logoUrl)[0] ?? null,
       dataSource: "backend",
     };
   } catch (error: unknown) {
@@ -208,8 +210,19 @@ export async function updateTenantPassword(password: string): Promise<void> {
 }
 
 export async function updateTenantWorkspace(workspace: WorkspaceSettings): Promise<WorkspaceSettings> {
-  await sleep(LATENCY_MS);
-  return workspace;
+  const { data } = await apiClient.patch<ApiResponse<unknown> | unknown>(buildTenantApiUrl("/settings/workspace"), {
+    companyName: workspace.workspaceName.trim(),
+    logoUrl: workspace.logo?.path ?? workspace.logoUrl,
+  });
+  const payload = asRecord(unwrapApiData<unknown>(data));
+  const logoUrl = getString(payload.logoUrl) ?? workspace.logoUrl;
+  return {
+    ...workspace,
+    workspaceName: getString(payload.companyName) ?? workspace.workspaceName,
+    logoUrl,
+    logo: extractUploadedFileAssets(logoUrl)[0] ?? workspace.logo ?? null,
+    dataSource: "backend",
+  };
 }
 
 export async function updateTenantPreferences(preferences: PreferenceSettings): Promise<PreferenceSettings> {

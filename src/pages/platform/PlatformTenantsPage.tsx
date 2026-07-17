@@ -71,7 +71,7 @@ export function PlatformTenantsPage() {
 
       <SectionCard variant="table">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1080px] border-collapse text-left">
+          <table className="worknest-data-table w-full min-w-[1080px] text-left">
             <thead>
               <tr className="border-b text-xs font-semibold uppercase tracking-wider" style={{ borderColor: "var(--border-default)", color: "var(--text-tertiary)", background: "var(--bg-muted)" }}>
                 <th className="px-5 py-3">Company</th>

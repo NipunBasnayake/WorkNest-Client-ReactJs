@@ -1,8 +1,8 @@
-import { type ReactNode } from "react";
-import { NavLink } from "react-router-dom";
+import { useState, type ReactNode } from "react";
+import { NavLink, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, Users, Building2,
-  ChevronLeft, ChevronRight, X,
+  ChevronDown, ChevronLeft, ChevronRight, X,
   ClipboardList, CalendarCheck, Bell, MessageSquare, Briefcase, BarChart3, CheckSquare, BellRing,
   Lock,
   FileText,
@@ -25,6 +25,8 @@ interface SidebarNavDef {
 interface SidebarNavGroup {
   label: string;
   items: SidebarNavDef[];
+  collapsible?: boolean;
+  icon?: ReactNode;
 }
 
 interface AppSidebarProps {
@@ -74,12 +76,12 @@ const TENANT_NAV_GROUPS: SidebarNavGroup[] = [
   },
   {
     label: "Recruitment",
+    collapsible: true,
+    icon: <Briefcase size={18} />,
     items: [
-      { label: "Dashboard", to: (t: string) => tenantRoutes.recruitment(t), icon: <LayoutDashboard size={18} />, permission: PERMISSIONS.RECRUITMENT_VIEW },
       { label: "Job Openings", to: (t: string) => tenantRoutes.recruitmentJobs(t), icon: <Briefcase size={18} />, permission: PERMISSIONS.RECRUITMENT_VIEW },
       { label: "Applications", to: (t: string) => tenantRoutes.recruitmentApplications(t), icon: <ClipboardList size={18} />, permission: PERMISSIONS.RECRUITMENT_VIEW },
       { label: "Email Templates", to: (t: string) => tenantRoutes.recruitmentEmailTemplates(t), icon: <Mail size={18} />, permission: PERMISSIONS.RECRUITMENT_VIEW },
-      { label: "Reports", to: (t: string) => tenantRoutes.recruitmentReports(t), icon: <FileText size={18} />, permission: PERMISSIONS.RECRUITMENT_VIEW },
     ],
   },
   {
@@ -183,7 +185,7 @@ function NavItem({
     <NavLink
       to={resolvedTo}
       onClick={onMobileClose}
-      end={resolvedTo === tenantRoutes.dashboard(tenantSlug) || resolvedTo === tenantRoutes.recruitment(tenantSlug)}
+      end={resolvedTo === tenantRoutes.dashboard(tenantSlug)}
       className={({ isActive }) =>
         `${base} ${isActive ? active : inactive}`
       }
@@ -223,13 +225,77 @@ function NavGroup({
   isFirst: boolean;
   tenantSlug?: string;
 }) {
+  const location = useLocation();
+  const containsActiveRoute = group.items.some((item) => {
+    const path = resolveNavTo(item.to, tenantSlug);
+    return location.pathname === path || location.pathname.startsWith(`${path}/`);
+  });
+  const [expansionOverride, setExpansionOverride] = useState<{ path: string; value: boolean } | null>(null);
+  const expanded = expansionOverride?.path === location.pathname
+    ? expansionOverride.value
+    : containsActiveRoute;
+
+  const separator = !isFirst ? (
+    <div className={collapsed ? "px-2 py-2" : "px-3.5 py-2"}>
+      <Separator className="bg-white/10" decorative />
+    </div>
+  ) : null;
+
+  if (group.collapsible) {
+    if (collapsed) {
+      const overviewItem = group.items[0];
+      return (
+        <div className="space-y-1">
+          {separator}
+          <NavItem
+            item={{ ...overviewItem, label: group.label, icon: group.icon ?? overviewItem.icon }}
+            collapsed
+            onMobileClose={onMobileClose}
+            tenantSlug={tenantSlug}
+          />
+        </div>
+      );
+    }
+
+    const controlId = `sidebar-${group.label.toLowerCase().replace(/\s+/g, "-")}`;
+    return (
+      <div className="space-y-1">
+        {separator}
+        <button
+          type="button"
+          className="flex w-full items-center gap-3 rounded-2xl px-3.5 py-2.5 text-sm font-semibold text-white/80 transition-all duration-150 hover:bg-white/[0.06] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/35"
+          onClick={() => setExpansionOverride({ path: location.pathname, value: !expanded })}
+          aria-expanded={expanded}
+          aria-controls={controlId}
+          style={{ background: containsActiveRoute ? "rgba(147,50,234,0.12)" : "transparent" }}
+        >
+          <span className="shrink-0">{group.icon}</span>
+          <span className="truncate">{group.label}</span>
+          <ChevronDown className={`ml-auto shrink-0 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`} size={16} />
+        </button>
+        <div
+          id={controlId}
+          className={`grid transition-[grid-template-rows,opacity] duration-200 ease-out ${expanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-60"}`}
+        >
+          <div className="min-h-0 space-y-1 overflow-hidden pl-2">
+            {group.items.map((item) => (
+              <NavItem
+                key={typeof item.to === "function" ? item.label : item.to}
+                item={item}
+                collapsed={false}
+                onMobileClose={onMobileClose}
+                tenantSlug={tenantSlug}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-1">
-      {!isFirst && (
-        <div className={collapsed ? "px-2 py-2" : "px-3.5 py-2"}>
-          <Separator className="bg-white/10" decorative />
-        </div>
-      )}
+      {separator}
       {group.items.map((item) => (
         <NavItem
           key={typeof item.to === "function" ? item.label : item.to}

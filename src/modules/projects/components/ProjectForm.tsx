@@ -105,6 +105,7 @@ export function ProjectForm({
         label="Project Documents"
         hint="Upload project briefs, contracts, or design references."
         folder="projects/documents"
+        category="PROJECT_ATTACHMENT"
         kind="document"
         multiple
         disabled={submitting}

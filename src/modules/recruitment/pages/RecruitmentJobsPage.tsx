@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Archive, BriefcaseBusiness, Copy, ExternalLink, FilePenLine, Link2, MoreHorizontal, Plus, Search, Send, Undo2 } from "lucide-react";
+import { Archive, BriefcaseBusiness, Copy, ExternalLink, FilePenLine, Link2, MoreHorizontal, Plus, Send, Undo2 } from "lucide-react";
 import { useParams } from "react-router-dom";
 import { PageHeader } from "@/components/common/PageHeader";
 import { SectionCard } from "@/components/common/SectionCard";
@@ -21,6 +21,7 @@ import { buildCareersUrl } from "@/modules/careers/share";
 import { PublicShareMenu } from "@/modules/careers/components/PublicShareMenu";
 import { tenantRoutes } from "@/utils/tenantRoutes";
 import { getErrorMessage } from "@/utils/errorHandler";
+import { SearchField } from "@/components/common/SearchField";
 
 type Action = "publish" | "unpublish" | "close" | "reopen" | "duplicate";
 const MENU_ACTION = "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition hover:bg-purple-500/5";
@@ -90,11 +91,7 @@ export function RecruitmentJobsPage() {
 
       <SectionCard variant="table">
         <div className="flex flex-col gap-3 border-b p-5 sm:flex-row sm:items-center sm:justify-between" style={{ borderColor: "var(--border-default)" }}>
-          <label className="relative block w-full sm:max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2" size={17} style={{ color: "var(--text-tertiary)" }} />
-            <span className="sr-only">Search job openings</span>
-            <input value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} placeholder="Search by title or department" className="h-11 w-full rounded-xl border bg-transparent pl-10 pr-4 text-sm outline-none focus:border-purple-500" style={{ borderColor: "var(--border-default)", color: "var(--text-primary)" }} />
-          </label>
+          <SearchField label="Search job openings" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} placeholder="Search by title or department" className="w-full sm:max-w-md" />
           <p className="text-sm" style={{ color: "var(--text-secondary)" }}>{jobsQuery.data?.totalElements ?? 0} job opening{jobsQuery.data?.totalElements === 1 ? "" : "s"}</p>
         </div>
 

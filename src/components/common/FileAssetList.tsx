@@ -1,4 +1,7 @@
-import { ExternalLink, FileText, Image as ImageIcon } from "lucide-react";
+import { Download, ExternalLink, FileText, Image as ImageIcon } from "lucide-react";
+import { ProtectedFileImage } from "@/components/common/ProtectedFileImage";
+import { openUploadedFile } from "@/services/uploads/fileUploadService";
+import { useToast } from "@/hooks/useToast";
 import type { UploadedFileAsset } from "@/types";
 
 interface FileAssetListProps {
@@ -10,6 +13,18 @@ export function FileAssetList({
   items,
   emptyLabel = "No files attached yet.",
 }: FileAssetListProps) {
+  const toast = useToast();
+  async function openFile(item: UploadedFileAsset, download: boolean) {
+    try {
+      await openUploadedFile(item, download);
+    } catch (error: unknown) {
+      toast.error({
+        title: download ? "Download failed" : "Preview failed",
+        description: error instanceof Error ? error.message : "Unable to access this file.",
+      });
+    }
+  }
+
   if (items.length === 0) {
     return (
       <div
@@ -26,16 +41,13 @@ export function FileAssetList({
       {items.map((item) => {
         const isImage = item.mimeType?.startsWith("image/") || /\.(png|jpe?g|webp|gif|svg)$/i.test(item.name);
         return (
-          <a
+          <div
             key={item.url}
-            href={item.url}
-            target="_blank"
-            rel="noreferrer"
-            className="flex items-center gap-3 rounded-xl border px-3 py-3 no-underline transition hover:border-primary-400"
+            className="flex w-full items-center gap-3 rounded-xl border px-3 py-3 text-left transition hover:border-primary-400"
             style={{ borderColor: "var(--border-default)", backgroundColor: "var(--bg-surface)" }}
           >
             {isImage ? (
-              <img src={item.url} alt={item.name} className="h-12 w-12 rounded-xl object-cover" />
+              <ProtectedFileImage src={item.url} alt={item.name} className="h-12 w-12 rounded-xl object-cover" />
             ) : (
               <div
                 className="flex h-12 w-12 items-center justify-center rounded-xl"
@@ -54,14 +66,15 @@ export function FileAssetList({
               </p>
             </div>
 
-            <span
-              className="inline-flex items-center gap-1 text-xs font-semibold"
-              style={{ color: "var(--color-primary-600)" }}
-            >
-              Open
-              <ExternalLink size={12} />
-            </span>
-          </a>
+            <div className="flex items-center gap-1">
+              <button type="button" onClick={() => void openFile(item, false)} className="rounded-lg p-2" aria-label={`Preview ${item.name}`}>
+                <ExternalLink size={14} />
+              </button>
+              <button type="button" onClick={() => void openFile(item, true)} className="rounded-lg p-2" aria-label={`Download ${item.name}`}>
+                <Download size={14} />
+              </button>
+            </div>
+          </div>
         );
       })}
     </div>

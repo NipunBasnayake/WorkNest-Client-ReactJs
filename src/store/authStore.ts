@@ -258,7 +258,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         });
       } catch (err: unknown) {
         // /me failed and refresh recovery did not produce a valid session.
-        // Clear local auth state and redirect to login.
+        // Clear local auth state. Route guards own login redirects for protected
+        // screens; public careers pages must remain available even when a browser
+        // contains expired session artifacts.
         tokenStorage.clear();
         set({
           user:            null,
@@ -271,9 +273,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           passwordChangeRequired: false,
           passwordChangeChallenge: null,
         });
-        if (typeof window !== "undefined") {
-          redirectTo(LOGIN_ROUTE);
-        }
       }
     })();
 

@@ -132,22 +132,28 @@ export interface RecruitmentInterview {
   notes?: string;
 }
 
-export interface RecruitmentDashboard {
+export interface RecruitmentDashboardSummary {
   openJobs: number;
-  totalCandidates: number;
   applicationsReceived: number;
   shortlisted: number;
-  interviewScheduled: number;
-  offersSent: number;
-  hiredCandidates: number;
-  rejected: number;
-  activeApplications: number;
-  upcomingInterviews: number;
-  stageCounts: Array<{ stage: RecruitmentStage; count: number }>;
-  jobCounts: Array<{ jobPositionId: string; title: string; count: number }>;
-  recentApplications: RecruitmentApplication[];
-  upcomingInterviewItems: RecruitmentInterview[];
-  recentlyPublishedJobs: RecruitmentJobPosition[];
+  interviewsScheduled: number;
+  offers: number;
+  hired: number;
+  recentApplications: Array<{
+    id: string;
+    candidateName: string;
+    jobTitle: string;
+    status: RecruitmentStage;
+    appliedAt?: string;
+  }>;
+  upcomingInterviews: Array<{
+    id: string;
+    applicationId: string;
+    candidateName: string;
+    jobTitle: string;
+    mode: RecruitmentInterviewMode;
+    scheduledAt: string;
+  }>;
 }
 
 export interface RecruitmentJobFormValues {

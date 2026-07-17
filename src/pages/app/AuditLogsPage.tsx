@@ -156,7 +156,7 @@ export function AuditLogsPage() {
         ) : (
           <>
             <div className="overflow-x-auto">
-              <table className="min-w-full text-left text-sm">
+              <table className="worknest-data-table min-w-full text-left text-sm">
                 <thead style={{ color: "var(--text-secondary)" }}>
                   <tr className="border-b" style={{ borderColor: "var(--border-default)" }}>
                     <th className="px-5 py-3 font-medium">Time</th>

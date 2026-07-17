@@ -15,11 +15,14 @@ import { generateEmployeeCode, toEmployeeFormValues, toEmployeePayload } from "@
 import type { EmployeeFormErrors, EmployeeFormValues } from "@/modules/employees/types";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { tenantRoutes } from "@/utils/tenantRoutes";
+import { useAuth } from "@/hooks/useAuth";
+import type { Employee } from "@/types";
 
 export function EmployeeFormPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { id } = useParams<{ id?: string }>();
+  const { user } = useAuth();
   const isEdit = Boolean(id);
 
   usePageMeta({
@@ -36,6 +39,7 @@ export function EmployeeFormPage() {
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [fatalError, setFatalError] = useState<string | null>(null);
+  const [editingOwnAccount, setEditingOwnAccount] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -44,7 +48,10 @@ export function EmployeeFormPage() {
     setLoading(true);
     getEmployeeById(id)
       .then((res) => {
-        if (active) setForm(toEmployeeFormValues(res));
+        if (active) {
+          setForm(toEmployeeFormValues(res));
+          setEditingOwnAccount(isCurrentEmployee(res, user));
+        }
       })
       .catch(() => {
         if (active) setFatalError("Unable to load employee for editing.");
@@ -56,12 +63,16 @@ export function EmployeeFormPage() {
     return () => {
       active = false;
     };
-  }, [id]);
+  }, [id, user]);
 
   const title = useMemo(() => (isEdit ? "Update Employee" : "Create Employee"), [isEdit]);
 
   async function handleSubmit() {
     setMessage(null);
+    if (editingOwnAccount && form.status === "inactive") {
+      setMessage("You cannot deactivate your own account.");
+      return;
+    }
     const validation = validateEmployeeForm(form);
     setErrors(validation);
     if (Object.keys(validation).length > 0) return;
@@ -144,6 +155,7 @@ export function EmployeeFormPage() {
             errors={errors}
             submitting={submitting}
             isEdit={isEdit}
+            preventSelfDeactivation={editingOwnAccount}
             submitLabel={isEdit ? "Save Changes" : "Create Employee"}
             onChange={(next) => {
               setForm(next);
@@ -156,4 +168,10 @@ export function EmployeeFormPage() {
       )}
     </div>
   );
+}
+
+function isCurrentEmployee(employee: Employee, user: ReturnType<typeof useAuth>["user"]): boolean {
+  if (!user) return false;
+  return String(employee.platformUserId ?? "") === String(user.id)
+    || employee.email?.trim().toLowerCase() === user.email?.trim().toLowerCase();
 }

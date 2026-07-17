@@ -38,7 +38,7 @@ export function EmployeesPage() {
   usePageMeta({ title: "Employees", breadcrumb: ["Workspace", "Employees"] });
   const queryClient = useQueryClient();
   const { hasPermission } = usePermission();
-  const { role: currentUserRole } = useAuth();
+  const { role: currentUserRole, user } = useAuth();
 
   const canCreateOrEdit = hasPermission(PERMISSIONS.EMPLOYEES_MANAGE);
   const canManageStatus = hasPermission(PERMISSIONS.EMPLOYEE_STATUS_MANAGE);
@@ -110,6 +110,11 @@ export function EmployeesPage() {
 
   async function handleStatusConfirm() {
     if (!statusTarget) return;
+    if (statusTarget.nextStatus === "inactive" && isCurrentEmployee(statusTarget.employee, user)) {
+      setFeedback("You cannot deactivate your own account.");
+      setStatusTarget(null);
+      return;
+    }
     const targetRole = String(statusTarget.employee.role ?? "").toUpperCase();
     const isHrToHrDeactivation = currentUserRole === "HR" && targetRole === "HR" && statusTarget.nextStatus === "inactive";
     if (isHrToHrDeactivation) {
@@ -238,7 +243,8 @@ export function EmployeesPage() {
                   const nextStatus = currentStatus === "active" ? "inactive" : "active";
                   const employeeRole = String(emp.role ?? "").toUpperCase();
                   const canDeactivateThisEmployee = !(currentUserRole === "HR" && employeeRole === "HR");
-                  const canShowStatusAction = canManageStatus && (nextStatus === "active" || canDeactivateThisEmployee);
+                  const isSelfDeactivation = nextStatus === "inactive" && isCurrentEmployee(emp, user);
+                  const canShowStatusAction = canManageStatus && !isSelfDeactivation && (nextStatus === "active" || canDeactivateThisEmployee);
 
                   return (
                     <div
@@ -297,6 +303,16 @@ export function EmployeesPage() {
                             {currentStatus === "active" ? <UserX size={15} /> : <UserCheck size={15} />}
                           </button>
                         )}
+                        {canManageStatus && isSelfDeactivation && (
+                          <span
+                            className="inline-flex items-center justify-center p-1 opacity-45"
+                            title="You cannot deactivate your own account"
+                            aria-label="Self-deactivation is not allowed"
+                            style={{ color: "var(--text-tertiary)" }}
+                          >
+                            <UserX size={15} />
+                          </span>
+                        )}
                       </div>
                     </div>
                   );
@@ -309,7 +325,8 @@ export function EmployeesPage() {
                   const nextStatus = currentStatus === "active" ? "inactive" : "active";
                   const employeeRole = String(emp.role ?? "").toUpperCase();
                   const canDeactivateThisEmployee = !(currentUserRole === "HR" && employeeRole === "HR");
-                  const canShowStatusAction = canManageStatus && (nextStatus === "active" || canDeactivateThisEmployee);
+                  const isSelfDeactivation = nextStatus === "inactive" && isCurrentEmployee(emp, user);
+                  const canShowStatusAction = canManageStatus && !isSelfDeactivation && (nextStatus === "active" || canDeactivateThisEmployee);
 
                   return (
                     <article
@@ -355,6 +372,11 @@ export function EmployeesPage() {
                             {currentStatus === "active" ? <UserX size={14} /> : <UserCheck size={14} />}
                             {currentStatus === "active" ? "Deactivate" : "Activate"}
                           </Button>
+                        )}
+                        {canManageStatus && isSelfDeactivation && (
+                          <span className="inline-flex items-center rounded-xl px-3 py-2 text-xs font-medium" title="You cannot deactivate your own account" style={{ color: "var(--text-tertiary)", backgroundColor: "var(--bg-muted)" }}>
+                            Your account cannot be deactivated here
+                          </span>
                         )}
                       </div>
                     </article>
@@ -406,4 +428,11 @@ function toReadableLabel(value: string): string {
     .split("_")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
+}
+
+function isCurrentEmployee(employee: EmployeeViewModel, user: ReturnType<typeof useAuth>["user"]): boolean {
+  if (!user) return false;
+  const platformUserId = employee.platformUserId == null ? "" : String(employee.platformUserId);
+  return platformUserId === String(user.id)
+    || employee.email?.trim().toLowerCase() === user.email?.trim().toLowerCase();
 }

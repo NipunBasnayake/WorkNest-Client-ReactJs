@@ -63,7 +63,11 @@ export function EmployeeDetailPage() {
   const [deleteSkillTarget, setDeleteSkillTarget] = useState<EmployeeSkill | null>(null);
 
   const resolvedError = !id ? "Invalid employee id." : error;
-  const isSelfProfile = Boolean(user && employee && (user.id === employee.id || user.email === employee.email));
+  const isSelfProfile = Boolean(user && employee && (
+    user.id === employee.id
+    || String(employee.platformUserId ?? "") === String(user.id)
+    || user.email?.trim().toLowerCase() === employee.email?.trim().toLowerCase()
+  ));
 
   useEffect(() => {
     if (!id) return;
@@ -118,6 +122,11 @@ export function EmployeeDetailPage() {
 
   async function handleStatusUpdate() {
     if (!id || !employee || !statusTarget) return;
+    if (statusTarget === "inactive" && isSelfProfile) {
+      setMessage("You cannot deactivate your own account.");
+      setStatusTarget(null);
+      return;
+    }
     setStatusLoading(true);
     setMessage(null);
     try {
@@ -203,6 +212,8 @@ export function EmployeeDetailPage() {
         {id && canManageStatus && (
           <Button
             variant={currentStatus === "active" ? "danger" : "outline"}
+            disabled={currentStatus === "active" && isSelfProfile}
+            title={currentStatus === "active" && isSelfProfile ? "You cannot deactivate your own account" : undefined}
             onClick={() => setStatusTarget(currentStatus === "active" ? "inactive" : "active")}
           >
             {currentStatus === "active" ? <UserX size={16} /> : <UserCheck size={16} />}

@@ -29,6 +29,7 @@ export type UserRole = PlatformRole | TenantRole;
 export type SessionType = "platform" | "tenant";
 
 export interface UploadedFileAsset {
+  id?: string;
   name: string;
   url: string;
   path?: string;
@@ -36,6 +37,7 @@ export interface UploadedFileAsset {
   size?: number;
   bucket?: string;
   uploadedAt?: string;
+  temporary?: boolean;
 }
 
 export interface AuthUser {
@@ -136,6 +138,7 @@ export interface TenantProvisioningData {
 
 export interface Employee {
   id: string;
+  platformUserId?: string | number;
   employeeCode?: string;
   firstName?: string;
   lastName?: string;

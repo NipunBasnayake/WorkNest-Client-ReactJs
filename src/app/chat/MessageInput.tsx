@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { SendHorizontal } from "lucide-react";
+import { FileUploadField } from "@/components/common/FileUploadField";
+import type { UploadedFileAsset } from "@/types";
 
 interface MessageInputProps {
   disabled: boolean;
   disabledReason?: string;
   isSending: boolean;
-  onSend: (text: string) => Promise<void>;
+  onSend: (text: string, attachments: UploadedFileAsset[]) => Promise<void>;
 }
 
 const MAX_TEXTAREA_HEIGHT = 164;
@@ -13,6 +15,7 @@ const MAX_TEXTAREA_HEIGHT = 164;
 export function MessageInput({ disabled, disabledReason, isSending, onSend }: MessageInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const [value, setValue] = useState<string>("");
+  const [attachments, setAttachments] = useState<UploadedFileAsset[]>([]);
 
   const trimmedValue = useMemo(() => value.trim(), [value]);
   const canSend = !disabled && !isSending && trimmedValue.length > 0;
@@ -34,21 +37,35 @@ export function MessageInput({ disabled, disabledReason, isSending, onSend }: Me
     if (!canSend) return;
 
     try {
-      await onSend(trimmedValue);
+      await onSend(trimmedValue, attachments);
       setValue("");
+      setAttachments([]);
     } catch {
       // Keep the unsent draft in the input when send fails.
     }
-  }, [canSend, onSend, trimmedValue]);
+  }, [attachments, canSend, onSend, trimmedValue]);
 
   return (
     <div
-      className="rounded-2xl border p-3"
+      className="space-y-3 rounded-2xl border p-3"
       style={{
         borderColor: "var(--border-default)",
         backgroundColor: "var(--bg-surface)",
       }}
     >
+      <FileUploadField
+        id="chat-attachments"
+        label="Attachments"
+        hint="Up to 5 private files for this message."
+        folder="chat/attachments"
+        category="CHAT_ATTACHMENT"
+        kind="document"
+        multiple
+        disabled={disabled || isSending || attachments.length >= 5}
+        value={attachments}
+        onChange={(next) => setAttachments(next.slice(0, 5))}
+      />
+
       <div className="flex items-end gap-2">
         <textarea
           ref={textareaRef}

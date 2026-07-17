@@ -2,6 +2,7 @@ import { apiClient } from "@/services/http/client";
 import { unwrapApiData } from "@/services/http/response";
 import { asRecord, extractList, firstDefined, getId, getString, toIsoDate, toIsoDateTime } from "@/services/http/parsers";
 import { extractUploadedFileAssets } from "@/services/uploads/fileAssetParser";
+import { listEntityAttachments, syncEntityAttachments } from "@/services/uploads/attachmentService";
 import { useAuthStore } from "@/store/authStore";
 import { getMyEmployeeProfile } from "@/modules/employees/services/employeeService";
 import { TASK_PRIORITY_VALUES, TASK_STATUS_VALUES } from "@/constants/apiEnums";
@@ -278,7 +279,7 @@ function normalizeTaskComment(input: unknown): TaskComment {
 
 function buildTaskBasePayload(
   payload: TaskPayload
-): Pick<TaskCreateRequest, "title" | "description" | "status" | "priority" | "assignedTeamId" | "assignedEmployeeId" | "assigneeId" | "dueDate" | "attachmentUrls"> {
+): Pick<TaskCreateRequest, "title" | "description" | "status" | "priority" | "assignedTeamId" | "assignedEmployeeId" | "assigneeId" | "dueDate"> {
   return {
     title: payload.title.trim(),
     description: payload.description.trim(),
@@ -288,7 +289,6 @@ function buildTaskBasePayload(
     assignedEmployeeId: payload.assignedEmployeeId || payload.assigneeId || undefined,
     assigneeId: payload.assigneeId || undefined,
     dueDate: payload.dueDate || undefined,
-    attachmentUrls: payload.attachments.map((attachment) => attachment.path ?? attachment.url),
   };
 }
 
@@ -327,7 +327,9 @@ export async function getMyTasks(): Promise<Task[]> {
 
 export async function getTaskById(id: string): Promise<Task> {
   const { data } = await apiClient.get<ApiResponse<unknown> | unknown>(`/api/tenant/tasks/${id}`);
-  return normalizeTask(unwrapApiData<unknown>(data));
+  const task = normalizeTask(unwrapApiData<unknown>(data));
+  task.attachments = await listEntityAttachments("TASK", id);
+  return task;
 }
 
 export async function createTask(payload: TaskPayload): Promise<Task> {
@@ -336,7 +338,9 @@ export async function createTask(payload: TaskPayload): Promise<Task> {
     "/api/tenant/tasks",
     apiPayload
   );
-  return normalizeTask(unwrapApiData<unknown>(data));
+  const task = normalizeTask(unwrapApiData<unknown>(data));
+  await syncEntityAttachments("TASK", task.id, payload.attachments);
+  return getTaskById(task.id);
 }
 
 export async function updateTask(id: string, payload: TaskPayload): Promise<Task> {
@@ -345,7 +349,9 @@ export async function updateTask(id: string, payload: TaskPayload): Promise<Task
     `/api/tenant/tasks/${id}`,
     apiPayload
   );
-  return normalizeTask(unwrapApiData<unknown>(data));
+  const task = normalizeTask(unwrapApiData<unknown>(data));
+  await syncEntityAttachments("TASK", task.id, payload.attachments);
+  return getTaskById(task.id);
 }
 
 export async function updateTaskStatus(id: string, status: TaskStatus): Promise<Task> {
