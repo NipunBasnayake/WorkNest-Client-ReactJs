@@ -1,0 +1,89 @@
+import { Link } from "react-router-dom";
+import { BriefcaseBusiness, CalendarClock, ClipboardList, Send, UserCheck, UsersRound } from "lucide-react";
+import { PageSection, StatCard } from "@/components/common/AppUI";
+import { Button } from "@/components/common/Button";
+import { SectionCard } from "@/components/common/SectionCard";
+import { RecruitmentStatusBadge } from "@/modules/recruitment/components/RecruitmentStatusBadge";
+import type { RecruitmentDashboardSummary } from "@/modules/recruitment/types";
+import { formatDateTime } from "@/utils/formatting";
+import { tenantRoutes } from "@/utils/tenantRoutes";
+
+export function RecruitmentDashboardWidget({ summary }: { summary: RecruitmentDashboardSummary }) {
+  return (
+    <PageSection
+      title="Recruitment"
+      description="Current hiring demand and the candidate activity that needs attention."
+      action={<Button variant="outline" size="sm" to={tenantRoutes.recruitmentJobs()}>Manage Job Openings</Button>}
+    >
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+        <StatCard label="Open Jobs" value={summary.openJobs} icon={<BriefcaseBusiness size={20} />} accentColor="#9332ea" />
+        <StatCard label="Applications Received" value={summary.applicationsReceived} icon={<ClipboardList size={20} />} accentColor="#2563eb" />
+        <StatCard label="Shortlisted" value={summary.shortlisted} icon={<UsersRound size={20} />} accentColor="#0891b2" />
+        <StatCard label="Interviews Scheduled" value={summary.interviewsScheduled} icon={<CalendarClock size={20} />} accentColor="#d97706" />
+        <StatCard label="Offers" value={summary.offers} icon={<Send size={20} />} accentColor="#7c3aed" />
+        <StatCard label="Hired" value={summary.hired} icon={<UserCheck size={20} />} accentColor="#059669" />
+      </div>
+
+      <div className="mt-4 grid gap-4 xl:grid-cols-2">
+        <SectionCard
+          title="Recent Applications"
+          subtitle="Newest candidates across current job openings."
+          action={<Button variant="ghost" size="sm" to={tenantRoutes.recruitmentApplications()}>View all</Button>}
+        >
+          {summary.recentApplications.length > 0 ? (
+            <div className="divide-y" style={{ borderColor: "var(--border-default)" }}>
+              {summary.recentApplications.map((application) => (
+                <Link
+                  key={application.id}
+                  to={tenantRoutes.recruitmentApplication(application.id)}
+                  className="flex items-center justify-between gap-4 py-3 no-underline first:pt-0 last:pb-0"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{application.candidateName}</p>
+                    <p className="mt-0.5 truncate text-xs" style={{ color: "var(--text-secondary)" }}>
+                      {application.jobTitle}{application.appliedAt ? ` · ${formatDateTime(application.appliedAt)}` : ""}
+                    </p>
+                  </div>
+                  <RecruitmentStatusBadge value={application.status} />
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm" style={{ color: "var(--text-secondary)" }}>No applications have been received yet.</p>
+          )}
+        </SectionCard>
+
+        <SectionCard
+          title="Upcoming Interviews"
+          subtitle="Scheduled candidate conversations in chronological order."
+          action={<Button variant="ghost" size="sm" to={tenantRoutes.recruitmentApplications()}>Open applications</Button>}
+        >
+          {summary.upcomingInterviews.length > 0 ? (
+            <div className="space-y-3">
+              {summary.upcomingInterviews.map((interview) => (
+                <Link
+                  key={interview.id}
+                  to={tenantRoutes.recruitmentApplication(interview.applicationId)}
+                  className="flex items-center gap-3 rounded-xl border p-3 no-underline"
+                  style={{ borderColor: "var(--border-default)" }}
+                >
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-amber-500/10 text-amber-600">
+                    <CalendarClock size={18} />
+                  </span>
+                  <span className="min-w-0">
+                    <strong className="block truncate text-sm" style={{ color: "var(--text-primary)" }}>{interview.candidateName}</strong>
+                    <span className="mt-0.5 block truncate text-xs" style={{ color: "var(--text-secondary)" }}>
+                      {interview.jobTitle} · {formatDateTime(interview.scheduledAt)} · {interview.mode === "REMOTE" ? "Online" : interview.mode === "ONSITE" ? "On-site" : "Phone"}
+                    </span>
+                  </span>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm" style={{ color: "var(--text-secondary)" }}>No upcoming interviews are scheduled.</p>
+          )}
+        </SectionCard>
+      </div>
+    </PageSection>
+  );
+}
