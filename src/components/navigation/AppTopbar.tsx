@@ -3,8 +3,7 @@ import { Bell, BellRing, ChevronDown, LogOut, Menu, Moon, Settings, Shield, Sun,
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/hooks/useTheme";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useProtectedFileUrl } from "@/hooks/useProtectedFileUrl";
+import { UserAvatar } from "@/components/common/UserAvatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,15 +29,6 @@ interface AppTopbarProps {
   pageTitle: string;
   breadcrumb?: string[];
   onMobileMenuToggle: () => void;
-}
-
-function getInitials(name?: string | null, email?: string | null): string {
-  const source = (name && name.trim()) || (email && email.trim()) || "WorkNest User";
-  const parts = source.split(/\s+/).filter(Boolean);
-  if (parts.length >= 2) {
-    return `${parts[0][0] ?? ""}${parts[1][0] ?? ""}`.toUpperCase();
-  }
-  return source.slice(0, 2).toUpperCase();
 }
 
 function formatRoleLabel(role?: string | null): string {
@@ -69,7 +59,7 @@ export function AppTopbar({ area, pageTitle, breadcrumb, onMobileMenuToggle }: A
   const displayEmail = user?.email || "No email available";
   const roleLabel = formatRoleLabel(role ?? user?.role);
   const tenantSlug = tenantKey ?? undefined;
-  const avatarUrl = useProtectedFileUrl(user?.avatarUrl);
+  const avatarUrl = user?.avatarUrl;
 
   const refreshNotifications = useCallback(async () => {
     if (!isTenantArea) return;
@@ -232,7 +222,7 @@ export function AppTopbar({ area, pageTitle, breadcrumb, onMobileMenuToggle }: A
               {unreadCount > 0 && (
                 <span
                   className="absolute -right-1 -top-1 min-w-4 h-4 rounded-full px-1 text-[10px] font-semibold flex items-center justify-center"
-                  style={{ backgroundColor: "#9332EA", color: "white" }}
+                  style={{ backgroundColor: "var(--brand-action)", color: "var(--brand-on-primary)" }}
                 >
                   {unreadCount > 9 ? "9+" : unreadCount}
                 </span>
@@ -323,23 +313,13 @@ export function AppTopbar({ area, pageTitle, breadcrumb, onMobileMenuToggle }: A
                 style={{ borderColor: "var(--border-default)", color: "var(--text-secondary)" }}
                 aria-label="Open user menu"
               >
-                <Avatar className="h-7 w-7">
-                  <AvatarImage src={avatarUrl ?? undefined} alt={displayName} />
-                  <AvatarFallback className="bg-primary-100 text-[11px] text-primary-700 dark:bg-primary-950 dark:text-primary-200">
-                    {getInitials(displayName, displayEmail)}
-                  </AvatarFallback>
-                </Avatar>
+                <UserAvatar name={displayName} email={displayEmail} src={avatarUrl} size="xs" eager />
                 <ChevronDown size={14} className="hidden text-inherit opacity-60 transition-transform group-data-[state=open]:rotate-180 sm:block" />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" sideOffset={10} className="w-72 p-2 bg-[var(--bg-surface)] text-[var(--text-primary)] border-[var(--border-default)]">
               <div className="flex items-start gap-3 px-2 py-2.5">
-                <Avatar className="h-10 w-10">
-                  <AvatarImage src={avatarUrl ?? undefined} alt={displayName} />
-                  <AvatarFallback className="bg-primary-100 text-sm text-primary-700 dark:bg-primary-950 dark:text-primary-200">
-                    {getInitials(displayName, displayEmail)}
-                  </AvatarFallback>
-                </Avatar>
+                <UserAvatar name={displayName} email={displayEmail} src={avatarUrl} size="md" eager />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold leading-5" style={{ color: "var(--text-primary)" }}>
                     {displayName}
@@ -350,8 +330,8 @@ export function AppTopbar({ area, pageTitle, breadcrumb, onMobileMenuToggle }: A
                   <span
                     className="mt-2 inline-flex max-w-full items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em]"
                     style={{
-                      borderColor: "rgba(147,50,234,0.28)",
-                      backgroundColor: "rgba(147,50,234,0.10)",
+                      borderColor: "color-mix(in srgb, var(--brand-action) 28%, transparent)",
+                      backgroundColor: "color-mix(in srgb, var(--brand-action) 10%, transparent)",
                       color: "var(--color-primary-600)",
                     }}
                   >

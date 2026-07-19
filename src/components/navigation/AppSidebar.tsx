@@ -13,6 +13,7 @@ import { type Permission, PERMISSIONS } from "@/constants/permissions";
 import { usePermission } from "@/hooks/usePermission";
 import { tenantRoutes, platformRoutes } from "@/utils/tenantRoutes";
 import { Separator } from "@/components/ui/separator";
+import { TenantLogo } from "@/features/branding/TenantLogo";
 
 interface SidebarNavDef {
   label: string;
@@ -191,7 +192,7 @@ function NavItem({
       }
       style={({ isActive }) => ({
         background: isActive
-          ? "linear-gradient(135deg, rgba(147,50,234,0.72) 0%, rgba(124,31,209,0.58) 100%)"
+          ? "linear-gradient(135deg, color-mix(in srgb, var(--brand-action) 78%, transparent) 0%, color-mix(in srgb, var(--brand-action-active) 66%, transparent) 100%)"
           : "transparent",
         color: isActive ? "white" : "rgba(255,255,255,0.72)",
         boxShadow: isActive ? "inset 0 0 0 1px rgba(255,255,255,0.08), 0 6px 16px rgba(15,8,32,0.18)" : undefined,
@@ -267,7 +268,7 @@ function NavGroup({
           onClick={() => setExpansionOverride({ path: location.pathname, value: !expanded })}
           aria-expanded={expanded}
           aria-controls={controlId}
-          style={{ background: containsActiveRoute ? "rgba(147,50,234,0.12)" : "transparent" }}
+          style={{ background: containsActiveRoute ? "color-mix(in srgb, var(--brand-action) 12%, transparent)" : "transparent" }}
         >
           <span className="shrink-0">{group.icon}</span>
           <span className="truncate">{group.label}</span>
@@ -327,51 +328,14 @@ export function AppSidebar({ area, collapsed, mobileOpen, onToggleCollapse, onMo
     <div
       className="relative flex h-full flex-col"
       style={{
-        background: "linear-gradient(180deg, #160a27 0%, #12081f 44%, #0b0716 100%)",
+        background: "linear-gradient(180deg, color-mix(in srgb, var(--color-primary-950) 54%, #080b14) 0%, color-mix(in srgb, var(--color-primary-950) 32%, #080b14) 44%, #080b14 100%)",
         boxShadow: "16px 0 40px rgba(15, 8, 32, 0.18)",
       }}
     >
       {/* Header */}
       <div className="flex h-16 shrink-0 items-center justify-between border-b border-white/8 px-4">
-        <div className="inline-flex items-center gap-2.5 min-w-0">
-          <div
-            className="flex h-8 w-8 items-center justify-center rounded-xl shrink-0"
-            style={{
-              background: "linear-gradient(135deg, #9332EA 0%, #c084fc 100%)",
-              boxShadow: "0 4px 12px rgba(147,50,234,0.4)",
-            }}
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              aria-hidden="true"
-            >
-              <path
-                d="M4 6L7.5 18L12 10L16.5 18L20 6"
-                stroke="white"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </div>
-
-          {!collapsed && (
-            <span
-              className="text-xl font-bold tracking-tight truncate"
-              style={{
-                background: "linear-gradient(135deg, #9332EA 0%, #a855f7 60%, #c084fc 100%)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                backgroundClip: "text",
-              }}
-            >
-              WorkNest
-            </span>
-          )}
+        <div className="inline-flex min-w-0 items-center gap-2.5 text-white">
+          <TenantLogo size="sidebar" showName={!collapsed} eager />
         </div>
         <div className="flex items-center gap-1 ml-auto">
           {/* Mobile close */}
