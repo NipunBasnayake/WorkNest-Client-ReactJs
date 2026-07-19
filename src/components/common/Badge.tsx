@@ -11,7 +11,7 @@ interface BadgeProps {
 }
 
 const VARIANT_STYLES: Record<BadgeVariant, { background: string; color: string; border: string }> = {
-  default: { background: "rgba(147,50,234,0.10)", color: "var(--color-primary-700)", border: "rgba(147,50,234,0.20)" },
+  default: { background: "var(--brand-soft)", color: "var(--color-primary-700)", border: "var(--brand-border)" },
   secondary: { background: "var(--bg-muted)", color: "var(--text-secondary)", border: "var(--border-default)" },
   success: { background: "rgba(16,185,129,0.10)", color: "#059669", border: "rgba(16,185,129,0.20)" },
   warning: { background: "rgba(245,158,11,0.10)", color: "#d97706", border: "rgba(245,158,11,0.22)" },

@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Eye, EyeOff, ArrowRight } from "lucide-react";
+import { Eye, EyeOff, ArrowRight, ImagePlus, X } from "lucide-react";
 import { Input } from "@/components/common/Input";
 import { Button } from "@/components/common/Button";
 import { registerTenantPublicApi } from "@/services/api/platformApi";
 import { validatePasswordStrength } from "@/modules/auth/passwordValidation";
 import { getErrorMessage } from "@/utils/errorHandler";
+import { BrandColorPicker, BrandPreview } from "@/features/branding/BrandingEditor";
+import { isValidBrandColor } from "@/features/branding/colorTokens";
+import { WORKNEST_PRIMARY_COLOR, type TenantBranding } from "@/features/branding/types";
 
 interface RegisterTouched {
   companyName: boolean;
@@ -25,6 +28,9 @@ export function RegisterForm() {
   const [adminEmail, setAdminEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [primaryColor, setPrimaryColor] = useState(WORKNEST_PRIMARY_COLOR);
+  const [logo, setLogo] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -47,6 +53,30 @@ export function RegisterForm() {
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (!logo) {
+      setLogoPreview(null);
+      return;
+    }
+    const objectUrl = URL.createObjectURL(logo);
+    setLogoPreview(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [logo]);
+
+  const previewBranding = useMemo<TenantBranding>(() => ({
+    companyName: companyName.trim() || "Your Company",
+    primaryColor: isValidBrandColor(primaryColor) ? primaryColor : WORKNEST_PRIMARY_COLOR,
+    brandingVersion: 0,
+    tokenAlgorithmVersion: 1,
+    logo: logoPreview ? {
+      assetId: "registration-preview",
+      url: logoPreview,
+      variants: {},
+      altText: `${companyName.trim() || "Company"} logo`,
+    } : null,
+    logoUrl: logoPreview,
+  }), [companyName, logoPreview, primaryColor]);
 
   const companyNameError = useMemo(() => {
     if (!touched.companyName) return undefined;
@@ -99,7 +129,7 @@ export function RegisterForm() {
       workspaceKey: true,
     }));
 
-    if (!hasCompanyName || !hasWorkspaceKey || !workspaceKeyValid) {
+    if (!hasCompanyName || !hasWorkspaceKey || !workspaceKeyValid || !isValidBrandColor(primaryColor)) {
       setSubmitMessage("Please complete company details before continuing.");
       return false;
     }
@@ -156,7 +186,8 @@ export function RegisterForm() {
         adminFullName: adminName.trim(),
         adminEmail: adminEmail.trim(),
         adminPassword: password,
-      });
+        primaryColor,
+      }, logo);
       const loginTenantKey = tenant.tenantKey || workspaceKey.trim();
 
       setSubmitMessage("Workspace created successfully. Redirecting to login...");
@@ -250,6 +281,40 @@ export function RegisterForm() {
             required
             autoComplete="off"
           />
+
+          <BrandColorPicker value={primaryColor} onChange={(value) => { setPrimaryColor(value); setSubmitMessage(null); }} />
+
+          <div className="space-y-2">
+            <p className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>Company logo <span className="font-normal" style={{ color: "var(--text-tertiary)" }}>(optional)</span></p>
+            <div className="flex flex-wrap items-center gap-2">
+              <label className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-lg border px-3 text-sm font-semibold" style={{ borderColor: "var(--border-default)", color: "var(--text-primary)" }}>
+                <ImagePlus size={16} /> {logo ? "Replace logo" : "Choose logo"}
+                <input
+                  type="file"
+                  className="hidden"
+                  accept=".png,.jpg,.jpeg,.webp"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0] ?? null;
+                    event.target.value = "";
+                    if (file && file.size > 2 * 1024 * 1024) {
+                      setSubmitMessage("Logo files must be 2 MB or smaller.");
+                      return;
+                    }
+                    setLogo(file);
+                    setSubmitMessage(null);
+                  }}
+                />
+              </label>
+              {logo ? (
+                <button type="button" onClick={() => setLogo(null)} className="inline-flex items-center gap-1 text-xs font-semibold text-red-500">
+                  <X size={14} /> Remove
+                </button>
+              ) : null}
+              <span className="text-xs" style={{ color: "var(--text-tertiary)" }}>PNG, JPEG, or WebP up to 2 MB.</span>
+            </div>
+          </div>
+
+          <BrandPreview branding={previewBranding} />
 
           <Button
             type="submit"

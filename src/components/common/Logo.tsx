@@ -11,33 +11,33 @@ const sizeMap = {
   lg: { iconSize: 28, text: "text-2xl" },
 };
 
-export function Logo({ className = "", size = "md" }: LogoProps) {
-  const s = sizeMap[size];
+interface WorkNestBrandProps {
+  size?: "sm" | "md" | "lg";
+  showName?: boolean;
+  className?: string;
+}
+
+export function WorkNestBrand({ size = "md", showName = true, className = "" }: WorkNestBrandProps) {
+  const sizing = sizeMap[size];
   return (
-    <Link
-      to="/"
-      className={`inline-flex items-center gap-2.5 font-bold tracking-tight no-underline ${className}`}
-      style={{ color: "var(--text-primary)" }}
-    >
-      {/* Icon mark — purple hexagon cluster */}
-      <div
-        className="flex items-center justify-center rounded-xl shrink-0"
+    <span className={`inline-flex items-center gap-2.5 font-bold tracking-tight ${className}`}>
+      <span
+        className="flex shrink-0 items-center justify-center rounded-xl"
         style={{
-          width: s.iconSize + 10,
-          height: s.iconSize + 10,
-          background: "linear-gradient(135deg, #9332EA 0%, #c084fc 100%)",
-          boxShadow: "0 4px 12px rgba(147,50,234,0.4)",
+          width: sizing.iconSize + 10,
+          height: sizing.iconSize + 10,
+          background: "linear-gradient(135deg, var(--worknest-primary) 0%, var(--worknest-highlight) 100%)",
+          boxShadow: "0 4px 12px color-mix(in srgb, var(--worknest-primary) 40%, transparent)",
         }}
       >
         <svg
-          width={s.iconSize - 4}
-          height={s.iconSize - 4}
+          width={sizing.iconSize - 4}
+          height={sizing.iconSize - 4}
           viewBox="0 0 24 24"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
           aria-hidden="true"
         >
-          {/* Stylized W mark */}
           <path
             d="M4 6L7.5 18L12 10L16.5 18L20 6"
             stroke="white"
@@ -46,19 +46,33 @@ export function Logo({ className = "", size = "md" }: LogoProps) {
             strokeLinejoin="round"
           />
         </svg>
-      </div>
-
-      <span
-        className={`${s.text}`}
-        style={{
-          background: "linear-gradient(135deg, #9332EA 0%, #a855f7 60%, #c084fc 100%)",
-          WebkitBackgroundClip: "text",
-          WebkitTextFillColor: "transparent",
-          backgroundClip: "text",
-        }}
-      >
-        WorkNest
       </span>
+
+      {showName && (
+        <span
+          className={sizing.text}
+          style={{
+            background: "linear-gradient(135deg, var(--worknest-primary) 0%, var(--worknest-highlight) 100%)",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+            backgroundClip: "text",
+          }}
+        >
+          WorkNest
+        </span>
+      )}
+    </span>
+  );
+}
+
+export function Logo({ className = "", size = "md" }: LogoProps) {
+  return (
+    <Link
+      to="/"
+      className={`inline-flex items-center font-bold tracking-tight no-underline ${className}`}
+      style={{ color: "var(--text-primary)" }}
+    >
+      <WorkNestBrand size={size} />
     </Link>
   );
 }
