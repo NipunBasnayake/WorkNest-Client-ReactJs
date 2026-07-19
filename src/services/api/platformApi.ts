@@ -35,11 +35,27 @@ export async function onboardTenantApi(payload: TenantOnboardingRequest): Promis
 }
 
 export async function registerTenantPublicApi(
-  payload: TenantOnboardingRequest
+  payload: TenantOnboardingRequest,
+  logo?: File | null
 ): Promise<TenantProvisioningData> {
+  const idempotencyKey = crypto.randomUUID();
+  if (logo) {
+    const formData = new FormData();
+    formData.append("data", new Blob([JSON.stringify(payload)], { type: "application/json" }));
+    formData.append("logo", logo);
+    const { data } = await publicClient.post<
+      ApiResponse<TenantProvisioningData> | TenantProvisioningData
+    >("/api/platform/onboarding/tenants", formData, {
+      headers: { "Idempotency-Key": idempotencyKey },
+    });
+    return unwrapApiData<TenantProvisioningData>(data);
+  }
+
   const { data } = await publicClient.post<
     ApiResponse<TenantProvisioningData> | TenantProvisioningData
-  >("/api/platform/onboarding/tenants", payload);
+  >("/api/platform/onboarding/tenants", payload, {
+    headers: { "Idempotency-Key": idempotencyKey },
+  });
 
   return unwrapApiData<TenantProvisioningData>(data);
 }

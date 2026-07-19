@@ -11,6 +11,7 @@ import { useSeoMeta } from "@/hooks/useSeoMeta";
 import { getPublicApplicationStatus } from "@/modules/careers/services/publicApplicationsService";
 import type { PublicApplicationResponse, PublicApplicationStatus } from "@/modules/careers/types";
 import { formatPublicDate } from "@/modules/careers/utils";
+import { TenantLogo } from "@/features/branding/TenantLogo";
 
 interface LocationState {
   application?: PublicApplicationResponse;
@@ -78,6 +79,7 @@ export function ApplicationSuccessPage() {
 
   return (
     <PageContainer size="lg" className="space-y-7">
+      <div className="rounded-2xl border p-4" style={{ borderColor: "var(--brand-border)", background: "var(--brand-soft)" }}><TenantLogo size="header" eager /></div>
       <PageHeader
         title="Application Submitted"
         description="Your application is safely with the HR team. A confirmation email is on its way."
