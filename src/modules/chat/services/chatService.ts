@@ -78,6 +78,7 @@ function buildParticipant(input: unknown): ChatParticipant | null {
     name: name ?? "Member",
     email: getString(value.email),
     role: getString(value.role),
+    avatarUrl: firstDefined(getString(value.avatarUrl), getString(value.profileImageUrl)),
   };
 }
 
@@ -215,6 +216,7 @@ function normalizeMessage(
     conversationId,
     senderEmployeeId,
     senderName,
+    senderAvatarUrl: firstDefined(getString(sender.avatarUrl), getString(value.senderAvatarUrl)),
     message: text,
     createdAt,
     editedAt,

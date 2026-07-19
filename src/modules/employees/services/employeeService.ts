@@ -4,6 +4,7 @@ import {
   deleteEmployeeSkillApi,
   getEmployeeByIdApi,
   getEmployeeSkillsApi,
+  getMyEmployeeSkillsApi,
   getEmployeesApi,
   getMyEmployeeProfileApi,
   provisionEmployeeAccountApi,
@@ -181,6 +182,11 @@ export async function deleteEmployee(id: string): Promise<void> {
 
 export async function getEmployeeSkills(employeeId: string): Promise<EmployeeSkill[]> {
   const list = await getEmployeeSkillsApi(employeeId);
+  return list.map(normalizeSkill).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export async function getMyEmployeeSkills(): Promise<EmployeeSkill[]> {
+  const list = await getMyEmployeeSkillsApi();
   return list.map(normalizeSkill).sort((a, b) => a.name.localeCompare(b.name));
 }
 

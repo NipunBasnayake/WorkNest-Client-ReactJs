@@ -6,6 +6,7 @@ export interface ChatParticipant {
   name: string;
   email?: string;
   role?: string;
+  avatarUrl?: string;
 }
 
 export interface ChatConversation {
@@ -31,6 +32,7 @@ export interface ChatMessage {
   conversationId: string;
   senderEmployeeId: string;
   senderName: string;
+  senderAvatarUrl?: string;
   message: string;
   createdAt: string;
   editedAt?: string;
