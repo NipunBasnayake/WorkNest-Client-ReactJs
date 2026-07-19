@@ -22,6 +22,13 @@ export interface PaginatedResult<T> {
   totalPages: number;
 }
 
+export interface RecruitmentEmployeeSummary {
+  id?: string;
+  name?: string;
+  email?: string;
+  avatarUrl?: string;
+}
+
 export interface RecruitmentJobPosition {
   id: string;
   title: string;
@@ -80,6 +87,7 @@ export interface RecruitmentApplication {
   hiredAt?: string;
   hiredEmployeeId?: string;
   version?: number;
+  createdBy?: RecruitmentEmployeeSummary | null;
 }
 
 export interface RecruitmentCandidateComment {
@@ -87,7 +95,7 @@ export interface RecruitmentCandidateComment {
   candidateId: string;
   message: string;
   createdAt?: string;
-  author?: { id?: string; name?: string; email?: string } | null;
+  author?: RecruitmentEmployeeSummary | null;
 }
 
 export interface RecruitmentApplicationEvent {
@@ -96,7 +104,7 @@ export interface RecruitmentApplicationEvent {
   title: string;
   detail?: string;
   occurredAt?: string;
-  actor?: { id?: string; name?: string; email?: string } | null;
+  actor?: RecruitmentEmployeeSummary | null;
 }
 
 export interface RecruitmentEmailLog {
@@ -123,13 +131,22 @@ export interface RecruitmentInterview {
   applicationId: string;
   candidate: RecruitmentCandidate;
   jobPosition: RecruitmentJobPosition;
-  interviewer?: { id?: string; name?: string; email?: string } | null;
+  interviewer?: RecruitmentEmployeeSummary | null;
   mode: RecruitmentInterviewMode;
   status: RecruitmentInterviewStatus;
   scheduledAt: string;
   location?: string;
   meetingLink?: string;
   notes?: string;
+  feedback?: {
+    id: string;
+    reviewer?: RecruitmentEmployeeSummary | null;
+    rating?: number;
+    recommendation?: string;
+    strengths?: string;
+    concerns?: string;
+    notes?: string;
+  } | null;
 }
 
 export interface RecruitmentDashboardSummary {

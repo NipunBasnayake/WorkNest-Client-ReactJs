@@ -2,6 +2,13 @@ import type { UploadedFileAsset } from "@/types";
 
 export type ProjectStatus = "planned" | "active" | "on_hold" | "completed" | "cancelled";
 
+export interface ProjectOwner {
+  id: string;
+  name: string;
+  email?: string;
+  avatarUrl?: string;
+}
+
 export interface Project {
   id: string;
   name: string;
@@ -12,6 +19,7 @@ export interface Project {
   progress: number;
   teamIds: string[];
   teamCount?: number;
+  createdBy?: ProjectOwner;
   documents: UploadedFileAsset[];
   createdAt: string;
   updatedAt: string;

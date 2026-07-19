@@ -49,12 +49,12 @@ export function RecruitmentApplicationsPage() {
         : applications.length === 0 ? <EmptyState icon={<Users size={30} />} title="No applications found" description={search || status || jobPositionId ? "Clear or change the filters to see more applications." : "Applications submitted through your careers page will appear here."} />
         : <div className="overflow-x-auto"><table className="worknest-data-table w-full min-w-[820px] text-left text-sm">
           <thead style={{ background: "var(--bg-muted)", color: "var(--text-secondary)" }}><tr><th className="px-5 py-3 font-semibold">Candidate</th><th className="px-5 py-3 font-semibold">Job opening</th><th className="px-5 py-3 font-semibold">Applied</th><th className="px-5 py-3 font-semibold">Stage</th><th className="px-5 py-3 font-semibold">Resume</th><th className="px-5 py-3 text-right font-semibold">Action</th></tr></thead>
-          <tbody>{applications.map((item) => <tr key={item.id} className="transition hover:bg-purple-500/[0.03]">
+          <tbody>{applications.map((item) => <tr key={item.id} className="transition hover:bg-primary-500/[0.03]">
             <td className="px-5 py-4"><p className="font-semibold" style={{ color: "var(--text-primary)" }}>{item.candidate.fullName}</p><p className="mt-0.5 text-xs" style={{ color: "var(--text-secondary)" }}>{item.candidate.email}</p></td>
             <td className="px-5 py-4"><p style={{ color: "var(--text-primary)" }}>{item.jobPosition.title}</p><p className="mt-0.5 text-xs" style={{ color: "var(--text-tertiary)" }}>{item.jobPosition.department ?? "No department"}</p></td>
             <td className="whitespace-nowrap px-5 py-4" style={{ color: "var(--text-secondary)" }}>{formatDate(item.appliedAt)}</td>
             <td className="px-5 py-4"><RecruitmentStatusBadge value={item.status} /></td>
-            <td className="px-5 py-4">{item.candidate.resumeFileUrl ? <a href={item.candidate.resumeFileUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 font-medium text-purple-600 hover:underline"><Download size={14} />CV</a> : <span style={{ color: "var(--text-tertiary)" }}>Not attached</span>}</td>
+            <td className="px-5 py-4">{item.candidate.resumeFileUrl ? <a href={item.candidate.resumeFileUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 font-medium text-primary-600 hover:underline"><Download size={14} />CV</a> : <span style={{ color: "var(--text-tertiary)" }}>Not attached</span>}</td>
             <td className="px-5 py-4 text-right"><Button size="sm" variant="outline" to={tenantRoutes.recruitmentApplication(item.id, tenantSlug)}><FileSearch size={14} />Review</Button></td>
           </tr>)}</tbody>
         </table></div>}
