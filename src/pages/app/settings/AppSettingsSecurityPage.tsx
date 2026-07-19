@@ -65,7 +65,7 @@ export function AppSettingsSecurityPage() {
       <section className="rounded-2xl border p-6 sm:p-7" style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)" }}>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <div className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold" style={{ background: "rgba(147,50,234,0.12)", color: "var(--color-primary-600)" }}>
+            <div className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold" style={{ background: "var(--brand-soft)", color: "var(--color-primary-600)" }}>
               <ShieldCheck size={14} />
               Session security
             </div>
@@ -100,12 +100,12 @@ export function AppSettingsSecurityPage() {
             <div
               key={session.id}
               className="rounded-2xl border p-5 sm:p-6"
-              style={{ backgroundColor: "var(--bg-surface)", borderColor: session.currentSession ? "rgba(147,50,234,0.35)" : "var(--border-default)" }}
+              style={{ backgroundColor: "var(--bg-surface)", borderColor: session.currentSession ? "var(--brand-border)" : "var(--border-default)" }}
             >
               <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div className="min-w-0 space-y-2">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-xs font-semibold" style={{ background: session.currentSession ? "rgba(34,197,94,0.12)" : "rgba(99,102,241,0.10)", color: session.currentSession ? "#16a34a" : "#6366f1" }}>
+                    <span className="inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-xs font-semibold" style={{ background: session.currentSession ? "rgba(34,197,94,0.12)" : "var(--brand-soft)", color: session.currentSession ? "#16a34a" : "var(--color-primary-600)" }}>
                       {session.currentSession ? "Current session" : "Active session"}
                     </span>
                     {session.suspicious && (
@@ -116,7 +116,7 @@ export function AppSettingsSecurityPage() {
                   </div>
 
                   <div className="flex items-start gap-3">
-                    <div className="mt-0.5 rounded-xl p-2" style={{ background: "rgba(147,50,234,0.08)", color: "var(--color-primary-500)" }}>
+                    <div className="mt-0.5 rounded-xl p-2" style={{ background: "var(--brand-soft)", color: "var(--color-primary-500)" }}>
                       {session.deviceName?.toLowerCase().includes("mobile") ? <Smartphone size={18} /> : <Monitor size={18} />}
                     </div>
                     <div className="min-w-0">
@@ -171,7 +171,7 @@ function SessionSkeleton() {
 function EmptyState() {
   return (
     <div className="rounded-2xl border p-8 text-center" style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)" }}>
-      <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl" style={{ background: "rgba(147,50,234,0.08)", color: "var(--color-primary-500)" }}>
+      <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl" style={{ background: "var(--brand-soft)", color: "var(--color-primary-500)" }}>
         <ShieldCheck size={22} />
       </div>
       <h3 className="text-lg font-semibold" style={{ color: "var(--text-primary)" }}>

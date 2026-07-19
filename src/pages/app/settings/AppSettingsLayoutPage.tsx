@@ -20,7 +20,7 @@ export function AppSettingsLayoutPage() {
               to={section.to()}
               className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium no-underline transition-colors"
               style={({ isActive }) => ({
-                backgroundColor: isActive ? "rgba(147,50,234,0.12)" : "transparent",
+                backgroundColor: isActive ? "var(--brand-soft)" : "transparent",
                 color: isActive ? "var(--color-primary-600)" : "var(--text-secondary)",
               })}
             >

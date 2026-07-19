@@ -24,7 +24,7 @@ import { SectionCard } from "@/components/common/SectionCard";
 import { Button } from "@/components/common/Button";
 import { AppSelect } from "@/components/common/AppSelect";
 import { StatusBadge } from "@/components/common/StatusBadge";
-import { AvatarInitials } from "@/components/common/AvatarInitials";
+import { UserAvatar } from "@/components/common/UserAvatar";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { EmptyState, ErrorBanner } from "@/components/common/AppUI";
 import type { Employee } from "@/types";
@@ -298,7 +298,7 @@ export function TeamDetailPage() {
         <div className="py-24 flex items-center justify-center">
           <div
             className="w-10 h-10 rounded-full border-4 border-transparent animate-spin"
-            style={{ borderTopColor: "#9332EA", borderLeftColor: "rgba(147,50,234,0.3)" }}
+            style={{ borderTopColor: "var(--brand-action)", borderLeftColor: "var(--brand-border)" }}
           />
         </div>
       )}
@@ -342,7 +342,12 @@ export function TeamDetailPage() {
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
             <SectionCard title="Team Manager">
               <div className="flex items-center gap-3">
-                <AvatarInitials name={team.managerName || "Manager"} size="sm" />
+                <UserAvatar
+                  name={team.managerName || "Manager"}
+                  email={managerProfile?.email}
+                  src={team.managerAvatarUrl ?? managerProfile?.avatarUrl}
+                  size="sm"
+                />
                 <div>
                   <div className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
                     {team.managerName || "-"}
@@ -448,7 +453,12 @@ export function TeamDetailPage() {
                     >
                       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                         <div className="flex min-w-0 items-center gap-2.5">
-                          <AvatarInitials name={member.name || member.employeeId} size="sm" />
+                          <UserAvatar
+                            name={member.name || member.employeeId}
+                            email={member.email}
+                            src={member.avatarUrl}
+                            size="sm"
+                          />
                           <div className="min-w-0">
                             <div className="truncate text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
                               {member.name || member.employeeId}
@@ -460,14 +470,14 @@ export function TeamDetailPage() {
                               {member.isManager && (
                                 <span
                                   className="inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold"
-                                  style={{ background: "rgba(147,50,234,0.12)", color: "var(--color-primary-600)" }}
+                                  style={{ background: "var(--brand-soft)", color: "var(--color-primary-600)" }}
                                 >
                                   Manager
                                 </span>
                               )}
                               <span
                                 className="inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold"
-                                style={roleBadgeStyle ?? { background: "rgba(99,102,241,0.12)", color: "#6366f1" }}
+                                style={roleBadgeStyle ?? { background: "var(--brand-soft)", color: "var(--color-primary-600)" }}
                               >
                                 {roleLabel}
                               </span>

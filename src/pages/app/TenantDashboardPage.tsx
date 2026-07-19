@@ -29,6 +29,7 @@ import { getErrorMessage } from "@/utils/errorHandler";
 import { tenantRoutes } from "@/utils/tenantRoutes";
 import type { DashboardTaskStatusSummary, TenantDashboardSnapshot } from "@/modules/analytics/types";
 import { RecruitmentDashboardWidget } from "@/modules/recruitment/components/RecruitmentDashboardWidget";
+import { TenantLogo } from "@/features/branding/TenantLogo";
 
 interface QuickAction {
   label: string;
@@ -58,8 +59,8 @@ const USER_QUICK_ACTIONS: QuickAction[] = [
 ];
 
 const TASK_STATUS_META: Array<{ key: keyof DashboardTaskStatusSummary; label: string; color: string }> = [
-  { key: "TODO", label: "To Do", color: "#6366f1" },
-  { key: "IN_PROGRESS", label: "In Progress", color: "#9332EA" },
+  { key: "TODO", label: "To Do", color: "var(--brand-action)" },
+  { key: "IN_PROGRESS", label: "In Progress", color: "var(--brand-action)" },
   { key: "IN_REVIEW", label: "In Review", color: "#d97706" },
   { key: "BLOCKED", label: "Blocked", color: "#ef4444" },
   { key: "DONE", label: "Done", color: "#10b981" },
@@ -144,8 +145,8 @@ function RoleDecisionDashboard({ role, snapshot, quickActions }: { role: 'HR' | 
   const attendanceRate = snapshot.attendanceSummary.total ? Math.round(snapshot.attendanceSummary.present * 100 / snapshot.attendanceSummary.total) : 0;
   const isHr = role === 'HR';
   return <div className='space-y-6'>
-    <div className='rounded-2xl border p-5' style={{ background: isHr ? 'linear-gradient(120deg,rgba(5,150,105,.1),rgba(37,99,235,.04))' : 'linear-gradient(120deg,rgba(37,99,235,.1),rgba(147,50,234,.04))', borderColor: 'var(--border-default)' }}><p className='text-xs font-semibold uppercase tracking-wider' style={{ color: isHr ? '#059669' : '#2563eb' }}>{isHr ? 'People operations cockpit' : 'Delivery command center'}</p><h2 className='mt-1 text-xl font-bold' style={{ color: 'var(--text-primary)' }}>{isHr ? 'Protect workforce health and remove people bottlenecks' : 'Keep delivery predictable and team capacity balanced'}</h2><p className='mt-1 text-sm' style={{ color: 'var(--text-secondary)' }}>{isHr ? `${snapshot.pendingLeaves} leave decisions pending · ${attendanceRate}% attendance today` : `${snapshot.openTasks} open tasks · ${completion}% completion · ${snapshot.taskStatusSummary.BLOCKED} blocked`}</p></div>
-    <PageSection title={isHr ? 'Workforce decisions' : 'Delivery decisions'} description='Metrics connected to actions, risk, and business outcomes.'><div className='grid gap-4 sm:grid-cols-2 xl:grid-cols-4'>{isHr ? <><StatCard label='Active workforce' value={snapshot.totalEmployees} icon={<Users size={20} />} accentColor='#059669' /><StatCard label='Present today' value={snapshot.presentToday} icon={<UserCheck size={20} />} accentColor='#10b981' /><StatCard label='Pending leave' value={snapshot.pendingLeaves} icon={<CalendarClock size={20} />} accentColor='#d97706' /><StatCard label='Attendance health' value={`${attendanceRate}%`} icon={<ClipboardList size={20} />} accentColor='#2563eb' /></> : <><StatCard label='Open workload' value={snapshot.openTasks} icon={<CheckSquare size={20} />} accentColor='#2563eb' /><StatCard label='Completed' value={snapshot.completedTasks} icon={<UserCheck size={20} />} accentColor='#10b981' /><StatCard label='Blocked work' value={snapshot.taskStatusSummary.BLOCKED} icon={<ClipboardList size={20} />} accentColor='#ef4444' /><StatCard label='Delivery rate' value={`${completion}%`} icon={<FolderOpen size={20} />} accentColor='#9332ea' /></>}</div></PageSection>
+    <div className='rounded-2xl border p-5' style={{ background: isHr ? 'linear-gradient(120deg,rgba(5,150,105,.1),rgba(37,99,235,.04))' : 'linear-gradient(120deg,rgba(37,99,235,.1),var(--glow-subtle))', borderColor: 'var(--border-default)' }}><p className='text-xs font-semibold uppercase tracking-wider' style={{ color: isHr ? '#059669' : '#2563eb' }}>{isHr ? 'People operations cockpit' : 'Delivery command center'}</p><h2 className='mt-1 text-xl font-bold' style={{ color: 'var(--text-primary)' }}>{isHr ? 'Protect workforce health and remove people bottlenecks' : 'Keep delivery predictable and team capacity balanced'}</h2><p className='mt-1 text-sm' style={{ color: 'var(--text-secondary)' }}>{isHr ? `${snapshot.pendingLeaves} leave decisions pending · ${attendanceRate}% attendance today` : `${snapshot.openTasks} open tasks · ${completion}% completion · ${snapshot.taskStatusSummary.BLOCKED} blocked`}</p></div>
+    <PageSection title={isHr ? 'Workforce decisions' : 'Delivery decisions'} description='Metrics connected to actions, risk, and business outcomes.'><div className='grid gap-4 sm:grid-cols-2 xl:grid-cols-4'>{isHr ? <><StatCard label='Active workforce' value={snapshot.totalEmployees} icon={<Users size={20} />} accentColor='#059669' /><StatCard label='Present today' value={snapshot.presentToday} icon={<UserCheck size={20} />} accentColor='#10b981' /><StatCard label='Pending leave' value={snapshot.pendingLeaves} icon={<CalendarClock size={20} />} accentColor='#d97706' /><StatCard label='Attendance health' value={`${attendanceRate}%`} icon={<ClipboardList size={20} />} accentColor='#2563eb' /></> : <><StatCard label='Open workload' value={snapshot.openTasks} icon={<CheckSquare size={20} />} accentColor='#2563eb' /><StatCard label='Completed' value={snapshot.completedTasks} icon={<UserCheck size={20} />} accentColor='#10b981' /><StatCard label='Blocked work' value={snapshot.taskStatusSummary.BLOCKED} icon={<ClipboardList size={20} />} accentColor='#ef4444' /><StatCard label='Delivery rate' value={`${completion}%`} icon={<FolderOpen size={20} />} accentColor='var(--brand-action)' /></>}</div></PageSection>
     <div className='grid gap-4 xl:grid-cols-2'><SectionCard title={isHr ? 'People risk signals' : 'Delivery risk signals'} subtitle='Prioritized conditions requiring attention.'><div className='space-y-3'><DecisionSignal tone={snapshot.pendingLeaves ? 'warning' : 'positive'} title={`${snapshot.pendingLeaves} leave requests awaiting decision`} /><DecisionSignal tone={snapshot.taskStatusSummary.BLOCKED ? 'critical' : 'positive'} title={`${snapshot.taskStatusSummary.BLOCKED} blocked tasks`} /><DecisionSignal tone={snapshot.dueSoonTasks.length > 3 ? 'warning' : 'info'} title={`${snapshot.dueSoonTasks.length} deadlines approaching`} /></div><Button variant='outline' size='sm' to={`${tenantRoutes.analytics()}/${isHr ? 'employees' : 'tasks'}`} className='mt-4'>Investigate in Analytics</Button></SectionCard><SectionCard title='Fast actions' subtitle='Move from signal to action.'><div className='grid gap-3 sm:grid-cols-2'>{quickActions.slice(0, 4).map((action) => <QuickNavCard key={action.label} label={action.label} description={action.description} icon={action.icon} to={action.to()} />)}</div></SectionCard></div>
   </div>;
 }
@@ -168,12 +169,12 @@ function TenantAdminDashboard({
     <div className="space-y-6">
       <PageSection title="Company Overview" description="Operational health across people, work, and approvals.">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <StatCard label="Total Employees" value={snapshot.totalEmployees} icon={<Users size={20} />} accentColor="#9332EA" />
-          <StatCard label="Active Teams" value={snapshot.activeTeams} icon={<Briefcase size={20} />} accentColor="#6366f1" />
+          <StatCard label="Total Employees" value={snapshot.totalEmployees} icon={<Users size={20} />} accentColor="var(--brand-action)" />
+          <StatCard label="Active Teams" value={snapshot.activeTeams} icon={<Briefcase size={20} />} accentColor="var(--brand-action)" />
           <StatCard label="Active Projects" value={snapshot.activeProjects} icon={<FolderOpen size={20} />} accentColor="#10b981" />
           <StatCard label="Open Tasks" value={snapshot.openTasks} icon={<CheckSquare size={20} />} accentColor="#d97706" />
           <StatCard label="Completed Tasks" value={snapshot.completedTasks} icon={<UserCheck size={20} />} accentColor="#14b8a6" />
-          <StatCard label="Task Completion" value={`${completionRate}%`} icon={<ClipboardList size={20} />} accentColor="#7c3aed" />
+          <StatCard label="Task Completion" value={`${completionRate}%`} icon={<ClipboardList size={20} />} accentColor="var(--color-primary-700)" />
           <StatCard label="Pending Leave Approvals" value={snapshot.pendingLeaves} icon={<CalendarClock size={20} />} accentColor="#ef4444" />
           <StatCard label="Present Today" value={snapshot.presentToday} icon={<UserCheck size={20} />} accentColor="#22c55e" />
         </div>
@@ -214,7 +215,7 @@ function TenantAdminDashboard({
                 className="h-2 rounded-full"
                 style={{
                   width: `${completionRate}%`,
-                  background: "linear-gradient(90deg, #9332EA 0%, #10b981 100%)",
+                  background: "linear-gradient(90deg, var(--brand-action) 0%, #10b981 100%)",
                 }}
               />
             </div>
@@ -223,11 +224,11 @@ function TenantAdminDashboard({
 
         <SectionCard title="Attendance Summary" subtitle="Today across the workspace.">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            <MetricTile label="Total" value={snapshot.attendanceSummary.total} color="#9332EA" />
+            <MetricTile label="Total" value={snapshot.attendanceSummary.total} color="var(--brand-action)" />
             <MetricTile label="Present" value={snapshot.attendanceSummary.present} color="#10b981" />
             <MetricTile label="Late" value={snapshot.attendanceSummary.late} color="#d97706" />
             <MetricTile label="Absent" value={snapshot.attendanceSummary.absent} color="#ef4444" />
-            <MetricTile label="Half Day" value={snapshot.attendanceSummary.halfDay} color="#6366f1" />
+            <MetricTile label="Half Day" value={snapshot.attendanceSummary.halfDay} color="var(--brand-action)" />
           </div>
           <div className="mt-4">
             <Button variant="outline" size="sm" to={tenantRoutes.attendance()}>View Attendance Module</Button>
@@ -345,10 +346,10 @@ function TenantUserDashboard({
     <div className="space-y-6">
       <PageSection title="My Overview" description="Personal workload, attendance, and leave at a glance.">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
-          <StatCard label="My Open Tasks" value={snapshot.openTasks} icon={<CheckSquare size={20} />} accentColor="#9332EA" />
+          <StatCard label="My Open Tasks" value={snapshot.openTasks} icon={<CheckSquare size={20} />} accentColor="var(--brand-action)" />
           <StatCard label="Tasks Due Soon" value={snapshot.dueSoonTasks.length} icon={<CalendarClock size={20} />} accentColor="#d97706" />
           <StatCard label="Pending Leave Requests" value={snapshot.leaveStatusSummary.PENDING} icon={<CalendarClock size={20} />} accentColor="#ef4444" />
-          <StatCard label="Unread Notifications" value={snapshot.unreadNotifications} icon={<BellRing size={20} />} accentColor="#6366f1" />
+          <StatCard label="Unread Notifications" value={snapshot.unreadNotifications} icon={<BellRing size={20} />} accentColor="var(--brand-action)" />
           <StatCard label="Today Attendance" value={myTodayStatus} icon={<UserCheck size={20} />} accentColor="#10b981" />
         </div>
       </PageSection>
@@ -394,11 +395,11 @@ function TenantUserDashboard({
         <SectionCard title="My Attendance Snapshot" subtitle="Today and recent attendance activity.">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             <MetricTile label="Status Today" value={myTodayStatus} color="#10b981" />
-            <MetricTile label="Worked Today" value={formatMinutes(snapshot.attendanceSummary.myWorkedMinutes)} color="#9332EA" />
+            <MetricTile label="Worked Today" value={formatMinutes(snapshot.attendanceSummary.myWorkedMinutes)} color="var(--brand-action)" />
             <MetricTile label="Present (30d)" value={snapshot.attendanceSummary.present} color="#16a34a" />
             <MetricTile label="Late (30d)" value={snapshot.attendanceSummary.late} color="#d97706" />
             <MetricTile label="Absent (30d)" value={snapshot.attendanceSummary.absent} color="#ef4444" />
-            <MetricTile label="Records (30d)" value={snapshot.attendanceSummary.total} color="#6366f1" />
+            <MetricTile label="Records (30d)" value={snapshot.attendanceSummary.total} color="var(--brand-action)" />
           </div>
           <div className="mt-4">
             <Button variant="outline" size="sm" to={tenantRoutes.attendance()}>Open Attendance</Button>
@@ -521,6 +522,7 @@ function DashboardHero({
       }}
     >
       <div className="relative z-10">
+        <div className="mb-4"><TenantLogo size="header" eager /></div>
         <p className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
           {greeting}
         </p>
@@ -587,7 +589,7 @@ function PreviewItem({
         <p className="truncate text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
           {title}
         </p>
-        {unread && <BellRing size={14} style={{ color: "#9332EA" }} />}
+        {unread && <BellRing size={14} style={{ color: "var(--brand-action)" }} />}
       </div>
       <p className="mt-1 truncate text-xs" style={{ color: "var(--text-secondary)" }}>
         {meta}
