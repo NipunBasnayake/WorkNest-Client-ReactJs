@@ -50,6 +50,26 @@ function removeValue(key: TokenStorageKey) {
   sessionStorageRef?.removeItem(key);
 }
 
+function readCookie(name: string): string | null {
+  if (typeof document === "undefined") return null;
+  const prefix = `${encodeURIComponent(name)}=`;
+  const match = document.cookie.split(";").map((part) => part.trim()).find((part) => part.startsWith(prefix));
+  if (!match) return null;
+  try {
+    return decodeURIComponent(match.slice(prefix.length));
+  } catch {
+    return null;
+  }
+}
+
+function readCsrfToken(): string | null {
+  const stored = readValue(STORAGE_KEYS.CSRF_TOKEN);
+  if (stored) return stored;
+  const cookieValue = readCookie(STORAGE_KEYS.CSRF_TOKEN);
+  if (cookieValue) writeValue(STORAGE_KEYS.CSRF_TOKEN, cookieValue);
+  return cookieValue;
+}
+
 function migrateLegacyLocalStorageData() {
   if (!legacyLocalStorageRef) return;
 
@@ -86,7 +106,7 @@ migrateLegacyLocalStorageData();
 export const tokenStorage = {
   getAccess: () => readValue(STORAGE_KEYS.ACCESS_TOKEN),
   getRefresh: () => readValue(STORAGE_KEYS.REFRESH_TOKEN),
-  getCsrf: () => readValue(STORAGE_KEYS.CSRF_TOKEN),
+  getCsrf: () => readCsrfToken(),
   getTenantKey: () => readValue(STORAGE_KEYS.TENANT_KEY),
   getSession: () => readValue(STORAGE_KEYS.SESSION_TYPE) as SessionTypeValue,
   getDeviceId: () => getOrCreateDeviceId(),

@@ -6,6 +6,7 @@ import { unwrapApiData } from "@/services/http/response";
 import { useNetworkStore } from "@/store/networkStore";
 import { ENV } from "@/config/env";
 import { tokenStorage } from "@/services/auth/tokenStorage";
+import { getAuthRuntimeAdapter } from "@/services/auth/authRuntimeBridge";
 
 const BASE_URL = ENV.apiBaseUrl;
 const LOGIN_ROUTE = "/login";
@@ -29,12 +30,6 @@ let refreshSubscribers: Array<{ resolve: (token: string) => void; reject: (err: 
 
 type RefreshResponse = { accessToken: string; refreshToken?: string };
 type RetryableRequestConfig = AxiosRequestConfig & { _retry?: boolean };
-type AuthStoreState = {
-  tenantKey: string | null;
-  applyTokenRefresh: (accessToken: string, tenantKey: string | null) => void;
-  hardLogout: (redirectTo?: string) => void;
-};
-
 function subscribeTokenRefresh(resolve: (token: string) => void, reject: (err: unknown) => void) {
   refreshSubscribers.push({ resolve, reject });
 }
@@ -91,24 +86,16 @@ export function isAnonymousRecruitmentPath(pathname: string): boolean {
     || /^\/[^/]+\/applications\/[^/]+\/success\/?$/.test(pathname);
 }
 
-async function getAuthStoreState(): Promise<AuthStoreState | null> {
-  try {
-    const { useAuthStore } = await import("@/store/authStore");
-    return useAuthStore.getState() as AuthStoreState;
-  } catch {
-    return null;
-  }
-}
-
 async function resolveTenantKeyForRefresh(): Promise<string | null> {
-  const authStore = await getAuthStoreState();
-  return authStore?.tenantKey ?? tokenStorage.getTenantKey();
+  return getAuthRuntimeAdapter()?.getTenantKey()
+    ?? tokenStorage.getTenantKey()
+    ?? extractTenantSlugFromPath();
 }
 
 async function applyTokenRefresh(accessToken: string, tenantKey: string | null) {
-  const authStore = await getAuthStoreState();
-  if (authStore) {
-    authStore.applyTokenRefresh(accessToken, tenantKey);
+  const authRuntime = getAuthRuntimeAdapter();
+  if (authRuntime) {
+    authRuntime.applyTokenRefresh(accessToken, tenantKey);
     return;
   }
 
@@ -121,13 +108,13 @@ async function hardLogout(redirectPath = LOGIN_ROUTE) {
   const keepAnonymousPageOpen = typeof window !== "undefined"
     && redirectPath === LOGIN_ROUTE
     && isAnonymousRecruitmentPath(window.location.pathname);
-  const authStore = await getAuthStoreState();
-  if (authStore) {
+  const authRuntime = getAuthRuntimeAdapter();
+  if (authRuntime) {
     if (keepAnonymousPageOpen) {
       tokenStorage.clear();
       return;
     }
-    authStore.hardLogout(redirectPath);
+    authRuntime.hardLogout(redirectPath);
     return;
   }
 
