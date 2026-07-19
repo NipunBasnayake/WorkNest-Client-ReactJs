@@ -121,6 +121,7 @@ export interface TenantOnboardingRequest {
   adminFullName: string;
   adminEmail: string;
   adminPassword: string;
+  primaryColor?: string;
 }
 
 export type TenantProvisioningStatus = "PROVISIONING" | "ACTIVE" | "FAILED" | string;
@@ -133,6 +134,9 @@ export interface TenantProvisioningData {
   status: TenantProvisioningStatus;
   tenantAdminUserId: number;
   tenantAdminEmail: string;
+  primaryColor?: string;
+  brandingVersion?: number;
+  logoUrl?: string;
   createdAt: string;
 }
 
