@@ -44,7 +44,7 @@ export function AttendanceTrendChart({ title, data }: AttendanceTrendChartProps)
               <div className="flex h-2 overflow-hidden rounded-full" style={{ backgroundColor: "var(--bg-muted)" }}>
                 <div style={{ width: `${present}%`, backgroundColor: "#10b981" }} />
                 <div style={{ width: `${late}%`, backgroundColor: "#d97706" }} />
-                <div style={{ width: `${halfDay}%`, backgroundColor: "#6366f1" }} />
+                <div style={{ width: `${halfDay}%`, backgroundColor: "var(--brand-action)" }} />
                 <div style={{ width: `${incomplete}%`, backgroundColor: "#475569" }} />
                 <div style={{ width: `${absent}%`, backgroundColor: "#ef4444" }} />
               </div>

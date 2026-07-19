@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { fetchProtectedFileUrl } from "@/services/uploads/fileUploadService";
+import { acquireProtectedImage, releaseProtectedImage } from "@/services/uploads/protectedImageCache";
 
 interface ResolvedFileUrl {
   source: string;
@@ -11,16 +11,11 @@ export function useProtectedFileUrl(src?: string | null): string | null {
 
   useEffect(() => {
     let active = true;
-    let objectUrl: string | null = null;
     if (!src) return () => undefined;
 
-    void fetchProtectedFileUrl(src)
+    void acquireProtectedImage(src)
       .then((url) => {
-        if (!active) {
-          if (url.startsWith("blob:")) URL.revokeObjectURL(url);
-          return;
-        }
-        objectUrl = url.startsWith("blob:") ? url : null;
+        if (!active) return;
         setResolved({ source: src, url });
       })
       .catch(() => {
@@ -29,7 +24,7 @@ export function useProtectedFileUrl(src?: string | null): string | null {
 
     return () => {
       active = false;
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
+      releaseProtectedImage(src);
     };
   }, [src]);
 
