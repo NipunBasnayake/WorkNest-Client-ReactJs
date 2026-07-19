@@ -1,7 +1,8 @@
-import { Pin, Users, UserCircle2, Edit2, Trash2 } from "lucide-react";
+import { Pin, Users, Edit2, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { Announcement } from "@/modules/announcements/types";
 import { tenantRoutes } from "@/utils/tenantRoutes";
+import { UserAvatar } from "@/components/common/UserAvatar";
 
 interface AnnouncementCardProps {
   announcement: Announcement;
@@ -31,7 +32,7 @@ export function AnnouncementCard({ announcement, onEdit, onDelete }: Announcemen
           {announcement.pinned && (
             <span
               className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold"
-              style={{ background: "rgba(147,50,234,0.12)", color: "var(--color-primary-600)" }}
+              style={{ background: "var(--brand-soft)", color: "var(--color-primary-600)" }}
             >
               <Pin size={12} />
               Pinned
@@ -74,7 +75,7 @@ export function AnnouncementCard({ announcement, onEdit, onDelete }: Announcemen
 
       <div className="mt-4 flex flex-wrap items-center gap-3 text-xs" style={{ color: "var(--text-tertiary)" }}>
         <span className="inline-flex items-center gap-1">
-          <UserCircle2 size={12} />
+          <UserAvatar name={announcement.authorName} src={announcement.authorAvatarUrl} size="xs" />
           {announcement.authorName}
         </span>
         {announcement.authorRole && <span>{toReadableRole(announcement.authorRole)}</span>}
