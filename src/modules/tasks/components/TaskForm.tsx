@@ -1,7 +1,7 @@
 import { Input } from "@/components/common/Input";
 import { Button } from "@/components/common/Button";
 import { AppSelect } from "@/components/common/AppSelect";
-import { AvatarInitials } from "@/components/common/AvatarInitials";
+import { UserAvatar } from "@/components/common/UserAvatar";
 import { FileUploadField } from "@/components/common/FileUploadField";
 import { TextareaField } from "@/components/common/TextareaField";
 import { TASK_PRIORITY_OPTIONS, TASK_STATUS_OPTIONS, type TaskFormErrors, type TaskFormValues } from "@/modules/tasks/types";
@@ -127,7 +127,7 @@ export function TaskForm({
           </AppSelect>
           {selectedAssignee && (
             <div className="mt-1 flex min-h-10 items-center gap-2 rounded-lg border px-3 py-2" style={{ borderColor: "var(--border)", backgroundColor: "var(--surface-subtle)" }}>
-              <AvatarInitials name={selectedAssignee.label} size="sm" src={selectedAssignee.avatarUrl} />
+              <UserAvatar name={selectedAssignee.label} size="sm" src={selectedAssignee.avatarUrl} />
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium" style={{ color: "var(--text-primary)" }}>{selectedAssignee.label}</p>
                 <p className="truncate text-xs" style={{ color: "var(--text-tertiary)" }}>{selectedAssignee.subtitle || "No designation"}</p>

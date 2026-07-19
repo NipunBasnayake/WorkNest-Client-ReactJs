@@ -6,6 +6,7 @@ export interface ProfileSettings {
   fullName: string;
   email: string;
   title: string;
+  phone?: string;
   avatarUrl?: string;
   avatar?: UploadedFileAsset | null;
 }

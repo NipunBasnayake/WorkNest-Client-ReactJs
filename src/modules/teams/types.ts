@@ -27,6 +27,7 @@ export interface TeamMember {
   employeeId: string;
   name?: string;
   email?: string;
+  avatarUrl?: string;
   functionalRole?: TeamMemberFunctionalRole;
   isManager?: boolean;
 }
@@ -48,6 +49,7 @@ export interface Team {
   description?: string;
   managerName: string;
   managerEmployeeId?: string;
+  managerAvatarUrl?: string;
   members: TeamMember[];
   memberIds: string[];
   memberCount?: number;

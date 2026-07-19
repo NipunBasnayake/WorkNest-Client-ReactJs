@@ -15,7 +15,7 @@ export const TEAM_ROLE_BADGE_STYLES: Record<TeamMemberFunctionalRole, { backgrou
     color: "#4b5563",
   },
   PROJECT_MANAGER: {
-    background: "rgba(147,50,234,0.14)",
+    background: "var(--brand-soft)",
     color: "var(--color-primary-600)",
   },
   TEAM_LEAD: {

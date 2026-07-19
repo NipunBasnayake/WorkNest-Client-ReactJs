@@ -146,7 +146,7 @@ export function TeamForm({
               {values.managerEmployeeId === emp.id && (
                 <span
                   className="inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold"
-                  style={{ background: "rgba(147,50,234,0.12)", color: "var(--color-primary-600)" }}
+                  style={{ background: "var(--brand-soft)", color: "var(--color-primary-600)" }}
                 >
                   Manager
                 </span>

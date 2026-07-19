@@ -102,6 +102,12 @@ function resolveAssigneeFields(value: Record<string, unknown>) {
       getString(assigneeUser.email),
       getString(assigneeEmployee.email)
     ),
+    assigneeAvatarUrl: firstDefined(
+      getString(value.assigneeAvatarUrl),
+      getString(assignee.avatarUrl),
+      getString(assigneeEmployee.avatarUrl),
+      getString(assigneeUser.avatarUrl),
+    ),
   };
 }
 
@@ -113,7 +119,10 @@ function normalizeTask(input: unknown): Task {
     assigneeUserId,
     assigneeEmail,
     assigneeName,
+    assigneeAvatarUrl,
   } = resolveAssigneeFields(value);
+  const createdBy = asRecord(value.createdBy);
+  const assignedBy = asRecord(value.assignedBy);
 
   return {
     id: getId(firstDefined(value.id, value.taskId)),
@@ -144,16 +153,21 @@ function normalizeTask(input: unknown): Task {
     assigneeUserId,
     assigneeEmail,
     assigneeName,
+    assigneeAvatarUrl,
     createdByEmployeeId: firstDefined(
       getString(value.createdByEmployeeId),
       getString(asRecord(value.createdBy).id)
     ),
     createdByUserId: getString(value.createdByUserId),
+    createdByName: firstDefined(getString(createdBy.fullName), getString(createdBy.name), getString(createdBy.email)),
+    createdByAvatarUrl: getString(createdBy.avatarUrl),
     assignedByEmployeeId: firstDefined(
       getString(value.assignedByEmployeeId),
       getString(asRecord(value.assignedBy).id)
     ),
     assignedByUserId: getString(value.assignedByUserId),
+    assignedByName: firstDefined(getString(assignedBy.fullName), getString(assignedBy.name), getString(assignedBy.email)),
+    assignedByAvatarUrl: getString(assignedBy.avatarUrl),
     projectId: firstDefined(
       getString(value.projectId),
       getString(asRecord(value.project).id)
@@ -274,6 +288,7 @@ function normalizeTaskComment(input: unknown): TaskComment {
       getString(author.name),
       getString(author.email)
     ) ?? "User",
+    authorAvatarUrl: firstDefined(getString(author.avatarUrl), getString(value.authorAvatarUrl)),
   };
 }
 
