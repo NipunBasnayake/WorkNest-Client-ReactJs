@@ -1,7 +1,7 @@
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { useAuth } from "@/hooks/useAuth";
 import { Mail, User, Shield, Building2 } from "lucide-react";
-import { AvatarInitials } from "@/components/common/AvatarInitials";
+import { UserAvatar } from "@/components/common/UserAvatar";
 
 export function ProfilePage() {
   const { user, tenantKey, sessionType } = useAuth();
@@ -18,20 +18,20 @@ export function ProfilePage() {
       >
         {/* Avatar */}
         <div className="flex items-start gap-5 mb-8">
-          <AvatarInitials name={user.name} size="lg" src={user.avatarUrl} />
+          <UserAvatar name={user.name} email={user.email} size="lg" src={user.avatarUrl} eager />
           <div className="min-w-0">
             <h2 className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>{user.name}</h2>
             <p className="text-sm mt-0.5" style={{ color: "var(--text-secondary)" }}>{user.email}</p>
             <div className="flex flex-wrap gap-2 mt-2">
               <span
                 className="px-2.5 py-1 rounded-full text-xs font-semibold"
-                style={{ background: "rgba(147,50,234,0.12)", color: "var(--color-primary-600)" }}
+                style={{ background: "var(--brand-soft)", color: "var(--color-primary-600)" }}
               >
                 {user.role}
               </span>
               <span
                 className="px-2.5 py-1 rounded-full text-xs font-semibold"
-                style={{ background: sessionType === "platform" ? "rgba(147,50,234,0.08)" : "rgba(99,102,241,0.08)", color: sessionType === "platform" ? "#c084fc" : "#818cf8" }}
+                style={{ background: "var(--brand-soft)", color: "var(--color-primary-700)" }}
               >
                 {sessionType === "platform" ? "Platform Session" : "Workspace Session"}
               </span>

@@ -11,6 +11,7 @@ import { Button } from "@/components/common/Button";
 import { EmptyState, ErrorBanner } from "@/components/common/AppUI";
 import type { LeaveRequest } from "@/modules/leave/types";
 import { tenantRoutes } from "@/utils/tenantRoutes";
+import { UserAvatar } from "@/components/common/UserAvatar";
 
 function toLabel(value: string): string {
   return value.charAt(0) + value.slice(1).toLowerCase();
@@ -64,7 +65,7 @@ export function LeaveDetailPage() {
 
       {loading && (
         <div className="py-24 flex items-center justify-center">
-          <div className="w-10 h-10 rounded-full border-4 border-transparent animate-spin" style={{ borderTopColor: "#9332EA", borderLeftColor: "rgba(147,50,234,0.3)" }} />
+          <div className="w-10 h-10 rounded-full border-4 border-transparent animate-spin" style={{ borderTopColor: "var(--brand-action)", borderLeftColor: "var(--brand-border)" }} />
         </div>
       )}
 
@@ -82,14 +83,14 @@ export function LeaveDetailPage() {
         <>
           <SectionCard>
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <div className="min-w-0">
+              <div className="flex min-w-0 items-center gap-3"><UserAvatar name={leaveRequest.employeeName} src={leaveRequest.employeeAvatarUrl} size="lg" eager /><div className="min-w-0">
                 <h1 className="text-2xl font-bold truncate" style={{ color: "var(--text-primary)" }}>
                   {leaveRequest.employeeName}
                 </h1>
                 <p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>
                   {toLabel(leaveRequest.leaveType)} leave · {leaveRequest.startDate} to {leaveRequest.endDate}
                 </p>
-              </div>
+              </div></div>
               <LeaveStatusBadge status={leaveRequest.status} />
             </div>
           </SectionCard>
