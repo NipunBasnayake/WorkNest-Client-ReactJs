@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { Outlet } from "react-router-dom";
+import { Outlet, useParams } from "react-router-dom";
 import { AppSidebar } from "@/components/navigation/AppSidebar";
 import { AppTopbar } from "@/components/navigation/AppTopbar";
 import { NetworkStatusBanner } from "@/components/common/NetworkStatusBanner";
 import { PageContainer } from "@/components/common/PageContainer";
 import { PageContext } from "@/app/layouts/PageMetaContext";
+import { BrandingProvider } from "@/features/branding/BrandingProvider";
 
 /* ── Layout ── */
 interface AppLayoutProps {
@@ -62,9 +63,18 @@ export function AppLayout({ area }: AppLayoutProps) {
 
 /* ── Convenience exports ── */
 export function TenantLayout() {
-  return <AppLayout area="tenant" />;
+  const { tenantSlug } = useParams();
+  return (
+    <BrandingProvider mode="tenant" tenantSlug={tenantSlug}>
+      <AppLayout area="tenant" />
+    </BrandingProvider>
+  );
 }
 
 export function PlatformLayout() {
-  return <AppLayout area="platform" />;
+  return (
+    <BrandingProvider mode="default">
+      <AppLayout area="platform" />
+    </BrandingProvider>
+  );
 }

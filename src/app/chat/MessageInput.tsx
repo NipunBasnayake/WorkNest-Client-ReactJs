@@ -97,7 +97,7 @@ export function MessageInput({ disabled, disabledReason, isSending, onSend }: Me
           disabled={!canSend}
           className="inline-flex h-11 min-w-11 items-center justify-center rounded-xl px-3 text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
           style={{
-            background: "linear-gradient(135deg, #9332EA 0%, #7C1FD1 100%)",
+            background: "var(--brand-action)",
           }}
           aria-label="Send message"
         >

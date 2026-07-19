@@ -3,6 +3,7 @@ import { ArrowDown, ArrowLeft } from "lucide-react";
 import type { ChatConversation, ChatMessage } from "@/modules/chat/types";
 import { buildConversationKey, formatMessageDay, formatMessageTime } from "@/app/chat/chatUtils";
 import { FileAssetList } from "@/components/common/FileAssetList";
+import { UserAvatar } from "@/components/common/UserAvatar";
 
 interface MessageThreadProps {
   conversation: ChatConversation | null;
@@ -222,7 +223,8 @@ export function MessageThread({
               const messageText = data.message || data.content || "";
 
               return (
-                <li key={item.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
+                <li key={item.id} className={`flex items-end gap-2 ${mine ? "justify-end" : "justify-start"}`}>
+                  {!mine ? <UserAvatar name={data.senderName} src={data.senderAvatarUrl} size="xs" /> : null}
                   <div className="max-w-[min(84%,44rem)]">
                     {showSender && (
                       <p className="mb-1 px-1 text-[11px] font-semibold" style={{ color: "var(--text-tertiary)" }}>
@@ -233,8 +235,8 @@ export function MessageThread({
                     <div
                       className="rounded-2xl px-3 py-2"
                       style={{
-                        background: mine ? "linear-gradient(135deg, #9332EA 0%, #7C1FD1 100%)" : "var(--bg-muted)",
-                        color: mine ? "white" : "var(--text-primary)",
+                        background: mine ? "var(--brand-action)" : "var(--bg-muted)",
+                        color: mine ? "var(--brand-on-primary)" : "var(--text-primary)",
                       }}
                     >
                       <p className="whitespace-pre-wrap break-words text-sm leading-6">{messageText || "-"}</p>
@@ -253,6 +255,7 @@ export function MessageThread({
                       {data.editedAt ? " - edited" : ""}
                     </p>
                   </div>
+                  {mine ? <UserAvatar name={data.senderName} src={data.senderAvatarUrl} size="xs" /> : null}
                 </li>
               );
             })}

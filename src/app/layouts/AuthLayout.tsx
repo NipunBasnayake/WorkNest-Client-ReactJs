@@ -1,13 +1,18 @@
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import { Navbar } from "@/components/navigation/Navbar";
 import { NetworkStatusBanner } from "@/components/common/NetworkStatusBanner";
+import { BrandingProvider } from "@/features/branding/BrandingProvider";
 
 export function AuthLayout() {
+  const location = useLocation();
+  const params = new URLSearchParams(location.search);
+  const tenantSlug = params.get("tenant") ?? params.get("tenantSlug") ?? params.get("tenantKey");
   return (
-    <div className="flex min-h-screen flex-col" style={{ backgroundColor: "var(--bg-base)" }}>
-      <Navbar />
+    <BrandingProvider mode={tenantSlug ? "public" : "default"} tenantSlug={tenantSlug}>
+      <div className="flex min-h-screen flex-col" style={{ backgroundColor: "var(--bg-base)" }}>
+        <Navbar />
 
-      <main className="relative flex-1 pt-16">
+        <main className="relative flex-1 pt-16">
         <NetworkStatusBanner />
 
         <section
@@ -23,7 +28,7 @@ export function AuthLayout() {
               backgroundImage: [
                 "radial-gradient(circle at 14% 18%, var(--glow-primary) 0%, transparent 32%)",
                 "radial-gradient(circle at 84% 78%, color-mix(in srgb, var(--glow-primary) 64%, rgba(192,132,252,0.28)) 0%, transparent 34%)",
-                "linear-gradient(145deg, rgba(255,255,255,0.06) 0%, transparent 40%, rgba(147,50,234,0.04) 100%)",
+                "linear-gradient(145deg, rgba(255,255,255,0.06) 0%, transparent 40%, var(--glow-subtle) 100%)",
               ].join(", "),
             }}
           />
@@ -32,7 +37,7 @@ export function AuthLayout() {
             className="pointer-events-none absolute inset-0 opacity-60"
             style={{
               backgroundImage:
-                "linear-gradient(rgba(147,50,234,0.035) 1px, transparent 1px), linear-gradient(90deg, rgba(147,50,234,0.035) 1px, transparent 1px)",
+                "linear-gradient(var(--glow-subtle) 1px, transparent 1px), linear-gradient(90deg, var(--glow-subtle) 1px, transparent 1px)",
               backgroundSize: "76px 76px",
               maskImage: "linear-gradient(to bottom, black, transparent 95%)",
               WebkitMaskImage: "linear-gradient(to bottom, black, transparent 95%)",
@@ -43,7 +48,8 @@ export function AuthLayout() {
             <Outlet />
           </div>
         </section>
-      </main>
-    </div>
+        </main>
+      </div>
+    </BrandingProvider>
   );
 }
