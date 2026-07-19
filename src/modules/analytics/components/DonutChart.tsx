@@ -39,7 +39,7 @@ export function DonutChart({ title, subtitle, data, drillDownTo }: DonutChartPro
             {subtitle}
           </p>
         )}
-        {drillDownTo && <Link to={drillDownTo} className='mt-2 inline-block text-xs font-semibold text-purple-600 hover:underline'>View underlying records →</Link>}
+        {drillDownTo && <Link to={drillDownTo} className='mt-2 inline-block text-xs font-semibold text-primary-600 hover:underline'>View underlying records →</Link>}
       </div>
 
       <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start">

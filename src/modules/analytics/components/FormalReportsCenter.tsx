@@ -41,6 +41,8 @@ import { useClientPagination } from '@/hooks/useClientPagination';
 import { tenantRoutes } from '@/utils/tenantRoutes';
 import { usePermission } from '@/hooks/usePermission';
 import { PERMISSIONS } from '@/constants/permissions';
+import { TenantLogo } from '@/features/branding/TenantLogo';
+import { useBranding } from '@/features/branding/useBranding';
 
 const BiChartCard = lazy(() => import('@/modules/analytics/components/BiChartCard'));
 const statusOptions = ['TODO', 'IN_PROGRESS', 'IN_REVIEW', 'BLOCKED', 'DONE', 'ACTIVE', 'INACTIVE', 'PENDING', 'APPROVED', 'REJECTED', 'OPEN', 'PAUSED', 'CLOSED', 'APPLIED', 'SHORTLISTED', 'INTERVIEW', 'OFFERED', 'HIRED', 'SCHEDULED', 'RESCHEDULED', 'COMPLETED', 'CANCELLED'];
@@ -94,15 +96,15 @@ function ReportCatalog({ catalog, selectedCategory }: { catalog: FormalReportDef
     {selectedCategory ? <Button variant='ghost' size='sm' to={tenantRoutes.reports()}><ArrowLeft size={14} />All report categories</Button> : null}
     {grouped.map(([group, reports]) => <section key={group} aria-labelledby={`report-group-${group.toLowerCase()}`}>
       <div className='mb-3'>
-        <p className='text-[10px] font-extrabold uppercase tracking-[.16em] text-purple-600'>Report category</p>
+        <p className='text-[10px] font-extrabold uppercase tracking-[.16em] text-primary-600'>Report category</p>
         <h2 id={`report-group-${group.toLowerCase()}`} className='mt-1 text-lg font-semibold' style={{ color: 'var(--text-primary)' }}>{group}</h2>
       </div>
       <nav aria-label={`${group} reports`} className='grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4'>
         {reports.map((report) => {
           const Icon = reportIcons[report.id];
-          return <Button key={report.id} to={`${tenantRoutes.reports()}/${report.id}`} variant='secondary' className='group h-auto min-h-40 w-full items-stretch justify-start overflow-hidden rounded-2xl p-0 text-left transition duration-200 hover:-translate-y-0.5 hover:border-purple-400/60 hover:shadow-lg'>
+          return <Button key={report.id} to={`${tenantRoutes.reports()}/${report.id}`} variant='secondary' className='group h-auto min-h-40 w-full items-stretch justify-start overflow-hidden rounded-2xl p-0 text-left transition duration-200 hover:-translate-y-0.5 hover:border-primary-400/60 hover:shadow-lg'>
             <span className='flex min-w-0 flex-1 flex-col p-5'>
-              <span className='flex items-start justify-between gap-4'><span className='grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-purple-500/10 text-purple-600 transition-colors group-hover:bg-purple-600 group-hover:text-white'><Icon size={21} aria-hidden='true' /></span><ArrowRight size={18} aria-hidden='true' className='mt-1 shrink-0 text-[var(--text-tertiary)] transition-transform group-hover:translate-x-1 group-hover:text-purple-600' /></span>
+              <span className='flex items-start justify-between gap-4'><span className='grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-primary-500/10 text-primary-600 transition-colors group-hover:bg-primary-600 group-hover:text-white'><Icon size={21} aria-hidden='true' /></span><ArrowRight size={18} aria-hidden='true' className='mt-1 shrink-0 text-[var(--text-tertiary)] transition-transform group-hover:translate-x-1 group-hover:text-primary-600' /></span>
               <span className='mt-5 min-w-0'><strong className='block truncate text-sm font-bold' style={{ color: 'var(--text-primary)' }}>{report.title}</strong><span className='mt-1.5 line-clamp-3 text-xs font-normal leading-5' style={{ color: 'var(--text-secondary)' }}>{report.description}</span></span>
             </span>
           </Button>;
@@ -113,6 +115,7 @@ function ReportCatalog({ catalog, selectedCategory }: { catalog: FormalReportDef
 }
 
 function ReportDetail({ active, role }: { active: FormalReportDefinition; role: NormalizedAppRole }) {
+  const { branding } = useBranding();
   const { filters, setFilter, reset } = useAnalyticsFilterStore();
   const [search, setSearch] = useState('');
   const deferredSearch = useDeferredValue(search.trim().toLowerCase());
@@ -155,6 +158,7 @@ function ReportDetail({ active, role }: { active: FormalReportDefinition; role: 
   const handleReportFilter: typeof setFilter = (key, value) => { setServerPage(1); setFilter(key, value); };
   const fullReportLoader = active.serverPaginated ? () => loadFullFormalReport(active.id, filters, role, serverRequest) : undefined;
   return <main className='min-w-0 space-y-5 pb-8'>
+    <div className='flex flex-col gap-3 rounded-2xl border p-4 sm:flex-row sm:items-center sm:justify-between' style={{ borderColor: 'var(--brand-border)', borderLeft: '4px solid var(--brand-action)', background: 'var(--bg-surface)' }}><TenantLogo size='report' eager /><p className='text-xs font-semibold' style={{ color: 'var(--text-secondary)' }}>{branding.companyName} · Formal report</p></div>
     <PageHeader title={active.title} description={active.description} backButton={<Button to={backTo} variant='ghost' size='sm'><ArrowLeft size={15} />Back to reports</Button>} status={<span className='text-xs font-semibold text-emerald-600'>Governed · {roleLabel(role)} scope</span>} secondaryActions={<Button variant='outline' size='sm' onClick={() => void query.refetch()} loading={query.isFetching}><RefreshCw size={14} />Refresh</Button>} />
     <ReportFilters filters={filters} setFilter={handleReportFilter} onReset={() => { reset(); setSearch(''); setColumnFilters({}); setSort(null); setServerPage(1); }} />
     {query.isLoading && <ReportLoading />}{query.isError && <ErrorState message='Unable to generate this formal report.' onRetry={() => void query.refetch()} />}
@@ -173,7 +177,7 @@ function ReportExports({ report, currentRows, allRows, fullReportLoader }: { rep
   return <SectionCard title='Generate report documents' subtitle='Export the current page for review or the entire filtered dataset for audit and archival.' variant='dense' className='print:hidden'><div className='grid gap-4 md:grid-cols-2'><div className='rounded-xl border p-4' style={{ borderColor: 'var(--border-default)', background: 'var(--bg-muted)' }}><p className='mb-3 text-xs font-semibold'>Current page · {currentRows.length} records</p><ReportExportMenu report={reportToDataset(report, currentRows)} /></div><div className='rounded-xl border p-4' style={{ borderColor: 'var(--border-default)', background: 'var(--bg-muted)' }}><p className='mb-3 text-xs font-semibold'>{fullReportLoader ? 'Entire filtered dataset · loaded on export' : `Entire filtered dataset · ${allRows.length} records`}</p><ReportExportMenu report={fullDataset} loadReport={loadDataset} /></div></div></SectionCard>;
 }
 function ReportLoading() { return <div className='space-y-4'><div className='grid gap-3 sm:grid-cols-2 xl:grid-cols-4'>{[1, 2, 3, 4].map((item) => <LoadingSkeleton key={item} lines={3} className='h-28 rounded-2xl border p-4' />)}</div><LoadingSkeleton lines={12} className='h-[32rem] rounded-2xl border p-5' /></div>; }
-function SectionHeading({ eyebrow, title }: { eyebrow: string; title: string }) { return <div className='mb-3'><p className='text-[10px] font-extrabold uppercase tracking-[.16em] text-purple-600'>{eyebrow}</p><h2 className='mt-1 text-lg font-semibold' style={{ color: 'var(--text-primary)' }}>{title}</h2></div>; }
+function SectionHeading({ eyebrow, title }: { eyebrow: string; title: string }) { return <div className='mb-3'><p className='text-[10px] font-extrabold uppercase tracking-[.16em] text-primary-600'>{eyebrow}</p><h2 className='mt-1 text-lg font-semibold' style={{ color: 'var(--text-primary)' }}>{title}</h2></div>; }
 function SummaryTerm({ label, value }: { label: string; value: string }) { return <div><dt className='text-[10px] font-extrabold uppercase tracking-wide' style={{ color: 'var(--text-tertiary)' }}>{label}</dt><dd className='mt-1 font-semibold' style={{ color: 'var(--text-primary)' }}>{value}</dd></div>; }
 function roleLabel(role: NormalizedAppRole) { return role === 'TENANT_ADMIN' ? 'Tenant Admin' : role === 'HR' ? 'HR' : role === 'MANAGER' ? 'Manager' : 'Employee'; }
 function compareCells(left: unknown, right: unknown) { const leftNumber = Number(String(left ?? '').replace(/[^0-9.-]/g, '')); const rightNumber = Number(String(right ?? '').replace(/[^0-9.-]/g, '')); if (Number.isFinite(leftNumber) && Number.isFinite(rightNumber) && String(left ?? '').trim() && String(right ?? '').trim()) return leftNumber - rightNumber; return String(left ?? '').localeCompare(String(right ?? ''), undefined, { numeric: true, sensitivity: 'base' }); }
