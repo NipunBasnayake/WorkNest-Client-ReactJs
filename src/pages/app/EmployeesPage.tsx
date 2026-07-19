@@ -14,7 +14,7 @@ import { Button } from "@/components/common/Button";
 import { AppSelect } from "@/components/common/AppSelect";
 import { PageHeader } from "@/components/common/PageHeader";
 import { SectionCard } from "@/components/common/SectionCard";
-import { AvatarInitials } from "@/components/common/AvatarInitials";
+import { UserAvatar } from "@/components/common/UserAvatar";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { InlineAlert } from "@/components/common/InlineAlert";
@@ -257,7 +257,7 @@ export function EmployeesPage() {
                       </span>
 
                       <div className="flex items-center gap-3 min-w-0">
-                        <AvatarInitials name={emp.displayName} size="sm" />
+                        <UserAvatar name={emp.displayName} email={emp.email} src={emp.avatarUrl} size="sm" />
                         <span className="truncate text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
                           {emp.displayName}
                         </span>
@@ -335,7 +335,7 @@ export function EmployeesPage() {
                       style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)" }}
                     >
                       <div className="flex items-start gap-3">
-                        <AvatarInitials name={emp.displayName} size="sm" />
+                        <UserAvatar name={emp.displayName} email={emp.email} src={emp.avatarUrl} size="sm" />
                         <div className="min-w-0 flex-1">
                           <div className="text-sm font-semibold truncate" style={{ color: "var(--text-primary)" }}>
                             {emp.displayName}

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Pin, Trash2, UserCircle2, Users } from "lucide-react";
+import { ArrowLeft, Pin, Trash2, Users } from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { invalidateWorkflowQueries } from "@/hooks/queries/workflowInvalidation";
 import { deleteAnnouncement, getAnnouncementById } from "@/modules/announcements/services/announcementService";
@@ -14,6 +14,7 @@ import { FileAssetList } from "@/components/common/FileAssetList";
 import { canDeleteAnnouncement, canEditAnnouncement } from "@/modules/announcements/access";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { tenantRoutes } from "@/utils/tenantRoutes";
+import { UserAvatar } from "@/components/common/UserAvatar";
 
 export function AnnouncementDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -85,7 +86,7 @@ export function AnnouncementDetailPage() {
 
       {loading && (
         <div className="py-24 flex items-center justify-center">
-          <div className="w-10 h-10 rounded-full border-4 border-transparent animate-spin" style={{ borderTopColor: "#9332EA", borderLeftColor: "rgba(147,50,234,0.3)" }} />
+          <div className="w-10 h-10 rounded-full border-4 border-transparent animate-spin" style={{ borderTopColor: "var(--brand-action)", borderLeftColor: "var(--brand-border)" }} />
         </div>
       )}
 
@@ -110,7 +111,7 @@ export function AnnouncementDetailPage() {
                 </h1>
                 <div className="mt-2 flex flex-wrap items-center gap-3 text-sm" style={{ color: "var(--text-secondary)" }}>
                   <span className="inline-flex items-center gap-1.5">
-                    <UserCircle2 size={14} />
+                    <UserAvatar name={announcement.authorName} src={announcement.authorAvatarUrl} size="xs" />
                     {announcement.authorName}
                   </span>
                   {announcement.authorRole && <span>{toReadableRole(announcement.authorRole)}</span>}
@@ -126,7 +127,7 @@ export function AnnouncementDetailPage() {
               {announcement.pinned && (
                 <span
                   className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold"
-                  style={{ background: "rgba(147,50,234,0.12)", color: "var(--color-primary-600)" }}
+                  style={{ background: "var(--brand-soft)", color: "var(--color-primary-600)" }}
                 >
                   <Pin size={12} />
                   Pinned

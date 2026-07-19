@@ -116,7 +116,7 @@ export function EmployeeFormPage() {
         <div className="py-20 flex items-center justify-center">
           <div
             className="w-10 h-10 rounded-full border-4 border-transparent animate-spin"
-            style={{ borderTopColor: "#9332EA", borderLeftColor: "rgba(147,50,234,0.3)" }}
+            style={{ borderTopColor: "var(--brand-action)", borderLeftColor: "var(--brand-border)" }}
           />
         </div>
       )}
@@ -130,7 +130,7 @@ export function EmployeeFormPage() {
           action={!isEdit ? (
             <span
               className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold"
-              style={{ color: "var(--color-primary-600)", borderColor: "rgba(147,50,234,0.25)", background: "rgba(147,50,234,0.08)" }}
+              style={{ color: "var(--color-primary-600)", borderColor: "var(--brand-border)", background: "var(--brand-soft)" }}
             >
               <UserPlus size={12} />
               New Hire

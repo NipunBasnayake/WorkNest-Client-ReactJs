@@ -17,7 +17,8 @@ import {
 } from "@/modules/employees/services/employeeService";
 import { SectionCard } from "@/components/common/SectionCard";
 import { StatusBadge } from "@/components/common/StatusBadge";
-import { AvatarInitials } from "@/components/common/AvatarInitials";
+import { UserAvatar } from "@/components/common/UserAvatar";
+import { AvatarUploadField } from "@/components/common/AvatarUploadField";
 import { Button } from "@/components/common/Button";
 import { AppSelect } from "@/components/common/AppSelect";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
@@ -26,6 +27,8 @@ import { toEmployeeViewModel } from "@/modules/employees/utils/employeeMapper";
 import type { EmployeeSkill, EmployeeViewModel, SkillLevel } from "@/modules/employees/types";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { tenantRoutes } from "@/utils/tenantRoutes";
+import { deleteEmployeeAvatarApi, uploadEmployeeAvatarApi } from "@/services/api/employeeApi";
+import type { ImageUploadRequestOptions } from "@/services/uploads/uploadTypes";
 
 const SKILL_LEVELS: SkillLevel[] = ["BEGINNER", "INTERMEDIATE", "ADVANCED", "EXPERT"];
 
@@ -197,6 +200,23 @@ export function EmployeeDetailPage() {
     }
   }
 
+  async function handleAvatarUpload(file: File, options: ImageUploadRequestOptions) {
+    if (!id) return;
+    const result = await uploadEmployeeAvatarApi(id, file, options);
+    const avatarUrl = result.variants?.["128"] ?? result.avatarUrl ?? undefined;
+    setEmployee((previous) => previous ? { ...previous, avatarUrl } : previous);
+    await invalidateWorkflowQueries(queryClient, ["employees", "teams", "tasks"]);
+    setMessage("Employee profile picture updated.");
+  }
+
+  async function handleAvatarRemove() {
+    if (!id) return;
+    await deleteEmployeeAvatarApi(id);
+    setEmployee((previous) => previous ? { ...previous, avatarUrl: undefined } : previous);
+    await invalidateWorkflowQueries(queryClient, ["employees", "teams", "tasks"]);
+    setMessage("Employee profile picture removed.");
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-3">
@@ -226,7 +246,7 @@ export function EmployeeDetailPage() {
         <div className="py-24 flex items-center justify-center">
           <div
             className="w-10 h-10 rounded-full border-4 border-transparent animate-spin"
-            style={{ borderTopColor: "#9332EA", borderLeftColor: "rgba(147,50,234,0.3)" }}
+            style={{ borderTopColor: "var(--brand-action)", borderLeftColor: "var(--brand-border)" }}
           />
         </div>
       )}
@@ -260,7 +280,7 @@ export function EmployeeDetailPage() {
           <SectionCard>
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div className="flex items-center gap-4 min-w-0">
-                <AvatarInitials name={employee.displayName} size="lg" />
+                <UserAvatar name={employee.displayName} email={employee.email} src={employee.avatarUrl} size="lg" eager />
                 <div className="min-w-0">
                   <h1 className="text-2xl font-bold truncate" style={{ color: "var(--text-primary)" }}>
                     {employee.displayName}
@@ -271,7 +291,7 @@ export function EmployeeDetailPage() {
                   {isSelfProfile && (
                     <span
                       className="mt-2 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold"
-                      style={{ background: "rgba(147,50,234,0.12)", color: "var(--color-primary-600)" }}
+                      style={{ background: "var(--brand-soft)", color: "var(--color-primary-600)" }}
                     >
                       <UserCog size={12} />
                       This is your employee record
@@ -282,6 +302,12 @@ export function EmployeeDetailPage() {
               <StatusBadge status={currentStatus} />
             </div>
           </SectionCard>
+
+          {canEdit ? (
+            <SectionCard title="Profile picture" subtitle="Manage the canonical employee avatar used throughout this tenant.">
+              <AvatarUploadField name={employee.displayName} email={employee.email} src={employee.avatarUrl} onUpload={handleAvatarUpload} onRemove={handleAvatarRemove} />
+            </SectionCard>
+          ) : null}
 
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
             <SectionCard title="Basic Information">
