@@ -26,7 +26,13 @@ export function BrandingProvider({ mode, tenantSlug, children }: BrandingProvide
     retry: 1,
   });
 
-  const branding = enabled && query.data ? query.data : WORKNEST_BRANDING;
+  const scopedFallback = useMemo(() => mode === "default" ? WORKNEST_BRANDING : {
+    ...WORKNEST_BRANDING,
+    tenantKey: tenantSlug ?? null,
+    tenantSlug: tenantSlug ?? null,
+    companyName: "Workspace",
+  }, [mode, tenantSlug]);
+  const branding = enabled && query.data ? query.data : scopedFallback;
   const tokens = useMemo(() => deriveBrandTokens(branding.primaryColor), [branding.primaryColor]);
 
   useLayoutEffect(() => {

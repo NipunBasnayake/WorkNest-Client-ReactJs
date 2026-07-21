@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { useBranding } from "@/features/branding/useBranding";
 
 interface SeoMetaOptions {
   title: string;
@@ -11,10 +12,13 @@ interface SeoMetaOptions {
 
 const APP_NAME = "WorkNest";
 
-function resolveTitle(title: string) {
+function resolveTitle(title: string, applicationName: string) {
   const cleanTitle = title.trim();
-  if (!cleanTitle) return APP_NAME;
-  return /worknest/i.test(cleanTitle) ? cleanTitle : `${cleanTitle} - ${APP_NAME}`;
+  const cleanApplicationName = applicationName.trim() || APP_NAME;
+  if (!cleanTitle) return cleanApplicationName;
+  return cleanTitle.toLocaleLowerCase().includes(cleanApplicationName.toLocaleLowerCase())
+    ? cleanTitle
+    : `${cleanTitle} - ${cleanApplicationName}`;
 }
 
 function ensureMeta(selector: string, create: () => HTMLMetaElement) {
@@ -66,8 +70,10 @@ export function useSeoMeta({
   ogDescription,
   noIndex = false,
 }: SeoMetaOptions) {
+  const { branding } = useBranding();
+
   useEffect(() => {
-    const documentTitle = resolveTitle(title);
+    const documentTitle = resolveTitle(title, branding.companyName);
     document.title = documentTitle;
     setNamedMeta("description", description);
     setPropertyMeta("og:title", ogTitle ?? documentTitle);
@@ -75,5 +81,5 @@ export function useSeoMeta({
     setPropertyMeta("og:type", "website");
     setNamedMeta("robots", noIndex ? "noindex,nofollow" : "index,follow");
     setCanonical(canonicalPath);
-  }, [canonicalPath, description, noIndex, ogDescription, ogTitle, title]);
+  }, [branding.companyName, canonicalPath, description, noIndex, ogDescription, ogTitle, title]);
 }

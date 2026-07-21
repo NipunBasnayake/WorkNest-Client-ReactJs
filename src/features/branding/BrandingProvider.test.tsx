@@ -10,7 +10,6 @@ vi.mock("@/features/branding/brandingService", () => ({
     companyName: slug === "blue" ? "Blue Company" : "Green Company",
     primaryColor: slug === "blue" ? "#2563EB" : "#059669",
     brandingVersion: 1,
-    tokenAlgorithmVersion: 1,
   })),
   getTenantBranding: vi.fn(),
 }));

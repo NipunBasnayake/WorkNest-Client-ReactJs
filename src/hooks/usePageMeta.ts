@@ -1,13 +1,15 @@
 import { useEffect } from "react";
 import { usePage } from "@/app/layouts/PageMetaContext";
+import { useBranding } from "@/features/branding/useBranding";
 
 const APP_NAME = "WorkNest";
 
-function toDocumentTitle(title: string): string {
+function toDocumentTitle(title: string, applicationName: string): string {
   const cleanTitle = title.trim();
-  if (!cleanTitle) return APP_NAME;
-  if (/worknest/i.test(cleanTitle)) return cleanTitle;
-  return `${cleanTitle} - ${APP_NAME}`;
+  const cleanApplicationName = applicationName.trim() || APP_NAME;
+  if (!cleanTitle) return cleanApplicationName;
+  if (cleanTitle.toLocaleLowerCase().includes(cleanApplicationName.toLocaleLowerCase())) return cleanTitle;
+  return `${cleanTitle} - ${cleanApplicationName}`;
 }
 
 /**
@@ -16,15 +18,16 @@ function toDocumentTitle(title: string): string {
  */
 export function usePageMeta(opts: { title: string; breadcrumb?: string[] }) {
   const { setTitle, setBreadcrumb } = usePage();
+  const { branding } = useBranding();
   const breadcrumb = opts.breadcrumb ?? [];
   const breadcrumbKey = breadcrumb.join("::");
   const title = opts.title.trim();
-  const documentTitle = toDocumentTitle(title);
+  const documentTitle = toDocumentTitle(title, branding.companyName);
 
   useEffect(() => {
-    setTitle(title || APP_NAME);
+    setTitle(title || branding.companyName || APP_NAME);
     setBreadcrumb(breadcrumb);
     document.title = documentTitle;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [breadcrumbKey, documentTitle, setBreadcrumb, setTitle, title]);
+  }, [branding.companyName, breadcrumbKey, documentTitle, setBreadcrumb, setTitle, title]);
 }

@@ -1,9 +1,6 @@
 import type { CSSProperties } from "react";
-import { ManagedImageUploadField } from "@/components/common/ManagedImageUploadField";
-import { TenantLogo } from "@/features/branding/TenantLogo";
 import { deriveBrandTokens, normalizeBrandColor } from "@/features/branding/colorTokens";
 import type { TenantBranding } from "@/features/branding/types";
-import type { ImageUploadRequestOptions } from "@/services/uploads/uploadTypes";
 
 const HEX_COLOR = /^#[0-9A-F]{6}$/;
 
@@ -67,7 +64,9 @@ export function BrandPreview({ branding }: { branding: TenantBranding }) {
       style={{ ...previewStyle, borderColor: "var(--brand-border)", backgroundColor: "var(--bg-surface)" }}
     >
       <div className="flex items-center justify-between gap-3 border-b px-4 py-3" style={{ borderColor: "var(--brand-border)", background: "var(--brand-soft)" }}>
-        <TenantLogo size="header" brandingOverride={branding} eager />
+        <span className="min-w-0 break-words text-lg font-bold" style={{ color: "var(--color-primary-700)" }}>
+          {branding.companyName}
+        </span>
         <span className="rounded-full px-2.5 py-1 text-xs font-semibold" style={{ background: "var(--brand-action)", color: "var(--brand-on-primary)" }}>
           Preview
         </span>
@@ -83,35 +82,5 @@ export function BrandPreview({ branding }: { branding: TenantBranding }) {
         </div>
       </div>
     </div>
-  );
-}
-
-export function BrandLogoField({
-  branding,
-  onUpload,
-  onRemove,
-  disabled = false,
-}: {
-  branding: TenantBranding;
-  onUpload: (file: File, options: ImageUploadRequestOptions) => Promise<void>;
-  onRemove: () => Promise<void>;
-  disabled?: boolean;
-}) {
-  const hasLogo = Boolean(branding.logo?.url);
-
-  return (
-    <ManagedImageUploadField
-      title="Company logo"
-      description="PNG, JPEG, or WebP up to 2 MB. The full aspect ratio and responsive variants are preserved automatically."
-      preview={<TenantLogo size="settings" showName={false} brandingOverride={branding} eager />}
-      previewAlt={`${branding.companyName || "Company"} logo preview`}
-      hasImage={hasLogo}
-      kind="logo"
-      uploadLabel="Upload logo"
-      replaceLabel="Replace logo"
-      disabled={disabled}
-      onUpload={onUpload}
-      onRemove={onRemove}
-    />
   );
 }
