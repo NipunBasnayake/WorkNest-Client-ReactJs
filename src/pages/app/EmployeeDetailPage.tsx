@@ -8,11 +8,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { PERMISSIONS } from "@/constants/permissions";
 import { usePermission } from "@/hooks/usePermission";
 import {
-  addEmployeeSkill,
-  deleteEmployeeSkill,
   getEmployeeById,
   getEmployeeSkills,
-  updateEmployeeSkill,
   updateEmployeeStatus,
 } from "@/modules/employees/services/employeeService";
 import { SectionCard } from "@/components/common/SectionCard";
@@ -20,23 +17,14 @@ import { StatusBadge } from "@/components/common/StatusBadge";
 import { UserAvatar } from "@/components/common/UserAvatar";
 import { AvatarUploadField } from "@/components/common/AvatarUploadField";
 import { Button } from "@/components/common/Button";
-import { AppSelect } from "@/components/common/AppSelect";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { EmptyState, ErrorBanner } from "@/components/common/AppUI";
 import { toEmployeeViewModel } from "@/modules/employees/utils/employeeMapper";
-import type { EmployeeSkill, EmployeeViewModel, SkillLevel } from "@/modules/employees/types";
+import type { EmployeeSkill, EmployeeViewModel } from "@/modules/employees/types";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { tenantRoutes } from "@/utils/tenantRoutes";
 import { deleteEmployeeAvatarApi, uploadEmployeeAvatarApi } from "@/services/api/employeeApi";
 import type { ImageUploadRequestOptions } from "@/services/uploads/uploadTypes";
-
-const SKILL_LEVELS: SkillLevel[] = ["BEGINNER", "INTERMEDIATE", "ADVANCED", "EXPERT"];
-
-interface SkillEditorState {
-  id: string;
-  name: string;
-  level: SkillLevel;
-}
 
 export function EmployeeDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -47,7 +35,6 @@ export function EmployeeDetailPage() {
 
   const canEdit = hasPermission(PERMISSIONS.EMPLOYEES_MANAGE);
   const canManageStatus = hasPermission(PERMISSIONS.EMPLOYEE_STATUS_MANAGE);
-  const canManageSkills = hasPermission(PERMISSIONS.EMPLOYEE_SKILLS_MANAGE);
 
   const [employee, setEmployee] = useState<EmployeeViewModel | null>(null);
   const [skills, setSkills] = useState<EmployeeSkill[]>([]);
@@ -58,12 +45,6 @@ export function EmployeeDetailPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [statusTarget, setStatusTarget] = useState<"active" | "inactive" | null>(null);
   const [statusLoading, setStatusLoading] = useState(false);
-
-  const [newSkillName, setNewSkillName] = useState("");
-  const [newSkillLevel, setNewSkillLevel] = useState<SkillLevel>("INTERMEDIATE");
-  const [skillSubmitting, setSkillSubmitting] = useState(false);
-  const [editingSkill, setEditingSkill] = useState<SkillEditorState | null>(null);
-  const [deleteSkillTarget, setDeleteSkillTarget] = useState<EmployeeSkill | null>(null);
 
   const resolvedError = !id ? "Invalid employee id." : error;
   const isSelfProfile = Boolean(user && employee && (
@@ -142,61 +123,6 @@ export function EmployeeDetailPage() {
       setMessage(getErrorMessage(err, "Unable to update employee status."));
     } finally {
       setStatusLoading(false);
-    }
-  }
-
-  async function handleCreateSkill() {
-    if (!id || !newSkillName.trim()) return;
-    setSkillSubmitting(true);
-    setMessage(null);
-    try {
-      const created = await addEmployeeSkill(id, { name: newSkillName.trim(), level: newSkillLevel });
-      setSkills((prev) => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)));
-      await invalidateWorkflowQueries(queryClient, ["employees"]);
-      setNewSkillName("");
-      setNewSkillLevel("INTERMEDIATE");
-      setMessage("Skill added.");
-    } catch (err: unknown) {
-      setMessage(getErrorMessage(err, "Skill add failed. Backend skill mutation may not be enabled."));
-    } finally {
-      setSkillSubmitting(false);
-    }
-  }
-
-  async function handleUpdateSkill() {
-    if (!id || !editingSkill || !editingSkill.id || !editingSkill.name.trim()) return;
-    setSkillSubmitting(true);
-    setMessage(null);
-    try {
-      const updated = await updateEmployeeSkill(id, editingSkill.id, {
-        name: editingSkill.name.trim(),
-        level: editingSkill.level,
-      });
-      setSkills((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
-      await invalidateWorkflowQueries(queryClient, ["employees"]);
-      setEditingSkill(null);
-      setMessage("Skill updated.");
-    } catch (err: unknown) {
-      setMessage(getErrorMessage(err, "Skill update failed. Backend skill mutation may not be enabled."));
-    } finally {
-      setSkillSubmitting(false);
-    }
-  }
-
-  async function handleDeleteSkill() {
-    if (!id || !deleteSkillTarget || !deleteSkillTarget.id) return;
-    setSkillSubmitting(true);
-    setMessage(null);
-    try {
-      await deleteEmployeeSkill(id, deleteSkillTarget.id);
-      setSkills((prev) => prev.filter((item) => item.id !== deleteSkillTarget.id));
-      await invalidateWorkflowQueries(queryClient, ["employees"]);
-      setDeleteSkillTarget(null);
-      setMessage("Skill removed.");
-    } catch (err: unknown) {
-      setMessage(getErrorMessage(err, "Skill deletion failed. Backend skill mutation may not be enabled."));
-    } finally {
-      setSkillSubmitting(false);
     }
   }
 
@@ -334,11 +260,11 @@ export function EmployeeDetailPage() {
           <SectionCard
             title="Employee Skills"
             subtitle="Technical capability profile for project and team allocation."
-            action={canManageSkills && !skillsLoading ? (
-              <span className="inline-flex items-center gap-1.5 text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>
-                <Sparkles size={12} />
-                Skill Management
-              </span>
+            action={canEdit && id && !skillsLoading ? (
+              <Button variant="outline" size="sm" to={tenantRoutes.employeeEdit(id)}>
+                <Sparkles size={14} />
+                Edit skills
+              </Button>
             ) : undefined}
           >
             {skillsError && <ErrorBanner message={skillsError} />}
@@ -348,106 +274,27 @@ export function EmployeeDetailPage() {
             )}
 
             {!skillsLoading && (
-              <div className="space-y-4">
-                {canManageSkills && (
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_180px_auto]">
-                    <input
-                      type="text"
-                      value={newSkillName}
-                      onChange={(event) => setNewSkillName(event.target.value)}
-                      placeholder="Add skill (e.g. Spring Boot)"
-                      className="rounded-xl border px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary-500/30"
-                      style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)", color: "var(--text-primary)" }}
-                    />
-                    <AppSelect
-                      value={newSkillLevel}
-                      onChange={(event) => setNewSkillLevel(event.target.value as SkillLevel)}
-                    >
-                      {SKILL_LEVELS.map((level) => (
-                        <option key={level} value={level}>
-                          {toReadableLabel(level)}
-                        </option>
-                      ))}
-                    </AppSelect>
-                    <Button variant="primary" onClick={handleCreateSkill} disabled={skillSubmitting || !newSkillName.trim()}>
-                      Add Skill
-                    </Button>
-                  </div>
-                )}
-
-                {!skillsLoading && skills.length === 0 && (
+              <div>
+                {skills.length === 0 && (
                   <p className="text-sm" style={{ color: "var(--text-tertiary)" }}>
                     No skills assigned yet.
                   </p>
                 )}
 
                 {skills.length > 0 && (
-                  <div className="space-y-2">
+                  <div className="flex flex-wrap gap-2" aria-label="Employee skills">
                     {skills.map((skill) => (
-                      <div
-                        key={skill.id || `${skill.name}-${skill.level}`}
-                        className="rounded-xl border p-3"
-                        style={{ borderColor: "var(--border-default)", backgroundColor: "var(--bg-surface)" }}
+                      <span
+                        key={skill.id || skill.name}
+                        className="inline-flex items-center rounded-full border px-3 py-1.5 text-sm font-medium"
+                        style={{
+                          backgroundColor: "var(--brand-soft)",
+                          borderColor: "var(--brand-border)",
+                          color: "var(--text-primary)",
+                        }}
                       >
-                        {editingSkill?.id === skill.id ? (
-                          <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_180px_auto_auto]">
-                            <input
-                              type="text"
-                              value={editingSkill.name}
-                              onChange={(event) => setEditingSkill((prev) => prev ? { ...prev, name: event.target.value } : prev)}
-                              className="rounded-xl border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary-500/30"
-                              style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)", color: "var(--text-primary)" }}
-                            />
-                            <AppSelect
-                              value={editingSkill.level}
-                              onChange={(event) => setEditingSkill((prev) => prev ? { ...prev, level: event.target.value as SkillLevel } : prev)}
-                            >
-                              {SKILL_LEVELS.map((level) => (
-                                <option key={level} value={level}>{toReadableLabel(level)}</option>
-                              ))}
-                            </AppSelect>
-                            <Button variant="outline" size="sm" onClick={handleUpdateSkill} disabled={skillSubmitting || !editingSkill.name.trim()}>
-                              Save
-                            </Button>
-                            <Button variant="ghost" size="sm" onClick={() => setEditingSkill(null)} disabled={skillSubmitting}>
-                              Cancel
-                            </Button>
-                          </div>
-                        ) : (
-                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <div>
-                              <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{skill.name}</p>
-                              <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
-                                Level: {toReadableLabel(skill.level)}
-                                {skill.yearsOfExperience !== undefined ? ` - ${skill.yearsOfExperience} year(s)` : ""}
-                              </p>
-                            </div>
-                            {canManageSkills && skill.id && (
-                              <div className="flex items-center gap-2">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => setEditingSkill({ id: skill.id, name: skill.name, level: skill.level })}
-                                >
-                                  Edit
-                                </Button>
-                                <Button
-                                  variant="danger"
-                                  size="sm"
-                                  onClick={() => setDeleteSkillTarget(skill)}
-                                >
-                                  Remove
-                                </Button>
-                              </div>
-                            )}
-                            {canManageSkills && !skill.id && (
-                              <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>
-                                Skill is read-only from backend response.
-                              </p>
-                            )}
-                          </div>
-                        )}
-                      </div>
+                        {skill.name}
+                      </span>
                     ))}
                   </div>
                 )}
@@ -471,15 +318,6 @@ export function EmployeeDetailPage() {
         onConfirm={handleStatusUpdate}
       />
 
-      <ConfirmDialog
-        open={Boolean(deleteSkillTarget)}
-        title="Remove skill?"
-        description={deleteSkillTarget ? `Remove ${deleteSkillTarget.name} from this employee profile.` : ""}
-        confirmLabel="Remove Skill"
-        loading={skillSubmitting}
-        onCancel={() => setDeleteSkillTarget(null)}
-        onConfirm={handleDeleteSkill}
-      />
     </div>
   );
 }

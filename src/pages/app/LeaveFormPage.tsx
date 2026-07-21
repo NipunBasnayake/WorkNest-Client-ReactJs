@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
@@ -35,6 +35,11 @@ export function LeaveFormPage() {
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [fatalError, setFatalError] = useState<string | null>(null);
+  const redirectTimerRef = useRef<number | null>(null);
+
+  useEffect(() => () => {
+    if (redirectTimerRef.current !== null) window.clearTimeout(redirectTimerRef.current);
+  }, []);
 
   useEffect(() => {
     if (!id) return;
@@ -104,7 +109,10 @@ export function LeaveFormPage() {
         setMessage("Leave request submitted successfully.");
       }
       await invalidateWorkflowQueries(queryClient, ["leave"]);
-      setTimeout(() => navigate(tenantRoutes.leave(), { replace: true }), 500);
+      redirectTimerRef.current = window.setTimeout(() => {
+        redirectTimerRef.current = null;
+        navigate(tenantRoutes.leave(), { replace: true });
+      }, 500);
     } catch (error: unknown) {
       setMessage(getErrorMessage(error, "Unable to save leave request."));
     } finally {

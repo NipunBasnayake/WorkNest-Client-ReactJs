@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { CalendarDays, Clock3, LogIn, LogOut, UserCheck, Users2, UserRoundPen, BadgeCheck } from "lucide-react";
 import { UserAvatar } from "@/components/common/UserAvatar";
@@ -49,10 +49,15 @@ export function AttendancePage() {
   const [feedback, setFeedback] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [summary, setSummary] = useState({ total: 0, present: 0, late: 0, absent: 0, halfDay: 0, incomplete: 0 });
+  const attendanceRequestRef = useRef(0);
 
   const canViewAll = hasPermission(PERMISSIONS.ATTENDANCE_MANAGE);
   const canMarkOwnAttendance = hasPermission(PERMISSIONS.ATTENDANCE_VIEW);
   const canManageManualAttendance = hasPermission(PERMISSIONS.ATTENDANCE_MANAGE);
+
+  useEffect(() => () => {
+    attendanceRequestRef.current += 1;
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -107,17 +112,23 @@ export function AttendancePage() {
   }, [canManageManualAttendance]);
 
   const fetchAttendance = useCallback(async (date: string) => {
+    const requestId = ++attendanceRequestRef.current;
     setLoading(true);
     setError(null);
     try {
       const recordRes = await getAttendanceRecords(date, canViewAll ? "all" : "mine");
       const summaryRes = canViewAll ? await getAttendanceSummary(date) : summarizeAttendance(recordRes);
+      if (requestId !== attendanceRequestRef.current) return;
       setRecords(recordRes);
       setSummary(summaryRes);
     } catch {
-      setError("Unable to load attendance records.");
+      if (requestId === attendanceRequestRef.current) {
+        setError("Unable to load attendance records.");
+      }
     } finally {
-      setLoading(false);
+      if (requestId === attendanceRequestRef.current) {
+        setLoading(false);
+      }
     }
   }, [canViewAll]);
 
@@ -250,7 +261,18 @@ export function AttendancePage() {
       )}
 
       {selfRecord && (
-        <SectionCard title="My Attendance Snapshot" subtitle={`For ${new Date(selectedDate).toLocaleDateString()}`}>
+        <SectionCard
+          title="My Attendance Snapshot"
+          subtitle={`For ${new Date(selectedDate).toLocaleDateString()}`}
+          actionAlwaysInline
+          action={(
+            <div className="flex flex-wrap justify-end gap-1.5">
+              <AttendanceStatusBadge status={selfRecord.status} />
+              {selfRecord.late && <SemanticBadge variant="warning" label="Late" showDot={false} />}
+              {selfRecord.manualEntry && <SemanticBadge variant="neutral" label="Manual entry" showDot={false} />}
+            </div>
+          )}
+        >
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <InfoTile icon={<Clock3 size={16} />} label="Check In" value={selfRecord.checkIn || "-"} />
             <InfoTile icon={<Clock3 size={16} />} label="Check Out" value={selfRecord.checkOut || "-"} />
@@ -261,16 +283,6 @@ export function AttendancePage() {
               value={selfRecord.status === "INCOMPLETE" ? "Incomplete" : selfRecord.status.replaceAll("_", " ")}
             />
           </div>
-          <div className="mt-4 flex flex-wrap items-center gap-2">
-            <AttendanceStatusBadge status={selfRecord.status} />
-            {selfRecord.late && <SemanticBadge variant="warning" label="Late" showDot={false} />}
-            {selfRecord.manualEntry && <SemanticBadge variant="neutral" label="Manual entry" showDot={false} />}
-          </div>
-          {selfRecord.note && (
-            <p className="mt-3 text-sm" style={{ color: "var(--text-secondary)" }}>
-              Note: {selfRecord.note}
-            </p>
-          )}
           {selfRecord.markedByEmployee && (
             <p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>
               Marked by: {selfRecord.markedByEmployee.name}

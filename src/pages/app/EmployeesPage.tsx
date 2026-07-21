@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Building2, CalendarDays, Mail, Phone, UserCheck, UserPlus, UserX, Users } from "lucide-react";
 import { FiEdit2, FiEye } from "react-icons/fi";
@@ -8,7 +8,7 @@ import { usePageMeta } from "@/hooks/usePageMeta";
 import { invalidateWorkflowQueries } from "@/hooks/queries/workflowInvalidation";
 import { PERMISSIONS } from "@/constants/permissions";
 import { usePermission } from "@/hooks/usePermission";
-import { getEmployees, updateEmployeeStatus } from "@/modules/employees/services/employeeService";
+import { searchEmployees, updateEmployeeStatus } from "@/modules/employees/services/employeeService";
 import { EmptyState, ErrorBanner, SkeletonRow } from "@/components/common/AppUI";
 import { Button } from "@/components/common/Button";
 import { AppSelect } from "@/components/common/AppSelect";
@@ -54,22 +54,25 @@ export function EmployeesPage() {
   const [statusTarget, setStatusTarget] = useState<StatusActionTarget | null>(null);
   const [updatingStatus, setUpdatingStatus] = useState(false);
 
-  async function fetchEmployees() {
+  const fetchEmployees = useCallback(async (searchQuery: string) => {
     setLoading(true);
     setError(null);
     try {
-      const data = await getEmployees();
+      const data = await searchEmployees(searchQuery);
       setEmployees(data.map(toEmployeeViewModel));
     } catch (err: unknown) {
       setError(getErrorMessage(err, "Failed to load employees. Please check your connection and try again."));
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
   useEffect(() => {
-    fetchEmployees();
-  }, []);
+    const timer = window.setTimeout(() => {
+      void fetchEmployees(search.trim());
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [fetchEmployees, search]);
 
   const departmentOptions = useMemo(() => {
     const unique = new Set(
@@ -81,28 +84,17 @@ export function EmployeesPage() {
   }, [employees]);
 
   const filtered = useMemo(() => {
-    const query = search.trim().toLowerCase();
     return employees.filter((emp) => {
       const normalizedRole = String(emp.role ?? "").toUpperCase();
       const normalizedStatus = String(emp.status ?? "active").toLowerCase();
-
-      const matchesSearch = !query || [
-        emp.employeeCode,
-        emp.displayName,
-        emp.email,
-        emp.phone,
-        emp.position,
-        emp.department,
-        emp.role,
-      ].some((value) => value?.toLowerCase().includes(query));
 
       const matchesDepartment = departmentFilter === "all" || (emp.department ?? "").toLowerCase() === departmentFilter.toLowerCase();
       const matchesStatus = statusFilter === "all" || normalizedStatus === statusFilter;
       const matchesRole = roleFilter === "all" || normalizedRole === roleFilter;
 
-      return matchesSearch && matchesDepartment && matchesStatus && matchesRole;
+      return matchesDepartment && matchesStatus && matchesRole;
     });
-  }, [departmentFilter, employees, roleFilter, search, statusFilter]);
+  }, [departmentFilter, employees, roleFilter, statusFilter]);
   const employeePagination = useClientPagination(filtered, {
     storageKey: "employees",
     resetKey: `${search}|${departmentFilter}|${statusFilter}|${roleFilter}`,
@@ -166,7 +158,7 @@ export function EmployeesPage() {
             label="Search employees"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by code, name, email, role, department..."
+            placeholder="Search by code, name, email, department, or skill..."
           />
 
           <AppSelect
@@ -205,7 +197,7 @@ export function EmployeesPage() {
         <InlineAlert tone={feedback.toLowerCase().includes("unable") ? "error" : "success"} message={feedback} />
       )}
 
-      {error && <ErrorBanner message={error} onRetry={fetchEmployees} />}
+      {error && <ErrorBanner message={error} onRetry={() => void fetchEmployees(search.trim())} />}
 
       <SectionCard variant="table" title="Employees" subtitle="View, update, and maintain workforce records.">
         <div className="overflow-x-auto">
