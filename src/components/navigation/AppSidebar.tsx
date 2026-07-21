@@ -2,7 +2,7 @@ import { useState, type ReactNode } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, Users, Building2,
-  ChevronDown, ChevronLeft, ChevronRight, X,
+  ChevronDown, X,
   ClipboardList, CalendarCheck, Bell, MessageSquare, Briefcase, BarChart3, CheckSquare, BellRing,
   Lock,
   FileText,
@@ -13,7 +13,8 @@ import { type Permission, PERMISSIONS } from "@/constants/permissions";
 import { usePermission } from "@/hooks/usePermission";
 import { tenantRoutes, platformRoutes } from "@/utils/tenantRoutes";
 import { Separator } from "@/components/ui/separator";
-import { TenantLogo } from "@/features/branding/TenantLogo";
+import { WorkNestBrand } from "@/components/common/Logo";
+import { useBranding } from "@/features/branding/useBranding";
 
 interface SidebarNavDef {
   label: string;
@@ -32,9 +33,7 @@ interface SidebarNavGroup {
 
 interface AppSidebarProps {
   area: "tenant" | "platform";
-  collapsed: boolean;
   mobileOpen: boolean;
-  onToggleCollapse: () => void;
   onMobileClose: () => void;
 }
 
@@ -136,12 +135,10 @@ function resolveNavTo(to: string | ((slug: string) => string), tenantSlug?: stri
 
 function NavItem({
   item,
-  collapsed,
   onMobileClose,
   tenantSlug,
 }: {
   item: SidebarNavDef;
-  collapsed: boolean;
   onMobileClose: () => void;
   tenantSlug?: string;
 }) {
@@ -159,25 +156,13 @@ function NavItem({
     return (
       <div className={`${base} cursor-not-allowed opacity-50`} style={{ color: "var(--text-tertiary)" }}>
         <span className="shrink-0">{item.icon}</span>
-        {!collapsed && (
-          <span className="truncate">{item.label}</span>
-        )}
-        {!collapsed && (
-          <span
-            className="ml-auto text-[10px] font-semibold px-1.5 py-0.5 rounded"
-            style={{ background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.4)" }}
-          >
-            Soon
-          </span>
-        )}
-        {collapsed && (
-          <div
-            className="absolute left-full ml-2 px-2 py-1 rounded-lg text-xs font-medium opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50 transition-opacity"
-            style={{ backgroundColor: "var(--bg-surface)", color: "var(--text-primary)", boxShadow: "0 4px 12px rgba(0,0,0,0.2)" }}
-          >
-            {item.label} <span className="text-primary-400">(Soon)</span>
-          </div>
-        )}
+        <span className="truncate">{item.label}</span>
+        <span
+          className="ml-auto rounded px-1.5 py-0.5 text-[10px] font-semibold"
+          style={{ background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.4)" }}
+        >
+          Soon
+        </span>
       </div>
     );
   }
@@ -199,29 +184,18 @@ function NavItem({
       })}
     >
       <span className="shrink-0">{item.icon}</span>
-      {!collapsed && <span className="truncate">{item.label}</span>}
-      {/* Tooltip in collapsed mode */}
-      {collapsed && (
-        <div
-          className="absolute left-full ml-2 px-2 py-1 rounded-lg text-xs font-medium opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50 transition-opacity"
-          style={{ backgroundColor: "var(--bg-surface)", color: "var(--text-primary)", boxShadow: "0 4px 12px rgba(0,0,0,0.2)" }}
-        >
-          {item.label}
-        </div>
-      )}
+      <span className="truncate">{item.label}</span>
     </NavLink>
   );
 }
 
 function NavGroup({
   group,
-  collapsed,
   onMobileClose,
   isFirst,
   tenantSlug,
 }: {
   group: SidebarNavGroup;
-  collapsed: boolean;
   onMobileClose: () => void;
   isFirst: boolean;
   tenantSlug?: string;
@@ -237,27 +211,12 @@ function NavGroup({
     : containsActiveRoute;
 
   const separator = !isFirst ? (
-    <div className={collapsed ? "px-2 py-2" : "px-3.5 py-2"}>
+    <div className="px-3.5 py-2">
       <Separator className="bg-white/10" decorative />
     </div>
   ) : null;
 
   if (group.collapsible) {
-    if (collapsed) {
-      const overviewItem = group.items[0];
-      return (
-        <div className="space-y-1">
-          {separator}
-          <NavItem
-            item={{ ...overviewItem, label: group.label, icon: group.icon ?? overviewItem.icon }}
-            collapsed
-            onMobileClose={onMobileClose}
-            tenantSlug={tenantSlug}
-          />
-        </div>
-      );
-    }
-
     const controlId = `sidebar-${group.label.toLowerCase().replace(/\s+/g, "-")}`;
     return (
       <div className="space-y-1">
@@ -283,7 +242,6 @@ function NavGroup({
               <NavItem
                 key={typeof item.to === "function" ? item.label : item.to}
                 item={item}
-                collapsed={false}
                 onMobileClose={onMobileClose}
                 tenantSlug={tenantSlug}
               />
@@ -301,7 +259,6 @@ function NavGroup({
         <NavItem
           key={typeof item.to === "function" ? item.label : item.to}
           item={item}
-          collapsed={collapsed}
           onMobileClose={onMobileClose}
           tenantSlug={tenantSlug}
         />
@@ -310,9 +267,10 @@ function NavGroup({
   );
 }
 
-export function AppSidebar({ area, collapsed, mobileOpen, onToggleCollapse, onMobileClose }: AppSidebarProps) {
+export function AppSidebar({ area, mobileOpen, onMobileClose }: AppSidebarProps) {
   const { tenantKey } = useAuth();
   const { hasPermission } = usePermission();
+  const { branding } = useBranding();
 
   const resolvedTenantSlug = tenantKey ?? "app";
 
@@ -333,11 +291,20 @@ export function AppSidebar({ area, collapsed, mobileOpen, onToggleCollapse, onMo
       }}
     >
       {/* Header */}
-      <div className="flex h-16 shrink-0 items-center justify-between border-b border-white/8 px-4">
-        <div className="inline-flex min-w-0 items-center gap-2.5 text-white">
-          <TenantLogo size="sidebar" showName={!collapsed} eager />
+      <div className="flex min-h-20 shrink-0 items-center justify-between gap-3 border-b border-white/8 px-5 py-4" style={{ borderBottomColor: "color-mix(in srgb, var(--brand-action) 50%, transparent)" }}>
+        <div className="min-w-0 flex-1">
+          {area === "tenant" ? (
+            <div
+              className="whitespace-normal break-words text-xl font-extrabold leading-tight tracking-tight"
+              style={{ color: "var(--color-primary-100)" }}
+            >
+              {branding.companyName}
+            </div>
+          ) : (
+            <WorkNestBrand size="sm" />
+          )}
         </div>
-        <div className="flex items-center gap-1 ml-auto">
+        <div className="ml-auto flex shrink-0 items-center gap-1">
           {/* Mobile close */}
           <button
             onClick={onMobileClose}
@@ -345,14 +312,6 @@ export function AppSidebar({ area, collapsed, mobileOpen, onToggleCollapse, onMo
             aria-label="Close sidebar"
           >
             <X size={18} />
-          </button>
-          {/* Desktop collapse */}
-          <button
-            onClick={onToggleCollapse}
-            className="hidden lg:flex p-1.5 rounded-lg text-white/40 hover:text-white/80 hover:bg-white/8 transition-colors cursor-pointer"
-            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          >
-            {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
           </button>
         </div>
       </div>
@@ -363,7 +322,6 @@ export function AppSidebar({ area, collapsed, mobileOpen, onToggleCollapse, onMo
           <NavGroup
             key={group.label}
             group={group}
-            collapsed={collapsed}
             onMobileClose={onMobileClose}
             isFirst={index === 0}
             tenantSlug={resolvedTenantSlug}
@@ -387,9 +345,9 @@ export function AppSidebar({ area, collapsed, mobileOpen, onToggleCollapse, onMo
 
       {/* Sidebar panel */}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex flex-col transition-[transform,width] duration-300 lg:relative lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-40 flex w-72 flex-col transition-transform duration-300 lg:relative lg:translate-x-0 ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
-        } ${collapsed ? "w-[5rem]" : "w-72"}`}
+        }`}
         style={{ height: "100vh" }}
         aria-label="Sidebar navigation"
       >

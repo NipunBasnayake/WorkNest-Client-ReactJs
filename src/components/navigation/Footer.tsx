@@ -1,6 +1,5 @@
 import { matchPath, useLocation } from "react-router-dom";
 import { Logo } from "@/components/common/Logo";
-import { TenantLogo } from "@/features/branding/TenantLogo";
 import { useBranding } from "@/features/branding/useBranding";
 
 const quickLinks = [
@@ -28,7 +27,7 @@ export function Footer() {
       <footer className="border-t" style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)" }}>
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-4 py-6 text-center sm:flex-row sm:text-left">
           <div>
-            <TenantLogo size="compact" />
+            <p className="break-words text-base font-bold" style={{ color: "var(--text-primary)" }}>{branding.companyName}</p>
             <p className="mt-2 text-xs" style={{ color: "var(--text-secondary)" }}>A simple, secure hiring experience with {branding.companyName}.</p>
           </div>
           <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>Hiring powered by WorkNest · © {year}</p>

@@ -55,7 +55,7 @@ export function AppTopbar({ area, pageTitle, breadcrumb, onMobileMenuToggle }: A
 
   const isTenantArea = area === "tenant";
   const notificationPanelId = "topbar-notifications-panel";
-  const displayName = user?.name?.trim() || user?.email || "WorkNest user";
+  const displayName = user?.name?.trim() || user?.email || (isTenantArea ? "Workspace user" : "WorkNest user");
   const displayEmail = user?.email || "No email available";
   const roleLabel = formatRoleLabel(role ?? user?.role);
   const tenantSlug = tenantKey ?? undefined;

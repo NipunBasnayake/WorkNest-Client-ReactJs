@@ -19,7 +19,7 @@ function BootstrapLoader() {
           }}
         />
         <p className="text-sm" style={{ color: "var(--text-tertiary)" }}>
-          Starting WorkNest...
+          Starting workspace...
         </p>
       </div>
     </div>

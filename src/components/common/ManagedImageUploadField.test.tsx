@@ -13,7 +13,6 @@ function renderUploader(overrides: Partial<React.ComponentProps<typeof ManagedIm
       preview={<span>JD</span>}
       previewAlt="Jane Doe profile picture"
       hasImage={false}
-      kind="avatar"
       uploadLabel="Add picture"
       replaceLabel="Replace picture"
       onUpload={onUpload}
@@ -55,7 +54,7 @@ describe("ManagedImageUploadField", () => {
     fireEvent.change(input, { target: { files: [file] } });
 
     const dialog = await screen.findByRole("dialog", { name: "Review profile picture" });
-    expect(dialog).toHaveAccessibleDescription("The center square is used across WorkNest.");
+    expect(dialog).toHaveAccessibleDescription("The center square is used throughout the workspace.");
     expect(screen.getByRole("button", { name: "Cancel" })).toHaveFocus();
 
     fireEvent.click(screen.getByRole("button", { name: "Use picture" }));

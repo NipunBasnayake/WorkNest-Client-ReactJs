@@ -24,7 +24,6 @@ export function AvatarUploadField({
       preview={<UserAvatar name={name} email={email} src={src} size="xl" eager />}
       previewAlt={`${name || email || "User"} profile picture preview`}
       hasImage={Boolean(src)}
-      kind="avatar"
       uploadLabel="Upload picture"
       replaceLabel="Replace picture"
       disabled={disabled}

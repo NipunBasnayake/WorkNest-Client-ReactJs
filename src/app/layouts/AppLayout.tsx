@@ -13,7 +13,6 @@ interface AppLayoutProps {
 }
 
 export function AppLayout({ area }: AppLayoutProps) {
-  const [collapsed,   setCollapsed]   = useState(false);
   const [mobileOpen,  setMobileOpen]  = useState(false);
   const [pageTitle,   setPageTitle]   = useState("Dashboard");
   const [breadcrumb,  setBreadcrumb]  = useState<string[]>([]);
@@ -34,9 +33,7 @@ export function AppLayout({ area }: AppLayoutProps) {
         {/* Sidebar */}
         <AppSidebar
           area={area}
-          collapsed={collapsed}
           mobileOpen={mobileOpen}
-          onToggleCollapse={() => setCollapsed((c) => !c)}
           onMobileClose={() => setMobileOpen(false)}
         />
 

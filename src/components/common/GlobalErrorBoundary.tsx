@@ -56,7 +56,7 @@ export class GlobalErrorBoundary extends Component<GlobalErrorBoundaryProps, Glo
             Something went wrong
           </h1>
           <p className="mb-6 text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>
-            WorkNest hit an unexpected error. You can reload the app to recover your session.
+            The application hit an unexpected error. You can reload it to recover your session.
           </p>
 
           <Button
@@ -66,7 +66,7 @@ export class GlobalErrorBoundary extends Component<GlobalErrorBoundaryProps, Glo
               window.location.reload();
             }}
           >
-            Reload WorkNest
+            Reload application
           </Button>
         </div>
       </div>

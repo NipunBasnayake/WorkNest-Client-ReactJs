@@ -5,7 +5,7 @@ import {
   type DragEvent,
   type ReactNode,
 } from "react";
-import { Camera, ImagePlus, LoaderCircle, RefreshCw, Trash2, Upload, X } from "lucide-react";
+import { Camera, LoaderCircle, RefreshCw, Trash2, Upload, X } from "lucide-react";
 import { Button } from "@/components/common/Button";
 import type { ImageUploadRequestOptions } from "@/services/uploads/uploadTypes";
 
@@ -27,7 +27,6 @@ interface ManagedImageUploadFieldProps {
   preview: ReactNode;
   previewAlt: string;
   hasImage: boolean;
-  kind: "avatar" | "logo";
   uploadLabel: string;
   replaceLabel: string;
   onUpload: (file: File, options: ImageUploadRequestOptions) => Promise<void>;
@@ -41,7 +40,6 @@ export function ManagedImageUploadField({
   preview,
   previewAlt,
   hasImage,
-  kind,
   uploadLabel,
   replaceLabel,
   onUpload,
@@ -180,7 +178,7 @@ export function ManagedImageUploadField({
     <img
       src={pending.url}
       alt={previewAlt}
-      className={`h-full w-full ${kind === "avatar" ? "object-cover" : "object-contain"}`}
+      className="h-full w-full object-cover"
     />
   ) : preview;
 
@@ -188,7 +186,7 @@ export function ManagedImageUploadField({
     <div className="space-y-3">
       <div>
         <p className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>{title}</p>
-        <p id={`${kind}-upload-help`} className="mt-1 text-xs leading-5" style={{ color: "var(--text-tertiary)" }}>{description}</p>
+        <p id="avatar-upload-help" className="mt-1 text-xs leading-5" style={{ color: "var(--text-tertiary)" }}>{description}</p>
       </div>
 
       <div
@@ -204,10 +202,8 @@ export function ManagedImageUploadField({
       >
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
           <div
-            className={kind === "avatar"
-              ? "h-24 w-24 shrink-0 overflow-hidden rounded-full border"
-              : "flex h-20 min-w-36 shrink-0 items-center justify-center overflow-hidden rounded-xl border bg-white p-2"}
-            style={{ borderColor: "var(--border-default)", backgroundColor: kind === "avatar" ? "var(--bg-surface)" : undefined }}
+            className="h-24 w-24 shrink-0 overflow-hidden rounded-full border"
+            style={{ borderColor: "var(--border-default)", backgroundColor: "var(--bg-surface)" }}
           >
             {localPreview}
           </div>
@@ -226,7 +222,7 @@ export function ManagedImageUploadField({
                 disabled={disabled || working || removing}
                 onClick={() => inputRef.current?.click()}
               >
-                {kind === "avatar" ? <Camera size={15} /> : <ImagePlus size={15} />}
+                <Camera size={15} />
                 {hasImage ? replaceLabel : uploadLabel}
               </Button>
               {hasImage ? (
@@ -250,7 +246,7 @@ export function ManagedImageUploadField({
               type="file"
               className="sr-only"
               accept=".png,.jpg,.jpeg,.webp"
-              aria-describedby={`${kind}-upload-help`}
+              aria-describedby="avatar-upload-help"
               disabled={disabled || working || removing}
               onChange={(event) => {
                 const file = event.target.files?.[0];
@@ -281,8 +277,8 @@ export function ManagedImageUploadField({
           <div
             role="dialog"
             aria-modal="true"
-            aria-labelledby={`${kind}-image-review-title`}
-            aria-describedby={`${kind}-image-review-description`}
+            aria-labelledby="avatar-image-review-title"
+            aria-describedby="avatar-image-review-description"
             className="w-full max-w-md overflow-hidden rounded-2xl border shadow-2xl"
             style={{ background: "var(--bg-surface)", borderColor: "var(--border-default)" }}
             onKeyDown={(event) => {
@@ -301,16 +297,16 @@ export function ManagedImageUploadField({
             }}
           >
             <div className="border-b px-5 py-4" style={{ borderColor: "var(--border-default)" }}>
-              <h3 id={`${kind}-image-review-title`} className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>
-                Review {kind === "avatar" ? "profile picture" : "company logo"}
+              <h3 id="avatar-image-review-title" className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>
+                Review profile picture
               </h3>
-              <p id={`${kind}-image-review-description`} className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>
-                {kind === "avatar" ? "The center square is used across WorkNest." : "The full logo is preserved inside each generated size."}
+              <p id="avatar-image-review-description" className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>
+                The center square is used throughout the workspace.
               </p>
             </div>
             <div className="p-5">
-              <div className={kind === "avatar" ? "mx-auto aspect-square max-w-72 overflow-hidden rounded-2xl border" : "flex h-48 items-center justify-center overflow-hidden rounded-2xl border bg-white p-5"} style={{ borderColor: "var(--border-default)" }}>
-                <img src={pending.url} alt={previewAlt} className={`h-full w-full ${kind === "avatar" ? "object-cover" : "object-contain"}`} />
+              <div className="mx-auto aspect-square max-w-72 overflow-hidden rounded-2xl border" style={{ borderColor: "var(--border-default)" }}>
+                <img src={pending.url} alt={previewAlt} className="h-full w-full object-cover" />
               </div>
               <div className="mt-3 flex items-center justify-center gap-2 text-xs" style={{ color: "var(--text-tertiary)" }}>
                 <span className="max-w-56 truncate">{pending.file.name}</span>
@@ -321,7 +317,7 @@ export function ManagedImageUploadField({
             <div className="flex flex-wrap justify-end gap-2 border-t px-5 py-4" style={{ borderColor: "var(--border-default)" }}>
               <Button type="button" variant="ghost" size="sm" autoFocus onClick={() => { setReviewing(false); releasePending(); }}>Cancel</Button>
               <Button type="button" size="sm" onClick={() => void startUpload()}>
-                <Upload size={15} /> Use {kind === "avatar" ? "picture" : "logo"}
+                <Upload size={15} /> Use picture
               </Button>
             </div>
           </div>
