@@ -228,8 +228,7 @@ export function AppSettingsProfilePage() {
           <div className="space-y-6">
             <SectionCard
               title="Personal information"
-              subtitle="Keep your employee identity accurate for colleagues and shared workspace activity."
-              action={<UserRound size={19} aria-hidden="true" style={{ color: "var(--brand-action)" }} />}
+              subtitle="Keep your employee identity accurate for shared workspace activity."
             >
               <div className="space-y-5">
                 <div className="grid gap-5 md:grid-cols-2">
@@ -247,7 +246,6 @@ export function AppSettingsProfilePage() {
                     autoComplete="organization-title"
                     value={values.title}
                     error={profileSubmitted ? profileErrors.title : undefined}
-                    hint="Shown on your profile and employee directory entry."
                     onChange={(event) => setValues((previous) => ({ ...previous, title: event.target.value }))}
                   />
                   <Input
@@ -266,7 +264,6 @@ export function AppSettingsProfilePage() {
                     type="email"
                     value={values.email}
                     disabled
-                    hint="Email changes are managed by your authentication account."
                     onChange={() => undefined}
                   />
                 </div>
@@ -284,7 +281,6 @@ export function AppSettingsProfilePage() {
             <SectionCard
               title="Password and sign-in"
               subtitle="Choose a strong password that you do not use for another account."
-              action={<ShieldCheck size={19} aria-hidden="true" style={{ color: "var(--brand-action)" }} />}
             >
               <div className="space-y-5">
                 <div className="grid gap-5 md:grid-cols-2">

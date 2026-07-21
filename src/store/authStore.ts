@@ -115,12 +115,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const loginResult = await loginApi(payload);
 
       if (loginResult.kind === "password_change_required") {
+        const sessionType: SessionType = payload.tenantKey ? "tenant" : "platform";
+        const tenantKey = loginResult.challenge.tenantKey ?? payload.tenantKey ?? null;
+        const challengeUser = loginResult.challenge.user;
+
+        tokenStorage.setTokens(loginResult.tokens.accessToken, loginResult.tokens.refreshToken);
+        tokenStorage.setCsrf(loginResult.csrfToken ?? null);
+        tokenStorage.setContext(tenantKey, sessionType);
+
         set({
           isLoading: false,
-          isAuthenticated: false,
-          user: null,
-          sessionType: null,
-          tenantKey: loginResult.challenge.tenantKey,
+          isAuthenticated: true,
+          user: challengeUser ? { ...challengeUser, sessionType } : null,
+          sessionType,
+          tenantKey,
+          authReady: true,
           passwordChangeRequired: true,
           passwordChangeChallenge: loginResult.challenge,
           error: loginResult.challenge.reason ?? "Password change is required before continuing.",
@@ -248,6 +257,28 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
         tokenStorage.setContext(resolvedTenant, sessionType);
 
+        if (user.passwordChangeRequired) {
+          const challenge: PasswordChangeRequirement = {
+            email: user.email,
+            tenantKey: resolvedTenant,
+            challengeToken: null,
+            reason: "Password change is required before continuing.",
+            user,
+          };
+          set({
+            user: { ...user, sessionType },
+            isAuthenticated: true,
+            sessionType,
+            tenantKey: resolvedTenant,
+            isBootstrapping: false,
+            authReady: true,
+            error: challenge.reason ?? null,
+            passwordChangeRequired: true,
+            passwordChangeChallenge: challenge,
+          });
+          return;
+        }
+
         set({
           user: { ...user, sessionType },
           isAuthenticated: true,
@@ -314,7 +345,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     try {
       tokenStorage.setTokens(result.tokens.accessToken, result.tokens.refreshToken);
-      tokenStorage.setCsrf(null);
+      tokenStorage.setCsrf(result.csrfToken ?? null);
 
       const provisionalSessionType: SessionType = challengeTenantKey ? "tenant" : "platform";
       tokenStorage.setContext(challengeTenantKey, provisionalSessionType);

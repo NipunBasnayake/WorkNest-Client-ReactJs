@@ -8,6 +8,7 @@ interface SectionCardProps {
   className?: string;
   contentClassName?: string;
   variant?: "default" | "dense" | "table" | "plain";
+  actionAlwaysInline?: boolean;
 }
 
 const sectionClasses = {
@@ -39,6 +40,7 @@ export function SectionCard({
   className = "",
   contentClassName = "",
   variant = "default",
+  actionAlwaysInline = false,
 }: SectionCardProps) {
   const isPlain = variant === "plain";
 
@@ -53,7 +55,7 @@ export function SectionCard({
     >
       {(title || subtitle || action) && (
         <div
-          className={headerClasses[variant]}
+          className={`${headerClasses[variant]} ${actionAlwaysInline ? "!flex-row !items-start !justify-between" : ""}`.trim()}
           style={{ borderColor: isPlain ? "transparent" : variant === "table" ? "var(--border-strong)" : "var(--border-default)" }}
         >
           <div className="min-w-0">
@@ -68,7 +70,11 @@ export function SectionCard({
               </p>
             )}
           </div>
-          {action && <div className="flex shrink-0 items-center gap-2">{action}</div>}
+          {action && (
+            <div className={`flex shrink-0 items-center gap-2 ${actionAlwaysInline ? "max-w-[58%] flex-wrap justify-end" : ""}`.trim()}>
+              {action}
+            </div>
+          )}
         </div>
       )}
 

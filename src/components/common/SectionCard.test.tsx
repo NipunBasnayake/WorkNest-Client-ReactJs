@@ -27,4 +27,14 @@ describe("SectionCard", () => {
     rerender(<SectionCard variant="plain">Plain content</SectionCard>);
     expect(screen.getByText("Plain content").closest("section")).toHaveStyle({ boxShadow: "none" });
   });
+
+  it("can keep header actions in the top-right on small screens", () => {
+    render(
+      <SectionCard title="Snapshot" action={<span>Status</span>} actionAlwaysInline>
+        Content
+      </SectionCard>,
+    );
+
+    expect(screen.getByText("Snapshot").parentElement?.parentElement).toHaveClass("!flex-row", "!items-start", "!justify-between");
+  });
 });

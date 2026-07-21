@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ArrowDown, ArrowLeft } from "lucide-react";
 import type { ChatConversation, ChatMessage } from "@/modules/chat/types";
 import { buildConversationKey, formatMessageDay, formatMessageTime } from "@/app/chat/chatUtils";
@@ -28,6 +28,7 @@ export function MessageThread({
 }: MessageThreadProps) {
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const previousMessageCountRef = useRef<number>(0);
+  const pendingInitialScrollKeyRef = useRef<string | null>(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
 
   const conversationKey = conversation ? buildConversationKey(conversation) : null;
@@ -76,20 +77,26 @@ export function MessageThread({
     setIsAtBottom(remaining < 48);
   }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     previousMessageCountRef.current = 0;
+    pendingInitialScrollKeyRef.current = conversationKey;
+  }, [conversationKey]);
 
-    if (!conversationKey) return;
+  useLayoutEffect(() => {
+    const latestMessage = messages[messages.length - 1];
+    if (!conversationKey || !latestMessage || pendingInitialScrollKeyRef.current !== conversationKey) {
+      return;
+    }
+    if (`${latestMessage.chatType}:${latestMessage.conversationId}` !== conversationKey) {
+      return;
+    }
 
-    const frame = window.requestAnimationFrame(() => {
-      scrollToBottom("auto");
-      updateBottomState();
-    });
-
-    return () => {
-      window.cancelAnimationFrame(frame);
-    };
-  }, [conversationKey, scrollToBottom, updateBottomState]);
+    scrollToBottom("auto");
+    pendingInitialScrollKeyRef.current = null;
+    previousMessageCountRef.current = messages.length;
+    const frame = window.requestAnimationFrame(updateBottomState);
+    return () => window.cancelAnimationFrame(frame);
+  }, [conversationKey, messages, scrollToBottom, updateBottomState]);
 
   useEffect(() => {
     const previousCount = previousMessageCountRef.current;
@@ -101,16 +108,26 @@ export function MessageThread({
     }
 
     const latestMessage = messages[nextCount - 1];
+    const latestConversationKey = `${latestMessage.chatType}:${latestMessage.conversationId}`;
+    if (!conversationKey || latestConversationKey !== conversationKey) {
+      return;
+    }
+
     const latestIsMine = Boolean(latestMessage && latestMessage.senderEmployeeId === currentUserId);
     const hasNewMessage = nextCount > previousCount;
 
     if (hasNewMessage && (isAtBottom || latestIsMine)) {
-      const behavior: ScrollBehavior = previousCount > 0 && latestIsMine ? "smooth" : "auto";
-      scrollToBottom(behavior);
+      const behavior: ScrollBehavior = previousCount === 0 || !latestIsMine ? "auto" : "smooth";
+      const frame = window.requestAnimationFrame(() => {
+        scrollToBottom(behavior);
+        updateBottomState();
+      });
+      previousMessageCountRef.current = nextCount;
+      return () => window.cancelAnimationFrame(frame);
     }
 
     previousMessageCountRef.current = nextCount;
-  }, [currentUserId, isAtBottom, messages, scrollToBottom]);
+  }, [conversationKey, currentUserId, isAtBottom, messages, scrollToBottom, updateBottomState]);
 
   if (!conversation) {
     return (

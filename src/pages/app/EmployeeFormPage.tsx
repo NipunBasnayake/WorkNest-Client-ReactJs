@@ -1,10 +1,16 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, UserPlus } from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { invalidateWorkflowQueries } from "@/hooks/queries/workflowInvalidation";
-import { createEmployee, getEmployeeById, updateEmployee } from "@/modules/employees/services/employeeService";
+import {
+  createEmployee,
+  getEmployeeById,
+  getEmployeeSkills,
+  getSkillSuggestions,
+  updateEmployee,
+} from "@/modules/employees/services/employeeService";
 import { SectionCard } from "@/components/common/SectionCard";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/common/Button";
@@ -12,7 +18,7 @@ import { ErrorBanner } from "@/components/common/AppUI";
 import { EmployeeForm } from "@/modules/employees/components/EmployeeForm";
 import { DEFAULT_EMPLOYEE_FORM, validateEmployeeForm } from "@/modules/employees/schemas/employeeForm";
 import { generateEmployeeCode, toEmployeeFormValues, toEmployeePayload } from "@/modules/employees/utils/employeeMapper";
-import type { EmployeeFormErrors, EmployeeFormValues } from "@/modules/employees/types";
+import type { EmployeeFormErrors, EmployeeFormValues, SkillSuggestion } from "@/modules/employees/types";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { tenantRoutes } from "@/utils/tenantRoutes";
 import { useAuth } from "@/hooks/useAuth";
@@ -40,16 +46,40 @@ export function EmployeeFormPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [fatalError, setFatalError] = useState<string | null>(null);
   const [editingOwnAccount, setEditingOwnAccount] = useState(false);
+  const [skillSuggestions, setSkillSuggestions] = useState<SkillSuggestion[]>([]);
+  const redirectTimerRef = useRef<number | null>(null);
+
+  useEffect(() => () => {
+    if (redirectTimerRef.current !== null) window.clearTimeout(redirectTimerRef.current);
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    getSkillSuggestions()
+      .then((suggestions) => {
+        if (active) setSkillSuggestions(suggestions);
+      })
+      .catch(() => {
+        if (active) setSkillSuggestions([]);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!id) return;
 
     let active = true;
     setLoading(true);
-    getEmployeeById(id)
-      .then((res) => {
+    Promise.all([getEmployeeById(id), getEmployeeSkills(id)])
+      .then(([res, skills]) => {
         if (active) {
-          setForm(toEmployeeFormValues(res));
+          setForm({
+            ...toEmployeeFormValues(res),
+            skills: skills.map((skill) => ({ name: skill.name })),
+          });
           setEditingOwnAccount(isCurrentEmployee(res, user));
         }
       })
@@ -89,7 +119,8 @@ export function EmployeeFormPage() {
       }
 
       await invalidateWorkflowQueries(queryClient, ["employees"]);
-      setTimeout(() => {
+      redirectTimerRef.current = window.setTimeout(() => {
+        redirectTimerRef.current = null;
         navigate(tenantRoutes.employees(), { replace: true });
       }, 500);
     } catch (err: unknown) {
@@ -156,6 +187,7 @@ export function EmployeeFormPage() {
             submitting={submitting}
             isEdit={isEdit}
             preventSelfDeactivation={editingOwnAccount}
+            skillSuggestions={skillSuggestions}
             submitLabel={isEdit ? "Save Changes" : "Create Employee"}
             onChange={(next) => {
               setForm(next);

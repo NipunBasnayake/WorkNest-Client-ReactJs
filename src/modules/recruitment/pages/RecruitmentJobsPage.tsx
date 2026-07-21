@@ -98,7 +98,7 @@ export function RecruitmentJobsPage() {
         {jobsQuery.isError ? <div className="p-5"><ErrorBanner message="Could not load job openings." onRetry={() => void jobsQuery.refetch()} /></div>
           : jobsQuery.isLoading ? <div>{Array.from({ length: 5 }).map((_, index) => <SkeletonRow key={index} cols={5} />)}</div>
           : jobs.length === 0 ? <div className="p-8"><EmptyState icon={<BriefcaseBusiness size={30} />} title={search ? "No matching job openings" : "Create your first job opening"} description={search ? "Try a different title or department." : "Write the role once in Markdown, preview it, and publish when it is ready."} action={canManage && !search ? <Button to={tenantRoutes.recruitmentJobNew(tenantSlug)}><Plus size={16} />Create Job Opening</Button> : undefined} /></div>
-          : <div className="divide-y" style={{ borderColor: "var(--border-default)" }}>
+          : <div className="divide-y divide-[var(--border-default)]">
             {jobs.map((job) => <JobRow key={job.id} job={job} tenantSlug={tenantSlug} canManage={canManage} busy={busyId === job.id} onAction={act} onCopy={copyLink} onDelete={setDeleteTarget} />)}
           </div>}
 

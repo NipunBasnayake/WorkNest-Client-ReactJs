@@ -7,5 +7,15 @@ interface TableProps {
 }
 
 export function Table({ children, className = "" }: TableProps) {
-  return <div className={cn("overflow-hidden rounded-2xl border bg-[var(--bg-surface)] shadow-sm", className)}>{children}</div>;
+  return (
+    <div
+      className={cn(
+        "overflow-hidden rounded-2xl border bg-[var(--bg-surface)]",
+        className
+      )}
+      style={{ borderColor: "var(--border-default)" }}
+    >
+      {children}
+    </div>
+  );
 }

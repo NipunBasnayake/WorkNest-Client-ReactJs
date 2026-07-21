@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
@@ -45,8 +45,14 @@ export function ProjectFormPage() {
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [fatalError, setFatalError] = useState<string | null>(null);
+  const redirectTimerRef = useRef<number | null>(null);
+
+  useEffect(() => () => {
+    if (redirectTimerRef.current !== null) window.clearTimeout(redirectTimerRef.current);
+  }, []);
 
   useEffect(() => {
+    let active = true;
     setTeamLoadError(null);
     const viewerProfilePromise = canManageProjects
       ? Promise.resolve(null)
@@ -54,14 +60,19 @@ export function ProjectFormPage() {
 
     Promise.all([
       getTeams().catch((err: unknown) => {
-        setTeamLoadError(getErrorMessage(err, "Unable to load teams for assignment."));
+        if (active) setTeamLoadError(getErrorMessage(err, "Unable to load teams for assignment."));
         return [];
       }),
       viewerProfilePromise,
     ]).then(([teamResult, profile]) => {
+      if (!active) return;
       setTeams(teamResult);
       setViewerEmployeeId(profile?.id);
     });
+
+    return () => {
+      active = false;
+    };
   }, [canManageProjects]);
 
   useEffect(() => {
@@ -140,7 +151,10 @@ export function ProjectFormPage() {
       }
 
       await invalidateWorkflowQueries(queryClient, ["projects"]);
-      setTimeout(() => navigate(tenantRoutes.projects(), { replace: true }), 500);
+      redirectTimerRef.current = window.setTimeout(() => {
+        redirectTimerRef.current = null;
+        navigate(tenantRoutes.projects(), { replace: true });
+      }, 500);
     } catch (err: unknown) {
       setMessage(getErrorMessage(err, "Unable to save project right now."));
     } finally {

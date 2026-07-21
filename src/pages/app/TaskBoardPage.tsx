@@ -30,7 +30,7 @@ import {
 import { KanbanColumn } from "@/modules/tasks/components/KanbanColumn";
 import { KanbanTaskCard } from "@/modules/tasks/components/KanbanTaskCard";
 import { TASK_PRIORITY_OPTIONS, TASK_STATUS_OPTIONS, type Task, type TaskStatus } from "@/modules/tasks/types";
-import { canMoveTaskToStatus, getTaskAllowedStatuses, hasTeamWorkflowAccess } from "@/modules/tasks/utils/taskWorkflow";
+import { canMoveTaskToStatus, getTaskAllowedStatuses, getTaskStatusLabel, hasTeamWorkflowAccess } from "@/modules/tasks/utils/taskWorkflow";
 import { persistTasksViewPreference, resolveTasksViewFromQuery } from "@/modules/tasks/utils/tasksViewPreference";
 import { subscribeTaskRealtime } from "@/modules/tasks/services/taskRealtimeService";
 import { resolveViewerTeamRoles } from "@/modules/teams/utils/teamRoles";
@@ -40,16 +40,9 @@ import { Button } from "@/components/common/Button";
 import { EmptyState, ErrorBanner } from "@/components/common/AppUI";
 import { AppSelect } from "@/components/common/AppSelect";
 import { SearchField } from "@/components/common/SearchField";
+import { InlineAlert } from "@/components/common/InlineAlert";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { tenantRoutes } from "@/utils/tenantRoutes";
-
-const BOARD_LABELS: Record<typeof TASK_STATUS_OPTIONS[number], string> = {
-  TODO: "To Do",
-  IN_PROGRESS: "In Progress",
-  IN_REVIEW: "Review",
-  BLOCKED: "Blocked",
-  DONE: "Done",
-};
 
 function toLabel(value: string): string {
   return value.toLowerCase().replaceAll("_", " ").replace(/\b\w/g, (character) => character.toUpperCase());
@@ -74,10 +67,11 @@ export function TaskBoardPage() {
   const [search, setSearch] = useState("");
   const [priorityFilter, setPriorityFilter] = useState("ALL");
   const [projectFilter, setProjectFilter] = useState("ALL");
-  const [feedback, setFeedback] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<{ tone: "success" | "warning" | "error" | "info"; message: string } | null>(null);
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const realtimeRefetchTimerRef = useRef<number | null>(null);
+  const taskRequestRef = useRef(0);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -87,6 +81,7 @@ export function TaskBoardPage() {
 
   const fetchTasks = useCallback(async (options?: { silent?: boolean }) => {
     const silent = options?.silent ?? false;
+    const requestId = ++taskRequestRef.current;
 
     if (!silent) {
       setLoading(true);
@@ -104,18 +99,23 @@ export function TaskBoardPage() {
       );
       const selfOnly = role === "EMPLOYEE" && !canManageTasks && !hasTeamWorkflowAccess(scopedRoles);
       const data = await (selfOnly ? getMyTasks() : getTasks());
+      if (requestId !== taskRequestRef.current) return;
       setTasks(data);
       setViewerIdentity(identity);
     } catch (err: unknown) {
-      if (!silent) {
+      if (!silent && requestId === taskRequestRef.current) {
         setError(getErrorMessage(err, "Unable to load board tasks."));
       }
     } finally {
-      if (!silent) {
+      if (requestId === taskRequestRef.current) {
         setLoading(false);
       }
     }
   }, [canManageTasks, myTeamsQuery.data, needsScopedWorkflowContext, role, user?.email, user?.id]);
+
+  useEffect(() => () => {
+    taskRequestRef.current += 1;
+  }, []);
 
   useEffect(() => {
     const preferredView = resolveTasksViewFromQuery(searchParams.get("view"));
@@ -278,7 +278,7 @@ export function TaskBoardPage() {
     const isDirectAssignee = Boolean(viewerIdentity && isTaskAssignedToViewer(current, viewerIdentity));
 
     if (!canMoveTaskToStatus(current, hasGlobalTaskWorkflow ? "TENANT_ADMIN" : role, teamRoles, isDirectAssignee, nextStatus)) {
-      setFeedback("This status transition is restricted for your role.");
+      setFeedback({ tone: "warning", message: "This status transition is restricted for your role." });
       return;
     }
 
@@ -294,10 +294,10 @@ export function TaskBoardPage() {
         next.set(updated.id, updated);
         return Array.from(next.values());
       });
-      setFeedback(`Task moved to ${BOARD_LABELS[nextStatus]}.`);
+      setFeedback({ tone: "success", message: `Task moved to ${getTaskStatusLabel(nextStatus)}.` });
     } catch (err: unknown) {
       setTasks((prev) => prev.map((task) => (task.id === taskId ? { ...task, status: previousStatus } : task)));
-      setFeedback(getErrorMessage(err, "Unable to move task right now."));
+      setFeedback({ tone: "error", message: getErrorMessage(err, "Unable to move task right now.") });
     }
   }, [employeeTeams, hasGlobalTaskWorkflow, queryClient, role, tasks, viewerIdentity]);
 
@@ -351,16 +351,7 @@ export function TaskBoardPage() {
       {error && <ErrorBanner message={error} onRetry={() => void fetchTasks()} />}
 
       {feedback && (
-        <div
-          className="rounded-xl border px-4 py-3 text-sm"
-          style={{
-            borderColor: feedback.toLowerCase().includes("unable") ? "rgba(239,68,68,0.25)" : "rgba(16,185,129,0.25)",
-            backgroundColor: feedback.toLowerCase().includes("unable") ? "rgba(239,68,68,0.06)" : "rgba(16,185,129,0.08)",
-            color: feedback.toLowerCase().includes("unable") ? "#ef4444" : "#10b981",
-          }}
-        >
-          {feedback}
-        </div>
+        <InlineAlert tone={feedback.tone} message={feedback.message} />
       )}
 
       {loading && (
@@ -391,7 +382,6 @@ export function TaskBoardPage() {
                 <KanbanColumn
                   key={status}
                   status={status}
-                  title={BOARD_LABELS[status]}
                   tasks={grouped[status]}
                   draggableTaskIds={draggableTaskIds}
                 />

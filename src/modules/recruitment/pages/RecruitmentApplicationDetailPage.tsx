@@ -1,6 +1,6 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, CalendarClock, Check, Download, ExternalLink, Mail, MessageSquarePlus, Send, UserRoundCheck } from "lucide-react";
+import { ArrowLeft, CalendarClock, Check, ExternalLink, Mail, MessageSquarePlus, Send, UserRoundCheck } from "lucide-react";
 import { useParams } from "react-router-dom";
 import { PageHeader } from "@/components/common/PageHeader";
 import { SectionCard } from "@/components/common/SectionCard";
@@ -12,6 +12,7 @@ import { ErrorBanner } from "@/components/common/AppUI";
 import { LoadingSkeleton } from "@/components/common/AsyncStates";
 import { UserAvatar } from "@/components/common/UserAvatar";
 import { RecruitmentStatusBadge } from "@/modules/recruitment/components/RecruitmentStatusBadge";
+import { CvViewer } from "@/modules/recruitment/components/CvViewer";
 import { useApplicationWorkspaceQueries, useRecruitmentApplicationQuery, useRecruitmentEmailTemplatesQuery } from "@/modules/recruitment/hooks/useRecruitment";
 import {
   addApplicationNote,
@@ -184,10 +185,13 @@ export function RecruitmentApplicationDetailPage() {
           ) : null}
         </SectionCard>
 
-        <SectionCard title="Resume" action={application.candidate.resumeFileUrl ? <Button variant="outline" size="sm" onClick={() => window.open(application.candidate.resumeFileUrl, "_blank", "noopener,noreferrer")}><Download size={14} />Download CV</Button> : undefined}>
-          {application.candidate.resumeFileUrl && application.candidate.resumeMimeType?.includes("pdf") ? <iframe title={`${application.candidate.fullName} resume`} src={application.candidate.resumeFileUrl} className="h-[38rem] w-full rounded-xl border" style={{ borderColor: "var(--border-default)" }} />
-            : application.candidate.resumeFileUrl ? <div className="rounded-xl border p-6 text-center" style={{ borderColor: "var(--border-default)", background: "var(--bg-muted)" }}><p className="font-medium" style={{ color: "var(--text-primary)" }}>{application.candidate.resumeFileName ?? "Resume attached"}</p><p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>Preview is available for PDF files. Open the document to review this resume.</p></div>
-              : <p className="text-sm" style={{ color: "var(--text-secondary)" }}>No resume is attached.</p>}
+        <SectionCard title="CV">
+          <CvViewer
+            src={application.candidate.resumeFileUrl}
+            fileName={application.candidate.resumeFileName}
+            mimeType={application.candidate.resumeMimeType}
+            applicantName={application.candidate.fullName}
+          />
         </SectionCard>
 
         <SectionCard title="Cover letter"><p className="whitespace-pre-wrap text-sm leading-7" style={{ color: "var(--text-secondary)" }}>{application.coverLetter || "No cover letter was provided."}</p></SectionCard>

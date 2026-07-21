@@ -13,6 +13,7 @@ export const DEFAULT_EMPLOYEE_FORM: EmployeeFormValues = {
   joinedDate: new Date().toISOString().slice(0, 10),
   salary: "",
   status: "active",
+  skills: [],
 };
 
 export function validateEmployeeForm(values: EmployeeFormValues): EmployeeFormErrors {
@@ -59,6 +60,15 @@ export function validateEmployeeForm(values: EmployeeFormValues): EmployeeFormEr
     if (Number.isNaN(salary) || salary < 0) {
       errors.salary = "Salary must be a valid positive number.";
     }
+  }
+
+  if (values.skills.length > 10) {
+    errors.skills = "An employee can have at most 10 skills.";
+  }
+
+  const normalizedSkills = values.skills.map((skill) => skill.name.trim().replace(/\s+/g, " ").toLowerCase());
+  if (new Set(normalizedSkills).size !== normalizedSkills.length) {
+    errors.skills = "Duplicate skills are not allowed.";
   }
 
   return errors;

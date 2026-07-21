@@ -67,7 +67,7 @@ export function TasksPage() {
   const [projects, setProjects] = useState<Option[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [feedback, setFeedback] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<{ tone: "success" | "warning" | "error" | "info"; message: string } | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"ALL" | TaskStatus>("ALL");
   const [priorityFilter, setPriorityFilter] = useState<"ALL" | typeof TASK_PRIORITY_OPTIONS[number]>("ALL");
@@ -188,7 +188,7 @@ export function TasksPage() {
   async function handleDelete() {
     if (!deleteTarget) return;
     if (deleteTarget.status === "DONE") {
-      setFeedback("DONE tasks are locked. Reopen the task before deleting it.");
+      setFeedback({ tone: "warning", message: "DONE tasks are locked. Reopen the task before deleting it." });
       setDeleteTarget(null);
       return;
     }
@@ -199,9 +199,9 @@ export function TasksPage() {
       setTasks((prev) => prev.filter((task) => task.id !== deleteTarget.id));
       await invalidateWorkflowQueries(queryClient, ["tasks"]);
       setDeleteTarget(null);
-      setFeedback("Task deleted successfully.");
+      setFeedback({ tone: "success", message: "Task deleted successfully." });
     } catch (err: unknown) {
-      setFeedback(getErrorMessage(err, "Could not delete task right now."));
+      setFeedback({ tone: "error", message: getErrorMessage(err, "Could not delete task right now.") });
     } finally {
       setDeleting(false);
     }
@@ -218,9 +218,9 @@ export function TasksPage() {
       const updated = await updateTaskStatus(taskId, status);
       setTasks((prev) => prev.map((task) => (task.id === taskId ? updated : task)));
       await invalidateWorkflowQueries(queryClient, ["tasks"]);
-      setFeedback(`Task moved to ${toLabel(status)}.`);
+      setFeedback({ tone: "success", message: `Task moved to ${toLabel(status)}.` });
     } catch (err: unknown) {
-      setFeedback(getErrorMessage(err, "Unable to update task status."));
+      setFeedback({ tone: "error", message: getErrorMessage(err, "Unable to update task status.") });
     }
   }
 
@@ -332,7 +332,7 @@ export function TasksPage() {
       </SectionCard>
 
       {feedback && (
-        <InlineAlert tone={feedback.toLowerCase().includes("unable") || feedback.toLowerCase().includes("could") ? "error" : "success"} message={feedback} />
+        <InlineAlert tone={feedback.tone} message={feedback.message} />
       )}
 
       {error && <ErrorBanner message={error} onRetry={fetchData} />}

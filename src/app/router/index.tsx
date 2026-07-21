@@ -381,11 +381,7 @@ function RecruitmentRouteRedirect({
       : target === "jobs"
         ? `/${tenantSlug}/recruitment/jobs`
         : `/${tenantSlug}/recruitment/applications`;
-  const searchParams = new URLSearchParams(location.search);
-  if (target === "reports") searchParams.set("category", "recruitment");
-
-  const search = searchParams.toString();
-  const nextPath = `${basePath}${search ? `?${search}` : ""}${location.hash}`;
+  const nextPath = `${basePath}${location.search}${location.hash}`;
   return <Navigate to={nextPath} replace />;
 }
 

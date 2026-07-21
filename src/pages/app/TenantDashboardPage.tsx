@@ -95,7 +95,6 @@ export function TenantDashboardPage() {
     <div className="space-y-6">
       <DashboardHero
         greeting={greeting}
-        companyName={branding.companyName}
         name={user?.name}
         tenantKey={tenantKey}
         role={user?.role}
@@ -149,7 +148,7 @@ function RoleDecisionDashboard({ role, snapshot, quickActions }: { role: 'HR' | 
   return <div className='space-y-6'>
     <div className='rounded-2xl border p-5' style={{ background: isHr ? 'linear-gradient(120deg,rgba(5,150,105,.1),rgba(37,99,235,.04))' : 'linear-gradient(120deg,rgba(37,99,235,.1),var(--glow-subtle))', borderColor: 'var(--border-default)' }}><p className='text-xs font-semibold uppercase tracking-wider' style={{ color: isHr ? '#059669' : '#2563eb' }}>{isHr ? 'People operations cockpit' : 'Delivery command center'}</p><h2 className='mt-1 text-xl font-bold' style={{ color: 'var(--text-primary)' }}>{isHr ? 'Protect workforce health and remove people bottlenecks' : 'Keep delivery predictable and team capacity balanced'}</h2><p className='mt-1 text-sm' style={{ color: 'var(--text-secondary)' }}>{isHr ? `${snapshot.pendingLeaves} leave decisions pending · ${attendanceRate}% attendance today` : `${snapshot.openTasks} open tasks · ${completion}% completion · ${snapshot.taskStatusSummary.BLOCKED} blocked`}</p></div>
     <PageSection title={isHr ? 'Workforce decisions' : 'Delivery decisions'} description='Metrics connected to actions, risk, and business outcomes.'><div className='grid gap-4 sm:grid-cols-2 xl:grid-cols-4'>{isHr ? <><StatCard label='Active workforce' value={snapshot.totalEmployees} icon={<Users size={20} />} accentColor='#059669' /><StatCard label='Present today' value={snapshot.presentToday} icon={<UserCheck size={20} />} accentColor='#10b981' /><StatCard label='Pending leave' value={snapshot.pendingLeaves} icon={<CalendarClock size={20} />} accentColor='#d97706' /><StatCard label='Attendance health' value={`${attendanceRate}%`} icon={<ClipboardList size={20} />} accentColor='#2563eb' /></> : <><StatCard label='Open workload' value={snapshot.openTasks} icon={<CheckSquare size={20} />} accentColor='#2563eb' /><StatCard label='Completed' value={snapshot.completedTasks} icon={<UserCheck size={20} />} accentColor='#10b981' /><StatCard label='Blocked work' value={snapshot.taskStatusSummary.BLOCKED} icon={<ClipboardList size={20} />} accentColor='#ef4444' /><StatCard label='Delivery rate' value={`${completion}%`} icon={<FolderOpen size={20} />} accentColor='var(--brand-action)' /></>}</div></PageSection>
-    <div className='grid gap-4 xl:grid-cols-2'><SectionCard title={isHr ? 'People risk signals' : 'Delivery risk signals'} subtitle='Prioritized conditions requiring attention.'><div className='space-y-3'><DecisionSignal tone={snapshot.pendingLeaves ? 'warning' : 'positive'} title={`${snapshot.pendingLeaves} leave requests awaiting decision`} /><DecisionSignal tone={snapshot.taskStatusSummary.BLOCKED ? 'critical' : 'positive'} title={`${snapshot.taskStatusSummary.BLOCKED} blocked tasks`} /><DecisionSignal tone={snapshot.dueSoonTasks.length > 3 ? 'warning' : 'info'} title={`${snapshot.dueSoonTasks.length} deadlines approaching`} /></div><Button variant='outline' size='sm' to={`${tenantRoutes.analytics()}/${isHr ? 'employees' : 'tasks'}`} className='mt-4'>Investigate in Analytics</Button></SectionCard><SectionCard title='Fast actions' subtitle='Move from signal to action.'><div className='grid gap-3 sm:grid-cols-2'>{quickActions.slice(0, 4).map((action) => <QuickNavCard key={action.label} label={action.label} description={action.description} icon={action.icon} to={action.to()} />)}</div></SectionCard></div>
+    <div className='grid gap-4 xl:grid-cols-2'><SectionCard title={isHr ? 'People risk signals' : 'Delivery risk signals'} subtitle='Prioritized conditions requiring attention.'><div className='space-y-3'><DecisionSignal tone={snapshot.pendingLeaves ? 'warning' : 'positive'} title={`${snapshot.pendingLeaves} leave requests awaiting decision`} /><DecisionSignal tone={snapshot.taskStatusSummary.BLOCKED ? 'critical' : 'positive'} title={`${snapshot.taskStatusSummary.BLOCKED} blocked tasks`} /><DecisionSignal tone={snapshot.dueSoonTasks.length > 3 ? 'warning' : 'info'} title={`${snapshot.dueSoonTasks.length} deadlines approaching`} /></div></SectionCard><SectionCard title='Fast actions' subtitle='Move from signal to action.'><div className='grid gap-3 sm:grid-cols-2'>{quickActions.slice(0, 4).map((action) => <QuickNavCard key={action.label} label={action.label} description={action.description} icon={action.icon} to={action.to()} />)}</div></SectionCard></div>
   </div>;
 }
 
@@ -505,13 +504,11 @@ function TenantUserDashboard({
 
 function DashboardHero({
   greeting,
-  companyName,
   name,
   tenantKey,
   role,
 }: {
   greeting: string;
-  companyName: string;
   name?: string;
   tenantKey?: string | null;
   role?: string;
@@ -526,7 +523,6 @@ function DashboardHero({
       }}
     >
       <div className="relative z-10">
-        <div className="mb-4 break-words text-xl font-extrabold" style={{ color: "var(--color-primary-700)" }}>{companyName}</div>
         <p className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
           {greeting}
         </p>

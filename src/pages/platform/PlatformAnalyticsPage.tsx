@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Activity, BriefcaseBusiness, Building2, CheckCircle2, ListTodo, Users } from "lucide-react";
-import { Link, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { usePlatformAnalyticsQuery } from "@/hooks/queries/usePlatformQueries";
 import { BarChart } from "@/modules/analytics/components/BarChart";
@@ -54,7 +54,7 @@ export function PlatformAnalyticsPage() {
             <SectionCard title={focusedTenant.companyName} subtitle={`Tenant focus · ${focusedTenant.tenantKey}`}>
               <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
                 <div className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-purple-500/10 font-bold text-purple-600">{focusedTenant.companyName[0]?.toUpperCase()}</span><div><p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{focusedTenant.adminName ?? "No administrator assigned"}</p><p className="text-xs" style={{ color: "var(--text-secondary)" }}>Last activity {formatRelativeTime(focusedTenant.lastActivityAt)}</p></div></div>
-                <div className="flex items-center gap-3"><PlatformStatusBadge status={focusedTenant.status} /><Link to={`/platform/tenants/${focusedTenant.tenantKey}`} className="text-xs font-semibold text-purple-600 hover:underline">Open tenant profile →</Link></div>
+                <PlatformStatusBadge status={focusedTenant.status} />
               </div>
             </SectionCard>
           ) : null}
@@ -67,7 +67,7 @@ export function PlatformAnalyticsPage() {
 
           <div className="grid gap-4 xl:grid-cols-2">
             <PlatformTrendChart title="Company registration trend" subtitle="How quickly is the tenant portfolio growing?" data={data.tenantGrowthTrend} valueLabel="New companies" cumulativeLabel="Total companies" />
-            <DonutChart title="Tenant lifecycle distribution" subtitle="What share of companies are active or need intervention?" data={statusData} drillDownTo="/platform/tenants" />
+            <DonutChart title="Tenant lifecycle distribution" subtitle="What share of companies are active or need intervention?" data={statusData} />
           </div>
 
           <div className="grid gap-4 xl:grid-cols-2">
@@ -76,7 +76,7 @@ export function PlatformAnalyticsPage() {
           </div>
 
           <div className="grid gap-4 xl:grid-cols-[.8fr_1.2fr]">
-            <BarChart title="User distribution" subtitle="Which roles make up the platform-wide user base?" data={roleData} color="#7c3aed" drillDownTo="/platform/users" />
+            <BarChart title="User distribution" subtitle="Which roles make up the platform-wide user base?" data={roleData} color="#7c3aed" />
             <SectionCard title="Data coverage" subtitle="Adoption averages use live tenant databases and exclude unavailable workspaces.">
               <div className="grid gap-3 sm:grid-cols-3">
                 <CoverageMetric label="Tenants measured" value={data.usage.tenantsWithUsageAvailable} total={data.tenants.total} />
@@ -112,14 +112,14 @@ function TenantActivityTable({ title, subtitle, tenants }: { title: string; subt
     <SectionCard title={title} subtitle={subtitle}>
       <div className="space-y-2">
         {tenants.map((tenant) => (
-          <Link key={tenant.tenantKey} to={`/platform/tenants/${tenant.tenantKey}`} className="flex items-center gap-3 rounded-xl border p-3 no-underline transition-colors hover:bg-primary-50/40 dark:hover:bg-primary-950/20" style={{ borderColor: "var(--border-default)" }}>
+          <div key={tenant.tenantKey} className="flex items-center gap-3 rounded-xl border p-3" style={{ borderColor: "var(--border-default)" }}>
             <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-purple-500/10 text-sm font-bold text-purple-600">{tenant.companyName[0]?.toUpperCase()}</span>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{tenant.companyName}</p>
               <p className="mt-0.5 text-xs" style={{ color: "var(--text-tertiary)" }}>{formatRelativeTime(tenant.lastActivityAt)}</p>
             </div>
             <PlatformStatusBadge status={tenant.status} />
-          </Link>
+          </div>
         ))}
         {tenants.length === 0 ? <div className="flex items-center justify-center gap-2 py-10 text-sm" style={{ color: "var(--text-tertiary)" }}><Activity size={16} />No activity data available.</div> : null}
       </div>

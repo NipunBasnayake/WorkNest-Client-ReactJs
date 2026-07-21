@@ -6,12 +6,11 @@ import type { Task, TaskStatus } from "@/modules/tasks/types";
 
 interface KanbanColumnProps {
   status: TaskStatus;
-  title: string;
   tasks: Task[];
   draggableTaskIds?: ReadonlySet<string>;
 }
 
-function KanbanColumnComponent({ status, title, tasks, draggableTaskIds }: KanbanColumnProps) {
+function KanbanColumnComponent({ status, tasks, draggableTaskIds }: KanbanColumnProps) {
   const { isOver, setNodeRef } = useDroppable({ id: status, data: { status } });
   const statusLabel = getTaskStatusLabel(status);
   const columnBackground = "color-mix(in srgb, var(--bg-surface) 96%, var(--bg-muted))";
@@ -32,9 +31,6 @@ function KanbanColumnComponent({ status, title, tasks, draggableTaskIds }: Kanba
       >
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-            {title}
-          </p>
-          <p className="text-[11px]" style={{ color: "var(--text-tertiary)" }}>
             {statusLabel}
           </p>
         </div>
