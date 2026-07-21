@@ -65,10 +65,6 @@ export function AppSettingsSecurityPage() {
       <section className="rounded-2xl border p-6 sm:p-7" style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)" }}>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <div className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold" style={{ background: "var(--brand-soft)", color: "var(--color-primary-600)" }}>
-              <ShieldCheck size={14} />
-              Session security
-            </div>
             <h2 className="mt-3 text-2xl font-bold" style={{ color: "var(--text-primary)" }}>
               Active device sessions
             </h2>

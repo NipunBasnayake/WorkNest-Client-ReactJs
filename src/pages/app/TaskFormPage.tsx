@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
@@ -62,8 +62,14 @@ export function TaskFormPage() {
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [fatalError, setFatalError] = useState<string | null>(null);
+  const redirectTimerRef = useRef<number | null>(null);
+
+  useEffect(() => () => {
+    if (redirectTimerRef.current !== null) window.clearTimeout(redirectTimerRef.current);
+  }, []);
 
   useEffect(() => {
+    let active = true;
     setDependencyLoadError(null);
     Promise.all([
       getProjects().catch(() => []),
@@ -71,6 +77,7 @@ export function TaskFormPage() {
       getMyEmployeeProfile().catch(() => null),
     ])
       .then(([projectRes, teamRes, profile]) => {
+        if (!active) return;
         const openProjects = projectRes.filter((project) => !isClosedProject(project));
         setProjectCatalog(openProjects);
         setTeams(teamRes);
@@ -95,8 +102,12 @@ export function TaskFormPage() {
         }
       })
       .catch((err: unknown) => {
-        setDependencyLoadError(getErrorMessage(err, "Unable to load task dependencies."));
+        if (active) setDependencyLoadError(getErrorMessage(err, "Unable to load task dependencies."));
       });
+
+    return () => {
+      active = false;
+    };
   }, [isEdit, requestedProjectId]);
 
   useEffect(() => {
@@ -263,7 +274,10 @@ export function TaskFormPage() {
       }
 
       await invalidateWorkflowQueries(queryClient, ["tasks"]);
-      setTimeout(() => navigate(tenantRoutes.tasks(), { replace: true }), 500);
+      redirectTimerRef.current = window.setTimeout(() => {
+        redirectTimerRef.current = null;
+        navigate(tenantRoutes.tasks(), { replace: true });
+      }, 500);
     } catch (err: unknown) {
       setMessage(getErrorMessage(err, "Unable to save task. Please verify the selected project, team, and assignee belong to your team."));
     } finally {
