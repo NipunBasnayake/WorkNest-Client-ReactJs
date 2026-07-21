@@ -23,7 +23,13 @@ export interface PasswordChangeRequirement {
 
 export type LoginApiResult =
   | { kind: "authenticated"; tokens: AuthTokens; csrfToken?: string; sessionId?: number; user?: AuthUser }
-  | { kind: "password_change_required"; challenge: PasswordChangeRequirement };
+  | {
+      kind: "password_change_required";
+      challenge: PasswordChangeRequirement;
+      tokens: AuthTokens;
+      csrfToken?: string;
+      sessionId?: number;
+    };
 
 export type RefreshTokenApiResult = AuthTokens & { csrfToken?: string; sessionId?: number };
 
@@ -39,6 +45,8 @@ export interface ChangeRequiredPasswordPayload {
 export interface ChangeRequiredPasswordResult {
   tokens?: AuthTokens;
   user?: AuthUser;
+  csrfToken?: string;
+  sessionId?: number;
   message?: string;
 }
 
@@ -115,6 +123,7 @@ function normalizeAuthUser(input: unknown): AuthUser {
     tenantKey,
     tenantSlug,
     avatarUrl: firstDefined(getString(value.avatarUrl), getString(value.profileImageUrl), getString(value.imageUrl)),
+    passwordChangeRequired: getBoolean(value.passwordChangeRequired) ?? false,
   };
 }
 
@@ -232,7 +241,13 @@ export async function loginApi(payload: LoginPayload): Promise<LoginApiResult> {
     );
 
     if (challenge) {
-      return { kind: "password_change_required", challenge };
+      return {
+        kind: "password_change_required",
+        challenge,
+        tokens: extractTokens(parsed as TokenPayload),
+        csrfToken: getString(parsed.csrfToken) ?? getString(asRecord(data).csrfToken) ?? undefined,
+        sessionId: getNumber(firstDefined(parsed.sessionId, asRecord(data).sessionId)) ?? undefined,
+      };
     }
 
     const tokens = extractTokens(parsed as TokenPayload);
@@ -282,7 +297,7 @@ async function submitRequiredPasswordChange(
     ...(payload.tenantKey ? { tenantKey: payload.tenantKey } : {}),
   };
 
-  const { data } = await publicClient.post<ApiResponse<unknown> | unknown>(endpoint, requestPayload);
+  const { data } = await apiClient.post<ApiResponse<unknown> | unknown>(endpoint, requestPayload);
   const envelope = readApiEnvelope<unknown>(data);
   const responsePayload = asRecord(envelope.data);
   const tokens = extractOptionalTokens(responsePayload);
@@ -292,6 +307,8 @@ async function submitRequiredPasswordChange(
   return {
     tokens,
     user,
+    csrfToken: getString(responsePayload.csrfToken) ?? undefined,
+    sessionId: getNumber(responsePayload.sessionId) ?? undefined,
     message: firstDefined(
       envelope.message,
       getString(responsePayload.message)
@@ -300,31 +317,7 @@ async function submitRequiredPasswordChange(
 }
 
 export async function changeRequiredPasswordApi(payload: ChangeRequiredPasswordPayload): Promise<ChangeRequiredPasswordResult> {
-  const endpoints = [
-    "/api/auth/change-password-required",
-    "/api/auth/change-password",
-    "/api/auth/password/change-required",
-  ];
-
-  let lastNotFoundError: unknown = null;
-
-  for (const endpoint of endpoints) {
-    try {
-      return await submitRequiredPasswordChange(endpoint, payload);
-    } catch (error) {
-      if (axios.isAxiosError(error) && error.response?.status === 404) {
-        lastNotFoundError = error;
-        continue;
-      }
-      throw error;
-    }
-  }
-
-  if (lastNotFoundError) {
-    throw lastNotFoundError;
-  }
-
-  throw new Error("Unable to change password right now.");
+  return submitRequiredPasswordChange("/api/auth/change-password-required", payload);
 }
 
 export async function getMeApi(): Promise<AuthUser> {

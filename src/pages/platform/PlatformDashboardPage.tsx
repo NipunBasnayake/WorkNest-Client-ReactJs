@@ -113,13 +113,13 @@ export function PlatformDashboardPage() {
 
           <div className="grid gap-4 xl:grid-cols-[1.2fr_.8fr]">
             <PlatformTrendChart title="Tenant growth" subtitle="New companies and cumulative platform footprint over the last 12 months" data={data.tenantGrowthTrend} valueLabel="New companies" cumulativeLabel="Total companies" compact />
-            <DonutChart title="Tenant portfolio health" subtitle="Current lifecycle status distribution" data={statusData} drillDownTo="/platform/tenants" />
+            <DonutChart title="Tenant portfolio health" subtitle="Current lifecycle status distribution" data={statusData} />
           </div>
 
           <div className="grid gap-4 xl:grid-cols-[.9fr_1.1fr]">
             <InsightPanel insights={insights} />
             <SectionCard title="Recent platform events" subtitle="Latest administrator-driven tenant lifecycle changes.">
-              <div className="divide-y" style={{ borderColor: "var(--border-default)" }}>
+              <div className="divide-y divide-[var(--border-default)]">
                 {data.recentAuditEvents.slice(0, 6).map((event) => (
                   <div key={event.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
                     <div className="min-w-0 flex-1">

@@ -1,6 +1,6 @@
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { FormalReportsCenter } from '@/modules/analytics/components/FormalReportsCenter';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 
 const recruitmentReportTitles: Record<string, string> = {
   'recruitment-jobs': 'Job Openings Report',
@@ -11,16 +11,12 @@ const recruitmentReportTitles: Record<string, string> = {
 
 export function ReportsPage() {
   const { domain } = useParams();
-  const [searchParams] = useSearchParams();
   const recruitmentTitle = domain ? recruitmentReportTitles[domain] : undefined;
-  const recruitmentCategory = searchParams.get('category')?.toLowerCase() === 'recruitment';
   usePageMeta({
-    title: recruitmentTitle ?? (recruitmentCategory ? 'Recruitment Reports' : 'Reports & Analytics'),
+    title: recruitmentTitle ?? 'Reports',
     breadcrumb: recruitmentTitle
-      ? ['Workspace', 'Reports & Analytics', 'Recruitment', recruitmentTitle]
-      : recruitmentCategory
-        ? ['Workspace', 'Reports & Analytics', 'Recruitment']
-        : ['Workspace', 'Reports & Analytics'],
+      ? ['Workspace', 'Reports', recruitmentTitle]
+      : ['Workspace', 'Reports'],
   });
   return <FormalReportsCenter />;
 }

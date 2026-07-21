@@ -103,9 +103,9 @@ export function LoginForm() {
   );
 
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || passwordChangeRequired) return;
     navigate(redirectPath, { replace: true });
-  }, [isAuthenticated, navigate, redirectPath]);
+  }, [isAuthenticated, navigate, passwordChangeRequired, redirectPath]);
 
   useEffect(() => {
     if (passwordChangeRequired && passwordChangeChallenge) {

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Bell, BellRing, ChevronDown, LogOut, Menu, Moon, Settings, Shield, Sun, User } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/hooks/useTheme";
 import { UserAvatar } from "@/components/common/UserAvatar";
@@ -23,6 +23,7 @@ import {
   subscribeNotifications,
 } from "@/modules/notifications/services/notificationService";
 import { isAnnouncementLinkedNotification, type AppNotification } from "@/modules/notifications/types";
+import { buildBreadcrumbItems } from "@/components/navigation/breadcrumbs";
 
 interface AppTopbarProps {
   area: "tenant" | "platform";
@@ -44,6 +45,7 @@ export function AppTopbar({ area, pageTitle, breadcrumb, onMobileMenuToggle }: A
   const { user, logout, role, tenantKey } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
+  const location = useLocation();
   const dropdownRef = useRef<HTMLDivElement | null>(null);
   const notificationButtonRef = useRef<HTMLButtonElement | null>(null);
   const notificationPanelRef = useRef<HTMLDivElement | null>(null);
@@ -120,6 +122,14 @@ export function AppTopbar({ area, pageTitle, breadcrumb, onMobileMenuToggle }: A
   }, [open]);
 
   const previewItems = useMemo(() => items.slice(0, 5), [items]);
+  const breadcrumbItems = useMemo(() => buildBreadcrumbItems({
+    area,
+    pathname: location.pathname,
+    search: location.search,
+    hash: location.hash,
+    labels: breadcrumb,
+    tenantSlug,
+  }), [area, breadcrumb, location.hash, location.pathname, location.search, tenantSlug]);
 
   async function handleLogout() {
     await logout();
@@ -178,22 +188,24 @@ export function AppTopbar({ area, pageTitle, breadcrumb, onMobileMenuToggle }: A
 
       {/* Page title + breadcrumb */}
       <div className="flex-1 min-w-0">
-        {breadcrumb && breadcrumb.length > 0 && (
-          <div className="mb-1 hidden items-center gap-1.5 sm:flex">
-            {breadcrumb.map((crumb, i) => (
-              <span key={i} className="flex items-center gap-1.5">
+        {breadcrumbItems.length > 0 && (
+          <nav aria-label="Breadcrumb" className="mb-1 hidden items-center gap-1.5 sm:flex">
+            {breadcrumbItems.map((item, i) => (
+              <span key={`${item.label}-${i}`} className="flex min-w-0 items-center gap-1.5">
                 {i > 0 && (
-                  <span style={{ color: "var(--text-tertiary)" }} className="text-xs">/</span>
+                  <span aria-hidden="true" style={{ color: "var(--text-tertiary)" }} className="text-xs">/</span>
                 )}
-                <span
-                  className="text-[11px] uppercase tracking-[0.18em]"
-                  style={{ color: i < breadcrumb.length - 1 ? "var(--text-tertiary)" : "var(--text-secondary)" }}
+                <Link
+                  to={item.to}
+                  aria-current={item.current ? "page" : undefined}
+                  className={`truncate text-[11px] uppercase tracking-[0.18em] no-underline transition-colors hover:text-primary-600 ${item.current ? "font-bold" : "font-medium"}`}
+                  style={{ color: item.current ? "var(--color-primary-600)" : "var(--text-tertiary)" }}
                 >
-                  {crumb}
-                </span>
+                  {item.label}
+                </Link>
               </span>
             ))}
-          </div>
+          </nav>
         )}
         <h1
           className="truncate text-sm font-semibold leading-tight sm:text-base"

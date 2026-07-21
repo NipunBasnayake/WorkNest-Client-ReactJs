@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Eye, EyeOff, LockKeyhole, ArrowRight } from "lucide-react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { AuthPageFrame } from "@/components/auth/AuthPageFrame";
@@ -34,6 +34,11 @@ export function ResetPasswordPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const redirectTimerRef = useRef<number | null>(null);
+
+  useEffect(() => () => {
+    if (redirectTimerRef.current !== null) window.clearTimeout(redirectTimerRef.current);
+  }, []);
 
   const tokenError = useMemo(() => {
     if (!touched.token) return undefined;
@@ -73,7 +78,8 @@ export function ResetPasswordPage() {
     try {
       await resetPasswordApi(token.trim(), password, confirmPassword);
       setSuccessMessage("Password reset successful. Redirecting to login...");
-      setTimeout(() => {
+      redirectTimerRef.current = window.setTimeout(() => {
+        redirectTimerRef.current = null;
         navigate("/login", {
           replace: true,
           state: { message: "Password reset successful. Sign in with your new password." },

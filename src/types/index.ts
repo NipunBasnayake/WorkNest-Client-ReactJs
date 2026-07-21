@@ -49,6 +49,7 @@ export interface AuthUser {
   tenantSlug?: string | null;
   sessionType?: SessionType;
   avatarUrl?: string;
+  passwordChangeRequired?: boolean;
 }
 
 export interface LoginPayload {

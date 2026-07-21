@@ -1,7 +1,7 @@
 import axios from "axios";
 import { apiClient, buildTenantApiUrl } from "@/services/http/client";
 import { unwrapApiData } from "@/services/http/response";
-import { asRecord, extractList } from "@/services/http/parsers";
+import { asRecord, extractList, getNumber } from "@/services/http/parsers";
 import type { ApiResponse } from "@/types";
 import type { ImageUploadRequestOptions } from "@/services/uploads/uploadTypes";
 
@@ -20,6 +20,7 @@ interface EmployeeBaseRequest {
   salary?: number;
   joinedDate: string;
   status: EmployeeApiStatus;
+  skills?: EmployeeSkillApiPayload[];
 }
 
 export interface EmployeeCreateRequest extends EmployeeBaseRequest {
@@ -41,7 +42,6 @@ export interface EmployeeProfileUpdateRequest {
 
 export interface EmployeeSkillApiPayload {
   skillName: string;
-  skillLevel: "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | "EXPERT";
 }
 
 export interface ProvisionEmployeeAccountApiPayload {
@@ -85,16 +85,31 @@ export async function createEmployeeApi(payload: EmployeeCreateRequest): Promise
 }
 
 export async function getEmployeesApi(query: EmployeeListQuery = {}): Promise<unknown[]> {
-  const { data } = await apiClient.get<ApiResponse<unknown> | unknown>(
-    buildTenantApiUrl("/employees"),
-    { params: query }
-  );
-  const parsed = unwrapApiData<unknown>(data);
-  if (Array.isArray(parsed)) return parsed;
-  if (asRecord(parsed).content && Array.isArray(asRecord(parsed).content)) {
-    return asRecord(parsed).content as unknown[];
+  const pageSize = 100;
+  const filters: EmployeeListQuery = { ...query, page: 0, size: pageSize };
+
+  async function fetchPage(page: number): Promise<{ items: unknown[]; totalPages: number }> {
+    const { data } = await apiClient.get<ApiResponse<unknown> | unknown>(
+      buildTenantApiUrl("/employees"),
+      { params: { ...filters, page } }
+    );
+    const parsed = unwrapApiData<unknown>(data);
+    if (Array.isArray(parsed)) return { items: parsed, totalPages: 1 };
+    const record = asRecord(parsed);
+    const items = Array.isArray(record.items)
+      ? record.items
+      : Array.isArray(record.content)
+        ? record.content
+        : extractList(parsed);
+    return { items, totalPages: Math.max(1, getNumber(record.totalPages) ?? 1) };
   }
-  return extractList(parsed);
+
+  const first = await fetchPage(0);
+  if (first.totalPages === 1) return first.items;
+  const remaining = await Promise.all(
+    Array.from({ length: first.totalPages - 1 }, (_, index) => fetchPage(index + 1))
+  );
+  return [first, ...remaining].flatMap((page) => page.items);
 }
 
 export async function getEmployeeByIdApi(id: string): Promise<unknown> {
@@ -198,28 +213,12 @@ export async function getMyEmployeeSkillsApi(): Promise<unknown[]> {
   return extractList(unwrapApiData<unknown>(data));
 }
 
-export async function addEmployeeSkillApi(employeeId: string, payload: EmployeeSkillApiPayload): Promise<unknown> {
-  const { data } = await apiClient.post<ApiResponse<unknown> | unknown>(
-    buildTenantApiUrl(`/employees/${employeeId}/skills`),
-    payload
+export async function getSkillSuggestionsApi(search = ""): Promise<unknown[]> {
+  const { data } = await apiClient.get<ApiResponse<unknown> | unknown>(
+    buildTenantApiUrl("/employees/skills/suggestions"),
+    { params: { search } }
   );
-  return unwrapApiData<unknown>(data);
-}
-
-export async function updateEmployeeSkillApi(
-  employeeId: string,
-  skillId: string,
-  payload: EmployeeSkillApiPayload
-): Promise<unknown> {
-  const { data } = await apiClient.put<ApiResponse<unknown> | unknown>(
-    buildTenantApiUrl(`/employees/${employeeId}/skills/${skillId}`),
-    payload
-  );
-  return unwrapApiData<unknown>(data);
-}
-
-export async function deleteEmployeeSkillApi(employeeId: string, skillId: string): Promise<void> {
-  await apiClient.delete(buildTenantApiUrl(`/employees/${employeeId}/skills/${skillId}`));
+  return extractList(unwrapApiData<unknown>(data));
 }
 
 export async function provisionEmployeeAccountApi(

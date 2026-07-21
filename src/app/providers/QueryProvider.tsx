@@ -1,5 +1,6 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useMemo, type ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useAuthStore } from "@/store/authStore";
 
 interface QueryProviderProps {
   children: ReactNode;
@@ -13,23 +14,31 @@ function shouldRetry(failureCount: number, error: unknown): boolean {
 }
 
 export function QueryProvider({ children }: QueryProviderProps) {
-  const [queryClient] = useState(
-    () =>
-      new QueryClient({
-        defaultOptions: {
-          queries: {
-            staleTime: 30_000,
-            gcTime: 5 * 60_000,
-            retry: shouldRetry,
-            refetchOnWindowFocus: false,
-            refetchOnReconnect: true,
-          },
-          mutations: {
-            retry: 0,
-          },
+  const sessionIdentity = useAuthStore((state) => [
+    state.sessionType ?? "anonymous",
+    state.tenantKey ?? "none",
+    state.user?.id ?? "none",
+  ].join(":"));
+  const queryClient = useMemo(
+    () => new QueryClient({
+      defaultOptions: {
+        queries: {
+          staleTime: 30_000,
+          gcTime: 5 * 60_000,
+          retry: shouldRetry,
+          refetchOnWindowFocus: false,
+          refetchOnReconnect: true,
+          meta: { sessionIdentity },
         },
-      })
+        mutations: {
+          retry: 0,
+        },
+      },
+    }),
+    [sessionIdentity],
   );
+
+  useEffect(() => () => queryClient.clear(), [queryClient]);
 
   return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
 }

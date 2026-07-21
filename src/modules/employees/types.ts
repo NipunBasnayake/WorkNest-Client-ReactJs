@@ -2,18 +2,18 @@ import type { Employee, TenantRole } from "@/types";
 
 export type EmployeeStatus = "active" | "inactive";
 export type EmployeeRole = TenantRole;
-export type SkillLevel = "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | "EXPERT";
 
 export interface EmployeeSkill {
   id: string;
   name: string;
-  level: SkillLevel;
-  yearsOfExperience?: number;
 }
 
 export interface EmployeeSkillPayload {
   name: string;
-  level: SkillLevel;
+}
+
+export interface SkillSuggestion {
+  name: string;
 }
 
 export interface EmployeeFormValues {
@@ -29,6 +29,7 @@ export interface EmployeeFormValues {
   joinedDate: string;
   salary: string;
   status: EmployeeStatus;
+  skills: EmployeeSkillPayload[];
 }
 
 export type EmployeeFormErrors = Partial<Record<keyof EmployeeFormValues, string>>;

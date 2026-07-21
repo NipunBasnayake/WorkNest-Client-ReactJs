@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
-import { Activity, ArrowLeft, BarChart3, BriefcaseBusiness, Building2, Calendar, Database, FileClock, FileText, Key, ListTodo, Mail, Shield, Users } from "lucide-react";
+import { Activity, ArrowLeft, BriefcaseBusiness, Building2, Calendar, Database, FileClock, FileText, Key, ListTodo, Mail, Shield, Users } from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { usePlatformTenantDetailQuery } from "@/hooks/queries/usePlatformQueries";
 import { EmptyState, ErrorState, LoadingSkeleton } from "@/components/common/AsyncStates";
@@ -92,7 +92,6 @@ export function TenantDetailPage() {
 
           <SectionCard title="Operational drill-down" subtitle="Open platform-wide tools already filtered to this company.">
             <div className="flex flex-wrap gap-3">
-              <Button variant="outline" size="sm" to={`/platform/analytics?tenant=${encodeURIComponent(tenant.tenantKey)}`}><BarChart3 size={16} />View analytics</Button>
               <Button variant="outline" size="sm" to={`/platform/audit-logs?tenant=${encodeURIComponent(tenant.tenantKey)}`}><FileClock size={16} />Audit logs</Button>
               <Button variant="outline" size="sm" to={`/platform/reports?tenant=${encodeURIComponent(tenant.tenantKey)}`}><FileText size={16} />Reports</Button>
             </div>
@@ -111,11 +110,24 @@ function PlatformBrandingCard({ tenantKey, onCompanyChanged }: { tenantKey: stri
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let active = true;
     setLoading(true);
+    setBranding(null);
+    setError(null);
     getPlatformTenantBranding(tenantKey)
-      .then(setBranding)
-      .catch((loadError: unknown) => setError(getErrorMessage(loadError, "Unable to load tenant branding.")))
-      .finally(() => setLoading(false));
+      .then((loadedBranding) => {
+        if (active) setBranding(loadedBranding);
+      })
+      .catch((loadError: unknown) => {
+        if (active) setError(getErrorMessage(loadError, "Unable to load tenant branding."));
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
   }, [tenantKey]);
 
   async function saveBranding() {
