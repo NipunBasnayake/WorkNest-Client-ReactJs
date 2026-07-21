@@ -3,9 +3,7 @@ import { unwrapApiData } from "@/services/http/response";
 import type { ApiResponse, UploadedFileAsset } from "@/types";
 
 export type StorageCategory =
-  | "WORKSPACE_LOGO"
-  | "WORKSPACE_BANNER"
-  | "EMPLOYEE_AVATAR"
+  | "IMAGE"
   | "PROJECT_ATTACHMENT"
   | "TASK_ATTACHMENT"
   | "ANNOUNCEMENT_ATTACHMENT"
@@ -57,7 +55,7 @@ export function getStoredFileId(asset: Pick<UploadedFileAsset, "id" | "path" | "
 }
 
 function normalizeUploadResponse(payload: UploadedFileAsset, file: File): UploadedFileAsset {
-  if (!payload?.url) throw new Error("Local upload response did not include a file URL.");
+  if (!payload?.url) throw new Error("Upload response did not include a file URL.");
   const normalized = {
     ...payload,
     name: payload.name || file.name,
@@ -109,7 +107,7 @@ export async function replaceUploadedFile(
   onProgress?: (percentage: number) => void
 ): Promise<UploadedFileAsset> {
   const id = getStoredFileId(asset);
-  if (!id) throw new Error("This legacy file cannot be replaced through managed storage.");
+  if (!id) throw new Error("This file cannot be replaced through managed storage.");
   validateFile(file, file.type.startsWith("image/") ? "image" : "document");
   const formData = new FormData();
   formData.append("file", file);
@@ -153,28 +151,6 @@ export async function openUploadedFile(asset: UploadedFileAsset, download = fals
   if (download) anchor.download = asset.name;
   anchor.click();
   if (objectUrl.startsWith("blob:")) window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
-}
-
-export async function resolveStorageUrl(_bucket: string, path: string): Promise<string> {
-  if (path.startsWith("/api/") || /^https?:\/\//i.test(path)) return path;
-  return path.startsWith("/") ? path : `/${path}`;
-}
-
-export async function getStorageFileUrl(bucket: string, path: string): Promise<string | null> {
-  try {
-    const url = await resolveStorageUrl(bucket, path);
-    const objectUrl = await fetchProtectedFileUrl(url);
-    if (objectUrl.startsWith("blob:")) URL.revokeObjectURL(objectUrl);
-    return url;
-  } catch {
-    return null;
-  }
-}
-
-export async function debugStorageBucketAccess(
-  bucket = STORAGE_BUCKET_NAME
-): Promise<{ ok: boolean; buckets: string[]; expectedFound: boolean }> {
-  return { ok: true, buckets: [STORAGE_BUCKET_NAME], expectedFound: bucket === STORAGE_BUCKET_NAME };
 }
 
 export function uploadImageFiles(files: File[], options: UploadOptions): Promise<UploadedFileAsset[]> {

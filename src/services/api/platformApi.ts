@@ -37,9 +37,12 @@ export async function onboardTenantApi(payload: TenantOnboardingRequest): Promis
 export async function registerTenantPublicApi(
   payload: TenantOnboardingRequest
 ): Promise<TenantProvisioningData> {
+  const idempotencyKey = crypto.randomUUID();
   const { data } = await publicClient.post<
     ApiResponse<TenantProvisioningData> | TenantProvisioningData
-  >("/api/platform/onboarding/tenants", payload);
+  >("/api/platform/onboarding/tenants", payload, {
+    headers: { "Idempotency-Key": idempotencyKey },
+  });
 
   return unwrapApiData<TenantProvisioningData>(data);
 }

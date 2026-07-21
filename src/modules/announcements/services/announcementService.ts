@@ -27,6 +27,7 @@ function normalizeAnnouncement(input: unknown): Announcement {
       getString(asRecord(value.author).fullName),
       getString(asRecord(value.author).name)
     ) ?? "Workspace",
+    authorAvatarUrl: firstDefined(getString(createdBy.avatarUrl), getString(value.authorAvatarUrl)),
     authorRole: firstDefined(
       getString(value.createdByRole),
       getString(value.authorRole),

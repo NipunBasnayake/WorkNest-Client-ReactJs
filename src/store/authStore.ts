@@ -138,7 +138,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       tokenStorage.setCsrf(csrfToken);
       tokenStorage.setContext(tenantKey, sessionType);
 
-      const user = loginUser ?? await getMeApi();
+      const user = await getMeApi().catch((error: unknown) => {
+        if (loginUser) return loginUser;
+        throw error;
+      });
       const resolvedSession = deriveSessionType(user);
       const resolvedTenantKey = user.tenantSlug ?? user.tenantKey ?? tenantKey;
 
@@ -316,7 +319,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const provisionalSessionType: SessionType = challengeTenantKey ? "tenant" : "platform";
       tokenStorage.setContext(challengeTenantKey, provisionalSessionType);
 
-      const user = result.user ?? await getMeApi();
+      const user = await getMeApi().catch((error: unknown) => {
+        if (result.user) return result.user;
+        throw error;
+      });
       const resolvedSession = deriveSessionType(user);
       const resolvedTenantKey = user.tenantSlug ?? user.tenantKey ?? challengeTenantKey;
 

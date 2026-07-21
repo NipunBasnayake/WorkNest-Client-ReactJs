@@ -147,7 +147,7 @@ export function NotificationsPage() {
             onClick={() => setFilter("all")}
             className="rounded-full px-3 py-1.5 text-xs font-semibold cursor-pointer"
             style={{
-              background: filter === "all" ? "rgba(147,50,234,0.14)" : "var(--bg-muted)",
+              background: filter === "all" ? "var(--brand-soft)" : "var(--bg-muted)",
               color: filter === "all" ? "var(--color-primary-600)" : "var(--text-secondary)",
             }}
           >
@@ -158,7 +158,7 @@ export function NotificationsPage() {
             onClick={() => setFilter("unread")}
             className="rounded-full px-3 py-1.5 text-xs font-semibold cursor-pointer"
             style={{
-              background: filter === "unread" ? "rgba(147,50,234,0.14)" : "var(--bg-muted)",
+              background: filter === "unread" ? "var(--brand-soft)" : "var(--bg-muted)",
               color: filter === "unread" ? "var(--color-primary-600)" : "var(--text-secondary)",
             }}
           >
@@ -187,10 +187,10 @@ export function NotificationsPage() {
                 <tr key={index}><td colSpan={5}><SkeletonRow cols={5} /></td></tr>
               ))}
               {!loading && notificationPagination.paginatedItems.map((item) => (
-                <tr key={item.id} className="transition-colors hover:bg-primary-500/[0.03]" style={{ backgroundColor: item.read ? undefined : "rgba(147,50,234,0.035)" }}>
+                <tr key={item.id} className="transition-colors hover:bg-primary-500/[0.03]" style={{ backgroundColor: item.read ? undefined : "var(--brand-soft)" }}>
                   <td className="max-w-lg px-5 py-4">
                     <div className="flex items-start gap-3">
-                      <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style={{ backgroundColor: "rgba(147,50,234,0.1)", color: "var(--color-primary-600)" }}><BellRing size={14} /></span>
+                      <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style={{ backgroundColor: "var(--brand-soft)", color: "var(--color-primary-600)" }}><BellRing size={14} /></span>
                       {item.link ? (
                         <Link to={item.link} onClick={() => void handleOpenNotification(item)} className="min-w-0 no-underline hover:opacity-80">
                           <span className="block truncate font-semibold" style={{ color: "var(--text-primary)" }}>{item.title}</span>

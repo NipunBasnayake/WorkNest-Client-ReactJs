@@ -21,10 +21,15 @@ export interface Task {
   assigneeUserId?: string;
   assigneeEmail?: string;
   assigneeName?: string;
+  assigneeAvatarUrl?: string;
   createdByEmployeeId?: string;
   createdByUserId?: string;
+  createdByName?: string;
+  createdByAvatarUrl?: string;
   assignedByEmployeeId?: string;
   assignedByUserId?: string;
+  assignedByName?: string;
+  assignedByAvatarUrl?: string;
   projectId?: string;
   projectName?: string;
   attachments: UploadedFileAsset[];
@@ -78,6 +83,7 @@ export interface TaskComment {
   createdAt: string;
   authorId: string;
   authorName: string;
+  authorAvatarUrl?: string;
 }
 
 export interface TaskFormValues {

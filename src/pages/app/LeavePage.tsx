@@ -4,6 +4,7 @@ import { PlusCircle } from "lucide-react";
 import { FiCheck, FiEdit2, FiEye, FiTrash2, FiX } from "react-icons/fi";
 import { Link } from "react-router-dom";
 import { usePageMeta } from "@/hooks/usePageMeta";
+import { UserAvatar } from "@/components/common/UserAvatar";
 import { invalidateWorkflowQueries } from "@/hooks/queries/workflowInvalidation";
 import { useAuth } from "@/hooks/useAuth";
 import { PERMISSIONS } from "@/constants/permissions";
@@ -231,7 +232,7 @@ export function LeavePage() {
                     className="grid grid-cols-[1.2fr_0.8fr_1fr_1fr_2fr_1fr_1.8fr] items-center gap-3 border-b px-5 py-4"
                     style={{ borderColor: "var(--border-default)" }}
                   >
-                    <span className="truncate text-sm font-medium" style={{ color: "var(--text-primary)" }}>{item.employeeName}</span>
+                    <span className="flex min-w-0 items-center gap-2"><UserAvatar name={item.employeeName} src={item.employeeAvatarUrl} size="sm" /><span className="truncate text-sm font-medium" style={{ color: "var(--text-primary)" }}>{item.employeeName}</span></span>
                     <span className="text-sm" style={{ color: "var(--text-secondary)" }}>{toLabel(item.leaveType)}</span>
                     <span className="text-sm" style={{ color: "var(--text-secondary)" }}>{item.startDate}</span>
                     <span className="text-sm" style={{ color: "var(--text-secondary)" }}>{item.endDate}</span>
@@ -313,9 +314,7 @@ export function LeavePage() {
                     className="rounded-xl border p-4"
                     style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)" }}
                   >
-                    <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-                      {item.employeeName}
-                    </p>
+                    <div className="flex items-center gap-2"><UserAvatar name={item.employeeName} src={item.employeeAvatarUrl} size="sm" /><p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{item.employeeName}</p></div>
                     <p className="mt-1 text-xs" style={{ color: "var(--text-secondary)" }}>
                       {toLabel(item.leaveType)} · {item.startDate} to {item.endDate}
                     </p>

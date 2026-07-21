@@ -13,6 +13,7 @@ import { getAuditLogs, type AuditActionType, type AuditEntityType, type AuditLog
 import { formatDateTime, toReadableLabel } from "@/utils/formatting";
 import { Pagination } from "@/components/common/Pagination";
 import { readPageSize, writePageSize } from "@/hooks/useClientPagination";
+import { UserAvatar } from "@/components/common/UserAvatar";
 
 const ACTION_OPTIONS: AuditActionType[] = [
   "CREATE",
@@ -171,8 +172,7 @@ export function AuditLogsPage() {
                     <tr key={log.id} className="border-b last:border-b-0" style={{ borderColor: "var(--border-default)" }}>
                       <td className="whitespace-nowrap px-5 py-3" style={{ color: "var(--text-secondary)" }}>{formatDateTime(log.createdAt)}</td>
                       <td className="px-5 py-3">
-                        <p className="font-medium" style={{ color: "var(--text-primary)" }}>{log.actorName || log.actorEmail || "System"}</p>
-                        {log.actorEmail ? <p className="text-xs" style={{ color: "var(--text-secondary)" }}>{log.actorEmail}</p> : null}
+                        <div className="flex items-center gap-2"><UserAvatar name={log.actorName ?? "System"} email={log.actorEmail} src={log.actorAvatarUrl} size="sm" /><div className="min-w-0"><p className="truncate font-medium" style={{ color: "var(--text-primary)" }}>{log.actorName || log.actorEmail || "System"}</p>{log.actorEmail ? <p className="truncate text-xs" style={{ color: "var(--text-secondary)" }}>{log.actorEmail}</p> : null}</div></div>
                       </td>
                       <td className="whitespace-nowrap px-5 py-3 font-medium" style={{ color: "var(--text-primary)" }}>{toReadableLabel(log.action)}</td>
                       <td className="whitespace-nowrap px-5 py-3" style={{ color: "var(--text-secondary)" }}>

@@ -2,7 +2,7 @@ import { useState, type ReactNode } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, Users, Building2,
-  ChevronDown, ChevronLeft, ChevronRight, X,
+  ChevronDown, X,
   ClipboardList, CalendarCheck, Bell, MessageSquare, Briefcase, BarChart3, CheckSquare, BellRing,
   Lock,
   FileText,
@@ -13,6 +13,8 @@ import { type Permission, PERMISSIONS } from "@/constants/permissions";
 import { usePermission } from "@/hooks/usePermission";
 import { tenantRoutes, platformRoutes } from "@/utils/tenantRoutes";
 import { Separator } from "@/components/ui/separator";
+import { WorkNestBrand } from "@/components/common/Logo";
+import { useBranding } from "@/features/branding/useBranding";
 
 interface SidebarNavDef {
   label: string;
@@ -31,9 +33,7 @@ interface SidebarNavGroup {
 
 interface AppSidebarProps {
   area: "tenant" | "platform";
-  collapsed: boolean;
   mobileOpen: boolean;
-  onToggleCollapse: () => void;
   onMobileClose: () => void;
 }
 
@@ -135,12 +135,10 @@ function resolveNavTo(to: string | ((slug: string) => string), tenantSlug?: stri
 
 function NavItem({
   item,
-  collapsed,
   onMobileClose,
   tenantSlug,
 }: {
   item: SidebarNavDef;
-  collapsed: boolean;
   onMobileClose: () => void;
   tenantSlug?: string;
 }) {
@@ -158,25 +156,13 @@ function NavItem({
     return (
       <div className={`${base} cursor-not-allowed opacity-50`} style={{ color: "var(--text-tertiary)" }}>
         <span className="shrink-0">{item.icon}</span>
-        {!collapsed && (
-          <span className="truncate">{item.label}</span>
-        )}
-        {!collapsed && (
-          <span
-            className="ml-auto text-[10px] font-semibold px-1.5 py-0.5 rounded"
-            style={{ background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.4)" }}
-          >
-            Soon
-          </span>
-        )}
-        {collapsed && (
-          <div
-            className="absolute left-full ml-2 px-2 py-1 rounded-lg text-xs font-medium opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50 transition-opacity"
-            style={{ backgroundColor: "var(--bg-surface)", color: "var(--text-primary)", boxShadow: "0 4px 12px rgba(0,0,0,0.2)" }}
-          >
-            {item.label} <span className="text-primary-400">(Soon)</span>
-          </div>
-        )}
+        <span className="truncate">{item.label}</span>
+        <span
+          className="ml-auto rounded px-1.5 py-0.5 text-[10px] font-semibold"
+          style={{ background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.4)" }}
+        >
+          Soon
+        </span>
       </div>
     );
   }
@@ -191,36 +177,25 @@ function NavItem({
       }
       style={({ isActive }) => ({
         background: isActive
-          ? "linear-gradient(135deg, rgba(147,50,234,0.72) 0%, rgba(124,31,209,0.58) 100%)"
+          ? "linear-gradient(135deg, color-mix(in srgb, var(--brand-action) 78%, transparent) 0%, color-mix(in srgb, var(--brand-action-active) 66%, transparent) 100%)"
           : "transparent",
         color: isActive ? "white" : "rgba(255,255,255,0.72)",
         boxShadow: isActive ? "inset 0 0 0 1px rgba(255,255,255,0.08), 0 6px 16px rgba(15,8,32,0.18)" : undefined,
       })}
     >
       <span className="shrink-0">{item.icon}</span>
-      {!collapsed && <span className="truncate">{item.label}</span>}
-      {/* Tooltip in collapsed mode */}
-      {collapsed && (
-        <div
-          className="absolute left-full ml-2 px-2 py-1 rounded-lg text-xs font-medium opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50 transition-opacity"
-          style={{ backgroundColor: "var(--bg-surface)", color: "var(--text-primary)", boxShadow: "0 4px 12px rgba(0,0,0,0.2)" }}
-        >
-          {item.label}
-        </div>
-      )}
+      <span className="truncate">{item.label}</span>
     </NavLink>
   );
 }
 
 function NavGroup({
   group,
-  collapsed,
   onMobileClose,
   isFirst,
   tenantSlug,
 }: {
   group: SidebarNavGroup;
-  collapsed: boolean;
   onMobileClose: () => void;
   isFirst: boolean;
   tenantSlug?: string;
@@ -236,27 +211,12 @@ function NavGroup({
     : containsActiveRoute;
 
   const separator = !isFirst ? (
-    <div className={collapsed ? "px-2 py-2" : "px-3.5 py-2"}>
+    <div className="px-3.5 py-2">
       <Separator className="bg-white/10" decorative />
     </div>
   ) : null;
 
   if (group.collapsible) {
-    if (collapsed) {
-      const overviewItem = group.items[0];
-      return (
-        <div className="space-y-1">
-          {separator}
-          <NavItem
-            item={{ ...overviewItem, label: group.label, icon: group.icon ?? overviewItem.icon }}
-            collapsed
-            onMobileClose={onMobileClose}
-            tenantSlug={tenantSlug}
-          />
-        </div>
-      );
-    }
-
     const controlId = `sidebar-${group.label.toLowerCase().replace(/\s+/g, "-")}`;
     return (
       <div className="space-y-1">
@@ -267,7 +227,7 @@ function NavGroup({
           onClick={() => setExpansionOverride({ path: location.pathname, value: !expanded })}
           aria-expanded={expanded}
           aria-controls={controlId}
-          style={{ background: containsActiveRoute ? "rgba(147,50,234,0.12)" : "transparent" }}
+          style={{ background: containsActiveRoute ? "color-mix(in srgb, var(--brand-action) 12%, transparent)" : "transparent" }}
         >
           <span className="shrink-0">{group.icon}</span>
           <span className="truncate">{group.label}</span>
@@ -282,7 +242,6 @@ function NavGroup({
               <NavItem
                 key={typeof item.to === "function" ? item.label : item.to}
                 item={item}
-                collapsed={false}
                 onMobileClose={onMobileClose}
                 tenantSlug={tenantSlug}
               />
@@ -300,7 +259,6 @@ function NavGroup({
         <NavItem
           key={typeof item.to === "function" ? item.label : item.to}
           item={item}
-          collapsed={collapsed}
           onMobileClose={onMobileClose}
           tenantSlug={tenantSlug}
         />
@@ -309,9 +267,10 @@ function NavGroup({
   );
 }
 
-export function AppSidebar({ area, collapsed, mobileOpen, onToggleCollapse, onMobileClose }: AppSidebarProps) {
+export function AppSidebar({ area, mobileOpen, onMobileClose }: AppSidebarProps) {
   const { tenantKey } = useAuth();
   const { hasPermission } = usePermission();
+  const { branding } = useBranding();
 
   const resolvedTenantSlug = tenantKey ?? "app";
 
@@ -327,53 +286,25 @@ export function AppSidebar({ area, collapsed, mobileOpen, onToggleCollapse, onMo
     <div
       className="relative flex h-full flex-col"
       style={{
-        background: "linear-gradient(180deg, #160a27 0%, #12081f 44%, #0b0716 100%)",
+        background: "linear-gradient(180deg, color-mix(in srgb, var(--color-primary-950) 54%, #080b14) 0%, color-mix(in srgb, var(--color-primary-950) 32%, #080b14) 44%, #080b14 100%)",
         boxShadow: "16px 0 40px rgba(15, 8, 32, 0.18)",
       }}
     >
       {/* Header */}
-      <div className="flex h-16 shrink-0 items-center justify-between border-b border-white/8 px-4">
-        <div className="inline-flex items-center gap-2.5 min-w-0">
-          <div
-            className="flex h-8 w-8 items-center justify-center rounded-xl shrink-0"
-            style={{
-              background: "linear-gradient(135deg, #9332EA 0%, #c084fc 100%)",
-              boxShadow: "0 4px 12px rgba(147,50,234,0.4)",
-            }}
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              aria-hidden="true"
+      <div className="flex min-h-20 shrink-0 items-center justify-between gap-3 border-b border-white/8 px-5 py-4" style={{ borderBottomColor: "color-mix(in srgb, var(--brand-action) 50%, transparent)" }}>
+        <div className="min-w-0 flex-1">
+          {area === "tenant" ? (
+            <div
+              className="whitespace-normal break-words text-xl font-extrabold leading-tight tracking-tight"
+              style={{ color: "var(--color-primary-100)" }}
             >
-              <path
-                d="M4 6L7.5 18L12 10L16.5 18L20 6"
-                stroke="white"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </div>
-
-          {!collapsed && (
-            <span
-              className="text-xl font-bold tracking-tight truncate"
-              style={{
-                background: "linear-gradient(135deg, #9332EA 0%, #a855f7 60%, #c084fc 100%)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                backgroundClip: "text",
-              }}
-            >
-              WorkNest
-            </span>
+              {branding.companyName}
+            </div>
+          ) : (
+            <WorkNestBrand size="sm" />
           )}
         </div>
-        <div className="flex items-center gap-1 ml-auto">
+        <div className="ml-auto flex shrink-0 items-center gap-1">
           {/* Mobile close */}
           <button
             onClick={onMobileClose}
@@ -381,14 +312,6 @@ export function AppSidebar({ area, collapsed, mobileOpen, onToggleCollapse, onMo
             aria-label="Close sidebar"
           >
             <X size={18} />
-          </button>
-          {/* Desktop collapse */}
-          <button
-            onClick={onToggleCollapse}
-            className="hidden lg:flex p-1.5 rounded-lg text-white/40 hover:text-white/80 hover:bg-white/8 transition-colors cursor-pointer"
-            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          >
-            {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
           </button>
         </div>
       </div>
@@ -399,7 +322,6 @@ export function AppSidebar({ area, collapsed, mobileOpen, onToggleCollapse, onMo
           <NavGroup
             key={group.label}
             group={group}
-            collapsed={collapsed}
             onMobileClose={onMobileClose}
             isFirst={index === 0}
             tenantSlug={resolvedTenantSlug}
@@ -423,9 +345,9 @@ export function AppSidebar({ area, collapsed, mobileOpen, onToggleCollapse, onMo
 
       {/* Sidebar panel */}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex flex-col transition-[transform,width] duration-300 lg:relative lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-40 flex w-72 flex-col transition-transform duration-300 lg:relative lg:translate-x-0 ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
-        } ${collapsed ? "w-[5rem]" : "w-72"}`}
+        }`}
         style={{ height: "100vh" }}
         aria-label="Sidebar navigation"
       >

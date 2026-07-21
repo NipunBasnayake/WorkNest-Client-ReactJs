@@ -3,6 +3,7 @@ import { publicClient, apiClient, tokenStorage } from "@/services/http/client";
 import { readApiEnvelope, unwrapApiData } from "@/services/http/response";
 import type { LoginPayload, AuthTokens, AuthUser, ApiResponse, AuthSession } from "@/types";
 import { asRecord, firstDefined, getBoolean, getId, getNumber, getString } from "@/services/http/parsers";
+import { getMyEmployeeProfileApi } from "@/services/api/employeeApi";
 
 type TokenPayload = {
   accessToken?: unknown;
@@ -115,6 +116,24 @@ function normalizeAuthUser(input: unknown): AuthUser {
     tenantSlug,
     avatarUrl: firstDefined(getString(value.avatarUrl), getString(value.profileImageUrl), getString(value.imageUrl)),
   };
+}
+
+async function hydrateTenantAvatar(user: AuthUser): Promise<AuthUser> {
+  if (!user.tenantSlug && !user.tenantKey) return user;
+  try {
+    const profile = asRecord(await getMyEmployeeProfileApi());
+    return {
+      ...user,
+      avatarUrl: firstDefined(
+        getString(profile.avatarUrl),
+        getString(profile.profileImageUrl),
+        getString(profile.imageUrl)
+      ),
+    };
+  } catch {
+    // Authentication remains valid when a tenant employee mirror is temporarily unavailable.
+    return user;
+  }
 }
 
 function hasPasswordChangeRequirement(value: Record<string, unknown>): boolean {
@@ -316,7 +335,7 @@ export async function getMeApi(): Promise<AuthUser> {
     throw new Error("Invalid current-user response received from server.");
   }
 
-  return user;
+  return hydrateTenantAvatar(user);
 }
 
 export async function logoutApi(tenantKey?: string | null): Promise<void> {

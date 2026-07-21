@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { CalendarDays, Clock3, LogIn, LogOut, UserCheck, Users2, UserRoundPen, BadgeCheck } from "lucide-react";
+import { UserAvatar } from "@/components/common/UserAvatar";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { invalidateWorkflowQueries } from "@/hooks/queries/workflowInvalidation";
 import { PERMISSIONS } from "@/constants/permissions";
@@ -279,10 +280,10 @@ export function AttendancePage() {
       )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        <StatCard label="Total Records" value={summary.total} icon={<Users2 size={18} />} accentColor="#9332EA" />
+        <StatCard label="Total Records" value={summary.total} icon={<Users2 size={18} />} accentColor="var(--brand-action)" />
         <StatCard label="Present" value={summary.present} icon={<UserCheck size={18} />} accentColor="#10b981" />
         <StatCard label="Late" value={summary.late} icon={<Clock3 size={18} />} accentColor="#d97706" />
-        <StatCard label="Half Day" value={summary.halfDay} icon={<CalendarDays size={18} />} accentColor="#6366f1" />
+        <StatCard label="Half Day" value={summary.halfDay} icon={<CalendarDays size={18} />} accentColor="var(--brand-action)" />
         <StatCard label="Incomplete" value={summary.incomplete} icon={<LogOut size={18} />} accentColor="#475569" />
         <StatCard label="Absent" value={summary.absent} icon={<CalendarDays size={18} />} accentColor="#ef4444" />
       </div>
@@ -371,9 +372,7 @@ export function AttendancePage() {
                   className="grid grid-cols-[1.4fr_1fr_1fr_1fr_1fr_0.9fr] items-center gap-3 border-b px-5 py-4"
                   style={{ borderColor: "var(--border-default)" }}
                 >
-                  <span className="truncate text-sm font-medium" style={{ color: "var(--text-primary)" }}>
-                    {record.employeeName}
-                  </span>
+                  <span className="flex min-w-0 items-center gap-2"><UserAvatar name={record.employeeName} src={record.employeeAvatarUrl} size="sm" /><span className="truncate text-sm font-medium" style={{ color: "var(--text-primary)" }}>{record.employeeName}</span></span>
                   <span className="text-sm" style={{ color: "var(--text-secondary)" }}>{record.date}</span>
                   <span className="text-sm" style={{ color: "var(--text-secondary)" }}>{record.checkIn || "-"}</span>
                   <span className="text-sm" style={{ color: "var(--text-secondary)" }}>{record.checkOut || "-"}</span>
@@ -390,9 +389,7 @@ export function AttendancePage() {
                   className="rounded-xl border p-4"
                   style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)" }}
                 >
-                  <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-                    {record.employeeName}
-                  </p>
+                  <div className="flex items-center gap-2"><UserAvatar name={record.employeeName} src={record.employeeAvatarUrl} size="sm" /><p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{record.employeeName}</p></div>
                   <div className="mt-2 grid grid-cols-2 gap-2 text-xs" style={{ color: "var(--text-secondary)" }}>
                     <span>Date: {record.date}</span>
                     <span>Worked: {formatMinutes(record.workedMinutes)}</span>

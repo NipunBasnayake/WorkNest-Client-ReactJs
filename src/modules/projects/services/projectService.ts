@@ -38,6 +38,7 @@ function normalizeTeamIds(value: unknown): string[] {
 
 function normalizeProject(input: unknown, teamIds: string[] = []): Project {
   const value = asRecord(input);
+  const createdBy = asRecord(value.createdBy);
   const progress = firstDefined(
     getNumber(value.progress),
     getNumber(value.progressPercentage),
@@ -68,6 +69,17 @@ function normalizeProject(input: unknown, teamIds: string[] = []): Project {
         : (toUiStatus(firstDefined(value.status, value.projectStatus)) === "completed" ? 100 : 0),
     teamIds: normalizedTeamIds,
     teamCount,
+    createdBy: Object.keys(createdBy).length > 0 ? {
+      id: getId(firstDefined(createdBy.id, createdBy.employeeId)),
+      name: firstDefined(
+        getString(createdBy.fullName),
+        getString(createdBy.name),
+        `${getString(createdBy.firstName) ?? ""} ${getString(createdBy.lastName) ?? ""}`.trim() || undefined,
+        getString(createdBy.email),
+      ) ?? "Project owner",
+      email: getString(createdBy.email),
+      avatarUrl: getString(createdBy.avatarUrl),
+    } : undefined,
     documents: extractUploadedFileAssets(
       firstDefined(value.documents, value.files, value.attachments),
       firstDefined(value.documentUrls, value.fileUrls, value.attachmentUrls)

@@ -6,6 +6,7 @@ import { Link } from "react-router-dom";
 import { getTaskStatusLabel } from "@/modules/tasks/utils/taskWorkflow";
 import type { Task } from "@/modules/tasks/types";
 import { tenantRoutes } from "@/utils/tenantRoutes";
+import { UserAvatar } from "@/components/common/UserAvatar";
 
 interface KanbanTaskCardProps {
   task: Task;
@@ -109,7 +110,7 @@ function KanbanTaskCardComponent({ task, draggable, overlay = false }: KanbanTas
 
       <div className="mt-3 grid grid-cols-1 gap-1.5 text-xs" style={{ color: "var(--text-secondary)" }}>
         <div className="inline-flex items-center gap-1.5 truncate">
-          <User size={12} />
+          <UserAvatar name={task.assigneeName ?? "Unassigned"} email={task.assigneeEmail} src={task.assigneeAvatarUrl} size="xs" />
           {task.assigneeName || "Unassigned"}
         </div>
         <div className="inline-flex items-center gap-1.5">
@@ -145,6 +146,7 @@ export const KanbanTaskCard = memo(KanbanTaskCardComponent, (prev, next) => {
     prev.task.title === next.task.title &&
     prev.task.assignedTeamName === next.task.assignedTeamName &&
     prev.task.assigneeName === next.task.assigneeName &&
+    prev.task.assigneeAvatarUrl === next.task.assigneeAvatarUrl &&
     prev.task.projectName === next.task.projectName &&
     prev.task.dueDate === next.task.dueDate
   );

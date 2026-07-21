@@ -1,8 +1,11 @@
 import { useState } from 'react';
 import { Download, FileSpreadsheet, FileText, LoaderCircle, Printer } from 'lucide-react';
 import { exportCsv, exportExcel, printReport, type ReportDataset } from '@/modules/analytics/reportExport';
+import { useBranding } from '@/features/branding/useBranding';
+import { normalizeBrandColor } from '@/features/branding/colorTokens';
 
 export function ReportExportMenu({ report, compact = false, loadReport }: { report: ReportDataset; compact?: boolean; loadReport?: () => Promise<ReportDataset> }) {
+  const { branding } = useBranding();
   const [loading, setLoading] = useState<'csv' | 'excel' | null>(null);
   const button = `inline-flex ${compact ? 'h-8 px-2 text-[10px]' : 'h-9 px-2.5 text-xs'} items-center gap-1.5 rounded-lg border font-semibold`;
   const style = { borderColor: 'var(--border-default)', color: 'var(--text-secondary)' };
@@ -10,7 +13,10 @@ export function ReportExportMenu({ report, compact = false, loadReport }: { repo
     setLoading(kind);
     try {
       const dataset = loadReport ? await loadReport() : report;
-      if (kind === 'csv') exportCsv(dataset); else exportExcel(dataset);
+      if (kind === 'csv') exportCsv(dataset); else exportExcel(dataset, {
+        companyName: branding.companyName,
+        primaryColor: normalizeBrandColor(branding.primaryColor),
+      });
     } finally {
       setLoading(null);
     }

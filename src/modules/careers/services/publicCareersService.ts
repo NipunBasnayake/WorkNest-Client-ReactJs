@@ -1,6 +1,6 @@
 import { publicClient } from "@/services/http/client";
 import { unwrapApiData } from "@/services/http/response";
-import { asRecord, extractList, firstDefined, getString, toIsoDateTime } from "@/services/http/parsers";
+import { asRecord, extractList, getString, toIsoDateTime } from "@/services/http/parsers";
 import type { ApiResponse } from "@/types";
 import type {
   PublicCareerJobDetail,
@@ -15,7 +15,6 @@ function normalizeCompany(value: unknown): PublicCompany {
   return {
     tenantSlug: getString(record.tenantSlug) ?? getString(record.slug) ?? "",
     companyName: getString(record.companyName) ?? "Company",
-    logoUrl: firstDefined(getString(record.logoUrl), getString(record.logo)),
     about: getString(record.about),
   };
 }

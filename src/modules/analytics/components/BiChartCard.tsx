@@ -11,10 +11,10 @@ import { ReportExportMenu } from '@/modules/analytics/components/ReportExportMen
 export type BiChartVariant = 'area' | 'line' | 'bar' | 'horizontalBar' | 'donut' | 'pie' | 'radar' | 'funnel' | 'gauge';
 export interface BiSeries { key: 'value' | 'secondaryValue' | 'tertiaryValue'; label: string; color: string; }
 interface Props { title: string; subtitle: string; data: BiChartPoint[]; variant: BiChartVariant; insight?: string; series?: BiSeries[]; drillDown?: (point: BiChartPoint) => string; unit?: string; compact?: boolean; showExport?: boolean; }
-const palette = ['#9332ea', '#2563eb', '#10b981', '#f59e0b', '#ef4444', '#06b6d4', '#8b5cf6', '#64748b'];
+const palette = ['var(--color-primary-500)', '#2563eb', '#10b981', '#f59e0b', '#ef4444', '#06b6d4', 'var(--color-primary-300)', '#64748b'];
 const tooltipStyle = { background: 'var(--bg-surface)', border: '1px solid var(--border-default)', borderRadius: 12, color: 'var(--text-primary)', boxShadow: 'var(--shadow-lg)' };
 
-export default function BiChartCard({ title, subtitle, data, variant, insight, series = [{ key: 'value', label: 'Value', color: '#9332ea' }], drillDown, unit = '', compact = false, showExport = true }: Props) {
+export default function BiChartCard({ title, subtitle, data, variant, insight, series = [{ key: 'value', label: 'Value', color: 'var(--color-primary-500)' }], drillDown, unit = '', compact = false, showExport = true }: Props) {
   const navigate = useNavigate();
   const open = (point: BiChartPoint) => { if (drillDown) navigate(drillDown(point)); };
   const report = { title, headers: ['Category', ...series.map((item) => item.label)], rows: data.map((point) => [point.label, ...series.map((item) => point[item.key] ?? 0)]) };
@@ -23,7 +23,7 @@ export default function BiChartCard({ title, subtitle, data, variant, insight, s
     <div className={`${compact ? 'h-52 p-3' : 'h-72 p-4'} ${drillDown ? 'cursor-pointer' : ''}`} onClick={() => data[0] && open(data[0])} role={drillDown ? 'link' : undefined} tabIndex={drillDown ? 0 : undefined} onKeyDown={(event) => { if (event.key === 'Enter' && data[0]) open(data[0]); }}>
       {!data.length ? <div className='grid h-full place-items-center text-sm' style={{ color: 'var(--text-tertiary)' }}>No data matches the selected filters.</div> : <ResponsiveContainer width='100%' height='100%'>{renderChart(variant, data, series, unit)}</ResponsiveContainer>}
     </div>
-    {drillDown && data.length > 0 && !compact && <div className='scrollbar-hide flex gap-1.5 overflow-x-auto px-5 pb-3 print:hidden'>{data.slice(0, 8).map((point) => <button key={`${point.id ?? ''}-${point.label}`} onClick={() => open(point)} className='inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-1 text-[10px] font-semibold hover:border-purple-400 hover:text-purple-600' style={{ borderColor: 'var(--border-default)', color: 'var(--text-secondary)' }}>{point.label}<ArrowUpRight size={10} /></button>)}</div>}
+    {drillDown && data.length > 0 && !compact && <div className='scrollbar-hide flex gap-1.5 overflow-x-auto px-5 pb-3 print:hidden'>{data.slice(0, 8).map((point) => <button key={`${point.id ?? ''}-${point.label}`} onClick={() => open(point)} className='inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-1 text-[10px] font-semibold hover:border-primary-400 hover:text-primary-600' style={{ borderColor: 'var(--border-default)', color: 'var(--text-secondary)' }}>{point.label}<ArrowUpRight size={10} /></button>)}</div>}
     {insight && !compact && <footer className='flex gap-2 border-t px-5 py-3 text-xs leading-5' style={{ borderColor: 'var(--border-default)', background: 'color-mix(in srgb,var(--bg-muted) 58%,transparent)', color: 'var(--text-secondary)' }}><Lightbulb size={15} className='mt-0.5 shrink-0 text-amber-500' /><span><strong style={{ color: 'var(--text-primary)' }}>Insight:</strong> {insight}</span></footer>}
   </article>;
 }

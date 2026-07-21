@@ -78,6 +78,7 @@ export function ApplicationSuccessPage() {
 
   return (
     <PageContainer size="lg" className="space-y-7">
+      <div className="rounded-2xl border p-4 text-lg font-bold" style={{ borderColor: "var(--brand-border)", background: "var(--brand-soft)", color: "var(--color-primary-700)" }}>{application.company.companyName}</div>
       <PageHeader
         title="Application Submitted"
         description="Your application is safely with the HR team. A confirmation email is on its way."

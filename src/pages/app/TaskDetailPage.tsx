@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useParams } from "react-router-dom";
 import { ArrowLeft, CalendarClock, FolderKanban, MessageSquareText, UserCircle2 } from "lucide-react";
+import { UserAvatar } from "@/components/common/UserAvatar";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { useAuth } from "@/hooks/useAuth";
 import { PERMISSIONS } from "@/constants/permissions";
@@ -367,8 +368,10 @@ export function TaskDetailPage() {
             </div>
           ) : null}
 
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-            <InfoCard icon={<UserCircle2 size={16} />} label="Assignee" value={task.assigneeName || "Unassigned"} />
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
+            <InfoCard icon={<UserCircle2 size={16} />} label="Assignee" value={task.assigneeName || "Unassigned"} avatarUrl={task.assigneeAvatarUrl} avatarEmail={task.assigneeEmail} />
+            <InfoCard icon={<UserCircle2 size={16} />} label="Created By" value={task.createdByName || "Not available"} avatarUrl={task.createdByAvatarUrl} />
+            <InfoCard icon={<UserCircle2 size={16} />} label="Assigned By" value={task.assignedByName || "Not available"} avatarUrl={task.assignedByAvatarUrl} />
             <InfoCard icon={<UserCircle2 size={16} />} label="Assigned Team" value={task.assignedTeamName || "Unscoped"} />
             <InfoCard icon={<FolderKanban size={16} />} label="Project" value={task.projectName || "No project"} />
             <InfoCard icon={<CalendarClock size={16} />} label="Due Date" value={formatDate(task.dueDate, "Not set")} />
@@ -609,16 +612,17 @@ function toAssigneeOption(member: AssignableTeamMember): Option {
   };
 }
 
-function InfoCard({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
+function InfoCard({ icon, label, value, avatarUrl, avatarEmail }: { icon: ReactNode; label: string; value: string; avatarUrl?: string; avatarEmail?: string }) {
   return (
     <div className="rounded-xl border p-4" style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)" }}>
       <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--text-tertiary)" }}>
         <span style={{ color: "var(--color-primary-500)" }}>{icon}</span>
         {label}
       </div>
-      <p className="mt-2 text-sm font-medium" style={{ color: "var(--text-primary)" }}>
-        {value}
-      </p>
+      <div className="mt-2 flex items-center gap-2">
+        {avatarUrl ? <UserAvatar name={value} email={avatarEmail} src={avatarUrl} size="xs" /> : null}
+        <p className="min-w-0 truncate text-sm font-medium" style={{ color: "var(--text-primary)" }}>{value}</p>
+      </div>
     </div>
   );
 }
@@ -627,9 +631,7 @@ function CommentItem({ comment }: { comment: TaskComment }) {
   return (
     <div className="rounded-xl border p-3" style={{ borderColor: "var(--border-default)" }}>
       <div className="flex items-center justify-between gap-2">
-        <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-          {comment.authorName}
-        </p>
+        <div className="flex min-w-0 items-center gap-2"><UserAvatar name={comment.authorName} src={comment.authorAvatarUrl} size="xs" /><p className="truncate text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{comment.authorName}</p></div>
         <span className="text-xs" style={{ color: "var(--text-tertiary)" }}>
           {formatDateTime(comment.createdAt, "Unknown")}
         </span>

@@ -37,34 +37,38 @@ function normalizeLeaveStatus(value: unknown): LeaveStatus {
 
 function normalizeLeave(input: unknown): LeaveRequest {
   const value = asRecord(input);
+  const employee = asRecord(value.employee);
+  const approver = asRecord(firstDefined(value.approver, value.decidedBy));
   return {
     id: getId(firstDefined(value.id, value.leaveId)),
-    employeeId: getId(firstDefined(value.employeeId, value.requesterEmployeeId, asRecord(value.employee).id)),
+    employeeId: getId(firstDefined(value.employeeId, value.requesterEmployeeId, employee.id)),
     employeeName: firstDefined(
       getString(value.employeeName),
       getString(value.requesterName),
-      getString(asRecord(value.employee).fullName),
-      getString(asRecord(value.employee).name)
+      getString(employee.fullName),
+      getString(employee.name)
     ) ?? "Employee",
-    employeeRole: getString(asRecord(value.employee).role),
+    employeeAvatarUrl: getString(employee.avatarUrl),
+    employeeRole: getString(employee.role),
     leaveType: (getString(firstDefined(value.leaveType, value.type))?.toUpperCase() ?? "ANNUAL") as LeaveRequest["leaveType"],
     startDate: toIsoDate(firstDefined(value.startDate, value.fromDate)),
     endDate: toIsoDate(firstDefined(value.endDate, value.toDate)),
     reason: getString(value.reason) ?? "",
     status: normalizeLeaveStatus(firstDefined(value.status, value.leaveStatus)),
     approverId: firstDefined(
-      getString(asRecord(value.approver).id),
+      getString(approver.id),
       getString(value.approverId),
       getString(value.decidedById),
       getString(value.reviewerId),
     ),
     approverName: firstDefined(
-      getString(asRecord(value.approver).fullName),
-      getString(asRecord(value.approver).name),
+      getString(approver.fullName),
+      getString(approver.name),
       getString(value.approverName),
       getString(value.decidedByName),
       getString(value.reviewerName)
     ),
+    approverAvatarUrl: getString(approver.avatarUrl),
     approverRole: getString(asRecord(value.approver).role),
     reviewerId: firstDefined(
       getString(value.reviewerId),

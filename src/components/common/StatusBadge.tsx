@@ -4,8 +4,8 @@ interface StatusBadgeProps {
 
 const STATUS_STYLE: Record<string, { bg: string; text: string; dot: string }> = {
   active: { bg: "rgba(16,185,129,0.1)", text: "#10b981", dot: "#10b981" },
-  planned: { bg: "rgba(99,102,241,0.12)", text: "#6366f1", dot: "#6366f1" },
-  planning: { bg: "rgba(124,58,237,0.12)", text: "#7c3aed", dot: "#7c3aed" },
+  planned: { bg: "var(--brand-soft)", text: "var(--color-primary-600)", dot: "var(--brand-action)" },
+  planning: { bg: "var(--brand-soft)", text: "var(--color-primary-700)", dot: "var(--color-primary-500)" },
   completed: { bg: "rgba(16,185,129,0.1)", text: "#10b981", dot: "#10b981" },
   cancelled: { bg: "rgba(239,68,68,0.12)", text: "#ef4444", dot: "#ef4444" },
   on_hold: { bg: "rgba(245,158,11,0.12)", text: "#d97706", dot: "#d97706" },

@@ -12,7 +12,7 @@ function RouteLoader() {
     <div className="flex min-h-[40vh] items-center justify-center">
       <div
         className="h-9 w-9 animate-spin rounded-full border-4 border-transparent"
-        style={{ borderTopColor: "#9332EA", borderLeftColor: "rgba(147,50,234,0.3)" }}
+        style={{ borderTopColor: "var(--brand-action)", borderLeftColor: "var(--brand-border)" }}
       />
     </div>
   );

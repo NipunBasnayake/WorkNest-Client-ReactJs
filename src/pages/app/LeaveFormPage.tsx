@@ -127,7 +127,7 @@ export function LeaveFormPage() {
 
       {loading && (
         <div className="py-20 flex items-center justify-center">
-          <div className="w-10 h-10 rounded-full border-4 border-transparent animate-spin" style={{ borderTopColor: "#9332EA", borderLeftColor: "rgba(147,50,234,0.3)" }} />
+          <div className="w-10 h-10 rounded-full border-4 border-transparent animate-spin" style={{ borderTopColor: "var(--brand-action)", borderLeftColor: "var(--brand-border)" }} />
         </div>
       )}
 

@@ -16,11 +16,11 @@ export function RecruitmentDashboardWidget({ summary }: { summary: RecruitmentDa
       action={<Button variant="outline" size="sm" to={tenantRoutes.recruitmentJobs()}>Manage Job Openings</Button>}
     >
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
-        <StatCard label="Open Jobs" value={summary.openJobs} icon={<BriefcaseBusiness size={20} />} accentColor="#9332ea" />
+        <StatCard label="Open Jobs" value={summary.openJobs} icon={<BriefcaseBusiness size={20} />} accentColor="var(--color-primary-500)" />
         <StatCard label="Applications Received" value={summary.applicationsReceived} icon={<ClipboardList size={20} />} accentColor="#2563eb" />
         <StatCard label="Shortlisted" value={summary.shortlisted} icon={<UsersRound size={20} />} accentColor="#0891b2" />
         <StatCard label="Interviews Scheduled" value={summary.interviewsScheduled} icon={<CalendarClock size={20} />} accentColor="#d97706" />
-        <StatCard label="Offers" value={summary.offers} icon={<Send size={20} />} accentColor="#7c3aed" />
+        <StatCard label="Offers" value={summary.offers} icon={<Send size={20} />} accentColor="var(--color-primary-700)" />
         <StatCard label="Hired" value={summary.hired} icon={<UserCheck size={20} />} accentColor="#059669" />
       </div>
 

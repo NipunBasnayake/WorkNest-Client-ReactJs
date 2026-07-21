@@ -7,6 +7,7 @@ export interface LeaveRequest {
   id: string;
   employeeId: string;
   employeeName: string;
+  employeeAvatarUrl?: string;
   employeeRole?: string;
   leaveType: LeaveType;
   startDate: string;
@@ -15,6 +16,7 @@ export interface LeaveRequest {
   status: LeaveStatus;
   approverId?: string;
   approverName?: string;
+  approverAvatarUrl?: string;
   approverRole?: string;
   reviewerId?: string;
   reviewerName?: string;

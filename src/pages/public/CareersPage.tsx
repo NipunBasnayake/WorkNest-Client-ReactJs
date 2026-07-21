@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
-import { BriefcaseBusiness, Building2, CalendarDays, Link2, MapPin, Search } from "lucide-react";
+import { BriefcaseBusiness, CalendarDays, Link2, MapPin, Search } from "lucide-react";
 import { Badge } from "@/components/common/Badge";
 import { Button } from "@/components/common/Button";
 import { EmptyState, ErrorBanner } from "@/components/common/AppUI";
@@ -106,7 +106,6 @@ export function CareersPage() {
       <CompanyHeader
         companyName={data.company.companyName}
         about={data.company.about}
-        logoUrl={data.company.logoUrl}
         onShareCareers={handleShareCareers}
       />
 
@@ -162,25 +161,16 @@ export function CareersPage() {
 function CompanyHeader({
   companyName,
   about,
-  logoUrl,
   onShareCareers,
 }: {
   companyName: string;
   about?: string;
-  logoUrl?: string;
   onShareCareers: () => void;
 }) {
   return (
     <section className="rounded-2xl border p-6 sm:p-8" style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)", boxShadow: "var(--shadow-sm)" }}>
       <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
         <div className="flex min-w-0 flex-col gap-5 sm:flex-row sm:items-center">
-          <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl border" style={{ backgroundColor: "var(--bg-muted)", borderColor: "var(--border-default)" }}>
-            {logoUrl ? (
-              <img src={logoUrl} alt={`${companyName} logo`} className="h-full w-full object-cover" />
-            ) : (
-              <Building2 size={28} style={{ color: "var(--color-primary-500)" }} aria-hidden="true" />
-            )}
-          </div>
           <div className="min-w-0">
             <p className="text-sm font-semibold" style={{ color: "var(--color-primary-600)" }}>Careers</p>
             <h1 className="mt-1 text-3xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>{companyName}</h1>

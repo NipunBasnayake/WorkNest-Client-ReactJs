@@ -63,12 +63,12 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           />
         )}
         {hint && !error && (
-          <span className="text-[11px] leading-relaxed" style={{ color: "var(--text-tertiary)" }}>
+          <span id={`${id}-hint`} className="text-[11px] leading-relaxed" style={{ color: "var(--text-tertiary)" }}>
             {hint}
           </span>
         )}
         {error && (
-          <span className="mt-0.5 flex items-center gap-1 text-xs text-red-500">
+          <span id={`${id}-error`} className="mt-0.5 flex items-center gap-1 text-xs text-red-500">
             <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
               <path d="M6 1a5 5 0 100 10A5 5 0 006 1zm-.5 2.5a.5.5 0 011 0v3a.5.5 0 01-1 0v-3zm.5 5a.625.625 0 110-1.25A.625.625 0 016 8.5z"/>
             </svg>

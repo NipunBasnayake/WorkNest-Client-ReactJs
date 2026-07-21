@@ -47,6 +47,18 @@ export function resolveWebSocketUrl(): string {
   return toNativeWebSocketUrl(`${apiBase}/ws`, "VITE_API_BASE_URL");
 }
 
+export function resolveBackendHealthUrl(): string {
+  const apiBase = ((import.meta.env.VITE_API_BASE_URL as string | undefined) ?? "http://localhost:8080")
+    .trim()
+    .replace(/\/+$/, "");
+  const url = new URL(apiBase);
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    throw new Error("VITE_API_BASE_URL must use http or https for backend readiness checks.");
+  }
+  url.pathname = `${url.pathname.replace(/\/+$/, "")}/actuator/health`;
+  return url.toString();
+}
+
 function parsePayload(message: IMessage): unknown {
   if (!message.body) return null;
   try {
@@ -99,6 +111,9 @@ class RealtimeStompClient {
   private entries = new Map<string, SubscriptionEntry>();
   private connected = false;
   private config: RealtimeStompConfig;
+  private readinessTimer: ReturnType<typeof setTimeout> | null = null;
+  private readinessProbe: AbortController | null = null;
+  private readinessAttempt = 0;
 
   constructor(config: Partial<RealtimeStompConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
@@ -139,11 +154,19 @@ class RealtimeStompClient {
     if (this.client) return;
     if (!this.hasConnectContext()) return;
 
+    this.scheduleReadinessProbe();
+  }
+
+  private createClient() {
+    if (this.client || this.entries.size === 0 || !this.hasConnectContext()) return;
+
     const client = new Client({
       brokerURL: resolveWebSocketUrl(),
       reconnectDelay: this.config.initialReconnectDelay,
       maxReconnectDelay: this.config.maxReconnectDelay,
       reconnectTimeMode: ReconnectionTimeMode.EXPONENTIAL,
+      connectionTimeout: 8_000,
+      discardWebsocketOnCommFailure: true,
       heartbeatIncoming: this.config.heartbeatIncoming,
       heartbeatOutgoing: this.config.heartbeatOutgoing,
       beforeConnect: () => {
@@ -185,15 +208,49 @@ class RealtimeStompClient {
        * reconnecting in an infinite loop on auth failures.
        */
       const msg = frame.headers["message"] ?? "Unknown STOMP error";
-      if (import.meta.env.DEV) {
-        console.warn("WorkNest realtime STOMP error:", msg);
-      }
-      console.error(`[WS] STOMP error: ${msg}`);
+      if (import.meta.env.DEV) console.warn("WorkNest realtime connection rejected:", msg);
       this.resetClient({ deactivate: true });
     };
 
     this.client = client;
     client.activate();
+  }
+
+  private scheduleReadinessProbe(delay = 0) {
+    if (this.readinessTimer || this.readinessProbe || this.client) return;
+    this.readinessTimer = setTimeout(() => {
+      this.readinessTimer = null;
+      void this.probeBackendReadiness();
+    }, delay);
+  }
+
+  private async probeBackendReadiness() {
+    if (this.entries.size === 0 || !this.hasConnectContext() || this.client) return;
+
+    const controller = new AbortController();
+    this.readinessProbe = controller;
+    const timeout = setTimeout(() => controller.abort(), 3_000);
+    try {
+      const response = await fetch(resolveBackendHealthUrl(), {
+        method: "GET",
+        credentials: "omit",
+        cache: "no-store",
+        signal: controller.signal,
+      });
+      if (!response.ok) throw new Error(`Backend health returned ${response.status}`);
+      this.readinessAttempt = 0;
+      this.createClient();
+    } catch {
+      if (this.entries.size > 0 && this.hasConnectContext()) {
+        const delay = Math.min(15_000, 1_000 * 2 ** Math.min(this.readinessAttempt, 4));
+        this.readinessAttempt += 1;
+        if (this.readinessProbe === controller) this.readinessProbe = null;
+        this.scheduleReadinessProbe(delay);
+      }
+    } finally {
+      clearTimeout(timeout);
+      if (this.readinessProbe === controller) this.readinessProbe = null;
+    }
   }
 
   private getHeaders(): Record<string, string> {
@@ -282,6 +339,11 @@ class RealtimeStompClient {
       entry.sockets = [];
     });
     this.client = null;
+    this.readinessAttempt = 0;
+    if (this.readinessTimer) clearTimeout(this.readinessTimer);
+    this.readinessTimer = null;
+    this.readinessProbe?.abort();
+    this.readinessProbe = null;
 
     if (client && options.deactivate) {
       void client.deactivate().catch((error) => {

@@ -1,5 +1,30 @@
 import { FEATURES } from "@/constants/features";
-import * as Icons from "lucide-react";
+import {
+  Bell,
+  CalendarDays,
+  CheckSquare,
+  Clock,
+  Columns3,
+  FolderKanban,
+  Megaphone,
+  MessageSquare,
+  Users,
+  UsersRound,
+  type LucideIcon,
+} from "lucide-react";
+
+const FEATURE_ICONS: Record<string, LucideIcon> = {
+  Bell,
+  CalendarDays,
+  CheckSquare,
+  Clock,
+  Columns3,
+  FolderKanban,
+  Megaphone,
+  MessageSquare,
+  Users,
+  UsersRound,
+};
 
 export function FeaturesSection() {
   return (
@@ -29,7 +54,7 @@ export function FeaturesSection() {
         {/* Grid */}
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {FEATURES.map((feature, idx) => {
-            const IconComponent = (Icons as unknown as Record<string, Icons.LucideIcon>)[feature.icon];
+            const IconComponent = FEATURE_ICONS[feature.icon];
             const isHighlighted = idx === 0 || idx === 3;
             return (
               <div

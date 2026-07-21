@@ -4,6 +4,7 @@ export interface AttendanceRecord {
   id: string;
   employeeId: string;
   employeeName: string;
+  employeeAvatarUrl?: string;
   date: string;
   checkIn?: string;
   checkOut?: string;
@@ -14,6 +15,7 @@ export interface AttendanceRecord {
     id: string;
     name: string;
     email?: string;
+    avatarUrl?: string;
   };
   status: AttendanceStatus;
   workedMinutes?: number;

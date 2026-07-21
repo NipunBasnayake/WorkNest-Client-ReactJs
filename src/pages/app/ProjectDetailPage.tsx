@@ -24,6 +24,7 @@ import { AppSelect } from "@/components/common/AppSelect";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { EmptyState, ErrorBanner } from "@/components/common/AppUI";
+import { UserAvatar } from "@/components/common/UserAvatar";
 import type { Project } from "@/modules/projects/types";
 import type { Team } from "@/modules/teams/types";
 import type { Task } from "@/modules/tasks/types";
@@ -260,7 +261,7 @@ export function ProjectDetailPage() {
         <div className="py-24 flex items-center justify-center">
           <div
             className="w-10 h-10 rounded-full border-4 border-transparent animate-spin"
-            style={{ borderTopColor: "#9332EA", borderLeftColor: "rgba(147,50,234,0.3)" }}
+            style={{ borderTopColor: "var(--brand-action)", borderLeftColor: "var(--brand-border)" }}
           />
         </div>
       )}
@@ -292,7 +293,7 @@ export function ProjectDetailPage() {
             </div>
           </SectionCard>
 
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
             <SectionCard title="Progress">
               <div className="text-3xl font-bold" style={{ color: "var(--text-primary)" }}>
                 {computedProgress}%
@@ -300,7 +301,7 @@ export function ProjectDetailPage() {
               <div className="mt-2 h-2 rounded-full" style={{ backgroundColor: "var(--bg-muted)" }}>
                 <div
                   className="h-2 rounded-full"
-                  style={{ width: `${Math.max(0, Math.min(100, computedProgress))}%`, background: "linear-gradient(90deg, #9332EA 0%, #7c1fd1 100%)" }}
+                  style={{ width: `${Math.max(0, Math.min(100, computedProgress))}%`, background: "linear-gradient(90deg, var(--color-primary-500) 0%, var(--color-primary-700) 100%)" }}
                 />
               </div>
             </SectionCard>
@@ -334,6 +335,25 @@ export function ProjectDetailPage() {
               <p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>
                 {taskSummary.total === 0 ? "No tasks yet" : `${taskSummary.total - taskSummary.done} open`}
               </p>
+            </SectionCard>
+
+            <SectionCard title="Owner">
+              <div className="flex items-center gap-2.5">
+                <UserAvatar
+                  name={project.createdBy?.name ?? "Project owner"}
+                  email={project.createdBy?.email}
+                  src={project.createdBy?.avatarUrl}
+                  size="sm"
+                />
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+                    {project.createdBy?.name ?? "Not available"}
+                  </p>
+                  {project.createdBy?.email ? (
+                    <p className="truncate text-xs" style={{ color: "var(--text-secondary)" }}>{project.createdBy.email}</p>
+                  ) : null}
+                </div>
+              </div>
             </SectionCard>
           </div>
 

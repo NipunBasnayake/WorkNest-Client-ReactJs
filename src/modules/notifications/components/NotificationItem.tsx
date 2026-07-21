@@ -16,14 +16,14 @@ export function NotificationItem({ item, compact = false, onMarkRead, onOpen }: 
         compact ? "hover:bg-primary-50/40 dark:hover:bg-primary-950/15" : "hover:bg-primary-50/30 dark:hover:bg-primary-950/10"
       }`}
       style={{
-        backgroundColor: item.read ? "var(--bg-surface)" : "rgba(147,50,234,0.06)",
-        borderColor: item.read ? "var(--border-default)" : "rgba(147,50,234,0.2)",
+        backgroundColor: item.read ? "var(--bg-surface)" : "var(--brand-soft)",
+        borderColor: item.read ? "var(--border-default)" : "var(--brand-border)",
       }}
     >
       <div className="flex items-start gap-2.5">
         <div
           className="mt-0.5 h-8 w-8 shrink-0 rounded-lg flex items-center justify-center"
-          style={{ background: "rgba(147,50,234,0.12)", color: "var(--color-primary-500)" }}
+          style={{ background: "var(--brand-soft)", color: "var(--color-primary-500)" }}
         >
           <BellRing size={14} />
         </div>

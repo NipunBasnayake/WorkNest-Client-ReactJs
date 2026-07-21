@@ -45,6 +45,7 @@ export interface AuditLog {
   actorId?: string;
   actorName?: string;
   actorEmail?: string;
+  actorAvatarUrl?: string;
   action: AuditActionType | string;
   entityType: AuditEntityType | string;
   entityId?: string;
@@ -80,6 +81,7 @@ function toAuditLog(input: unknown): AuditLog {
     actorId: getString(actor.id),
     actorName: getString(actor.fullName),
     actorEmail: getString(record.actorEmail) ?? getString(actor.email),
+    actorAvatarUrl: getString(actor.avatarUrl),
     action: getString(record.action) ?? "UPDATE",
     entityType: getString(record.entityType) ?? "TASK",
     entityId: getString(record.entityId),

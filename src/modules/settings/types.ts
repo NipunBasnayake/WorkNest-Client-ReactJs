@@ -6,6 +6,7 @@ export interface ProfileSettings {
   fullName: string;
   email: string;
   title: string;
+  phone?: string;
   avatarUrl?: string;
   avatar?: UploadedFileAsset | null;
 }
@@ -17,8 +18,6 @@ export interface WorkspaceSettings {
   createdAt: string;
   databaseName?: string;
   dataSource: "backend" | "inferred";
-  logoUrl?: string;
-  logo?: UploadedFileAsset | null;
 }
 
 export interface PreferenceSettings {

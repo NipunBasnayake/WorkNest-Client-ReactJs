@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 type Tone = 'purple' | 'blue' | 'green' | 'amber' | 'red';
 interface Props { label: string; value: string | number; context: string; icon: ReactNode; tone?: Tone; trend?: number; to?: string }
 const tones: Record<Tone, [string, string]> = {
-  purple: ['#9332ea', 'rgba(147,50,234,.1)'], blue: ['#2563eb', 'rgba(37,99,235,.1)'],
+  purple: ['var(--color-primary-600)', 'var(--brand-soft)'], blue: ['#2563eb', 'rgba(37,99,235,.1)'],
   green: ['#059669', 'rgba(5,150,105,.1)'], amber: ['#d97706', 'rgba(217,119,6,.1)'], red: ['#dc2626', 'rgba(220,38,38,.1)'],
 };
 export function KpiCard({ label, value, context, icon, tone = 'purple', trend, to }: Props) {

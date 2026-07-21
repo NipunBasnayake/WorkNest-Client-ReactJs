@@ -6,11 +6,13 @@ import { Button } from "@/components/common/Button";
 import { ThemeToggle } from "@/components/common/ThemeToggle";
 import { MobileMenu } from "@/components/navigation/MobileMenu";
 import { NAV_LINKS } from "@/constants/navigation";
+import { useBranding } from "@/features/branding/useBranding";
 
 export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const location = useLocation();
+  const { branding } = useBranding();
   const isLanding = location.pathname === "/";
   const careersMatch = matchPath("/:tenantSlug/careers/*", location.pathname)
     ?? matchPath("/:tenantSlug/careers", location.pathname)
@@ -42,7 +44,11 @@ export function Navbar() {
       >
         <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           {/* Logo */}
-          <Logo size="md" />
+          {isCareers && careersMatch?.params.tenantSlug ? (
+            <Link to={`/${careersMatch.params.tenantSlug}/careers`} className="min-w-0 break-words text-lg font-bold text-[var(--text-primary)] no-underline">
+              {branding.companyName}
+            </Link>
+          ) : <Logo size="md" />}
 
           {/* Desktop nav links */}
           <div className="hidden md:flex items-center gap-0.5">

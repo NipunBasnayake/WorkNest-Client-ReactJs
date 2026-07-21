@@ -18,7 +18,6 @@ export function AuthPageFrame({ title, description, children }: AuthPageFramePro
         }}
       >
         <div className="mb-6 flex flex-col items-center gap-4 text-center sm:mb-7">
-          {/* <Logo size="md" /> */}
 
           <div className="h-1.5 w-16 rounded-full" style={{ backgroundColor: "var(--color-primary-500)" }} />
 

@@ -47,7 +47,7 @@ export function MarkdownEditor({ value, onChange, label = "Job description", err
         <div className="flex flex-wrap gap-1 border-b p-2" style={{ borderColor: "var(--border-default)", background: "var(--bg-muted)" }}>
           {tools.map((tool) => {
             const Icon = tool.icon;
-            return <button key={tool.label} type="button" title={tool.label} aria-label={tool.label} onClick={() => insert(tool)} className="inline-flex h-8 w-8 items-center justify-center rounded-lg transition hover:bg-purple-500/10 hover:text-purple-600"><Icon size={15} /></button>;
+            return <button key={tool.label} type="button" title={tool.label} aria-label={tool.label} onClick={() => insert(tool)} className="inline-flex h-8 w-8 items-center justify-center rounded-lg transition hover:bg-primary-500/10 hover:text-primary-600"><Icon size={15} /></button>;
           })}
         </div>
         <div className="grid min-h-[34rem] lg:grid-cols-2">

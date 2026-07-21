@@ -1,6 +1,7 @@
 import { BriefcaseBusiness, Loader2, Search, Users, X } from "lucide-react";
 import type { ChatConversation } from "@/modules/chat/types";
 import { buildConversationKey, formatConversationTime } from "@/app/chat/chatUtils";
+import { UserAvatar } from "@/components/common/UserAvatar";
 
 interface ConversationListProps {
   searchQuery: string;
@@ -43,12 +44,13 @@ function ConversationButton({
       onClick={() => onSelect(conversation)}
       className="mb-2 w-full rounded-xl border p-3 text-left transition-colors last:mb-0"
       style={{
-        borderColor: selected ? "rgba(147,50,234,0.36)" : "var(--border-default)",
-        backgroundColor: selected ? "rgba(147,50,234,0.1)" : "var(--bg-surface)",
+        borderColor: selected ? "var(--brand-border)" : "var(--border-default)",
+        backgroundColor: selected ? "var(--brand-soft)" : "var(--bg-surface)",
       }}
       aria-label={`${conversation.title || "Conversation"}${unreadCount > 0 ? `, ${unreadCount} unread messages` : ""}`}
     >
       <div className="mb-1.5 flex items-start justify-between gap-3">
+        <UserAvatar name={conversation.title} src={conversation.participants[0]?.avatarUrl} size="sm" />
         <p className="truncate text-sm font-semibold" style={{ color: "var(--text-primary)" }} title={conversation.title}>
           {conversation.title || "Untitled conversation"}
         </p>
@@ -219,8 +221,8 @@ export function ConversationList({
                   disabled={isOpeningHrSupport}
                   className="w-full rounded-xl border p-3 text-left transition-colors disabled:opacity-60"
                   style={{
-                    borderColor: "rgba(147,50,234,0.28)",
-                    backgroundColor: "rgba(147,50,234,0.08)",
+                    borderColor: "var(--brand-border)",
+                    backgroundColor: "var(--brand-soft)",
                   }}
                 >
                   <span className="flex items-center justify-between gap-3">

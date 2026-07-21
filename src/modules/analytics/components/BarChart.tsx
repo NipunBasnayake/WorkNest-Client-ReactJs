@@ -11,7 +11,7 @@ interface BarChartProps {
   drillDownTo?: string;
 }
 
-export function BarChart({ title, subtitle, data, color = '#9332EA', unit = '', drillDownTo }: BarChartProps) {
+export function BarChart({ title, subtitle, data, color = 'var(--color-primary-500)', unit = '', drillDownTo }: BarChartProps) {
   const max = data.reduce((acc, item) => Math.max(acc, item.value), 0);
 
   return (
@@ -25,7 +25,7 @@ export function BarChart({ title, subtitle, data, color = '#9332EA', unit = '', 
             {subtitle}
           </p>
         )}
-        {drillDownTo && <Link to={drillDownTo} className='mt-2 inline-block text-xs font-semibold text-purple-600 hover:underline'>View underlying records →</Link>}
+        {drillDownTo && <Link to={drillDownTo} className='mt-2 inline-block text-xs font-semibold text-primary-600 hover:underline'>View underlying records →</Link>}
       </div>
 
       <div className="space-y-3">
@@ -45,7 +45,7 @@ export function BarChart({ title, subtitle, data, color = '#9332EA', unit = '', 
                 className="h-2 rounded-full"
                 style={{
                   width: `${max > 0 ? (item.value / max) * 100 : 0}%`,
-                  background: `linear-gradient(90deg, ${color} 0%, #c084fc 100%)`,
+                  background: `linear-gradient(90deg, ${color} 0%, var(--color-primary-300) 100%)`,
                 }}
               />
             </div>

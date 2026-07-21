@@ -52,6 +52,7 @@ function normalizeProfile(employeeRaw: unknown, authUser: AuthUser | null): Prof
         getString(employee.position),
         getString(employee.title)
       ) ?? "",
+    phone: getString(employee.phone) ?? "",
     avatarUrl:
       firstDefined(
         getString(employee.avatarUrl),
@@ -90,8 +91,6 @@ async function resolveWorkspace(authUser: AuthUser | null): Promise<WorkspaceSet
       status: (getString(payload.status) ?? "ACTIVE").toUpperCase(),
       createdAt: toIsoDate(firstDefined(payload.createdAt, payload.createdDate)),
       databaseName: getString(payload.databaseName),
-      logoUrl: getString(payload.logoUrl),
-      logo: extractUploadedFileAssets(payload.logoUrl)[0] ?? null,
       dataSource: "backend",
     };
   } catch (error: unknown) {
@@ -159,7 +158,7 @@ async function updateMyProfile(payload: {
   firstName: string;
   lastName: string;
   designation: string;
-  avatarUrl?: string;
+  phone?: string;
   password?: string;
 }): Promise<unknown> {
   const { data } = await apiClient.put<ApiResponse<unknown> | unknown>(buildTenantApiUrl("/employees/me"), payload);
@@ -186,12 +185,11 @@ export async function updateTenantProfile(profile: ProfileSettings): Promise<Pro
     firstName: nameParts.firstName,
     lastName: nameParts.lastName,
     designation: profile.title.trim(),
-    avatarUrl: profile.avatarUrl,
+    phone: profile.phone?.trim() ?? "",
   };
 
   const updated = await updateMyProfile(payload);
-  const authUser = await getCurrentAuthUser();
-  return normalizeProfile(updated, authUser);
+  return normalizeProfile(updated, null);
 }
 
 export async function updateTenantPassword(password: string): Promise<void> {
@@ -200,29 +198,15 @@ export async function updateTenantPassword(password: string): Promise<void> {
   const lastName = getString(firstDefined(currentProfile.lastName, currentProfile.last_name)) ?? "";
   const designation =
     firstDefined(getString(currentProfile.designation), getString(currentProfile.position)) ?? "";
+  const phone = getString(currentProfile.phone) ?? "";
 
   await updateMyProfile({
     firstName,
     lastName,
     designation,
+    phone,
     password,
   });
-}
-
-export async function updateTenantWorkspace(workspace: WorkspaceSettings): Promise<WorkspaceSettings> {
-  const { data } = await apiClient.patch<ApiResponse<unknown> | unknown>(buildTenantApiUrl("/settings/workspace"), {
-    companyName: workspace.workspaceName.trim(),
-    logoUrl: workspace.logo?.path ?? workspace.logoUrl,
-  });
-  const payload = asRecord(unwrapApiData<unknown>(data));
-  const logoUrl = getString(payload.logoUrl) ?? workspace.logoUrl;
-  return {
-    ...workspace,
-    workspaceName: getString(payload.companyName) ?? workspace.workspaceName,
-    logoUrl,
-    logo: extractUploadedFileAssets(logoUrl)[0] ?? workspace.logo ?? null,
-    dataSource: "backend",
-  };
 }
 
 export async function updateTenantPreferences(preferences: PreferenceSettings): Promise<PreferenceSettings> {

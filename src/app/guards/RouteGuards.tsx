@@ -14,12 +14,12 @@ function BootstrapLoader() {
         <div
           className="w-10 h-10 rounded-full border-4 border-transparent animate-spin"
           style={{
-            borderTopColor: "#9332EA",
-            borderLeftColor: "rgba(147,50,234,0.3)",
+            borderTopColor: "var(--brand-action)",
+            borderLeftColor: "var(--brand-border)",
           }}
         />
         <p className="text-sm" style={{ color: "var(--text-tertiary)" }}>
-          Starting WorkNest...
+          Starting workspace...
         </p>
       </div>
     </div>

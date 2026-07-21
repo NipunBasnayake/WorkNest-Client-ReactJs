@@ -15,12 +15,14 @@ function push(kind: ToastKind, payload: ToastPayload): string {
   });
 }
 
+const toastApi = {
+  success: (payload: ToastPayload) => push("success", payload),
+  error: (payload: ToastPayload) => push("error", payload),
+  info: (payload: ToastPayload) => push("info", payload),
+  dismiss: (id: string) => useToastStore.getState().remove(id),
+  clear: () => useToastStore.getState().clear(),
+};
+
 export function useToast() {
-  return {
-    success: (payload: ToastPayload) => push("success", payload),
-    error: (payload: ToastPayload) => push("error", payload),
-    info: (payload: ToastPayload) => push("info", payload),
-    dismiss: (id: string) => useToastStore.getState().remove(id),
-    clear: () => useToastStore.getState().clear(),
-  };
+  return toastApi;
 }

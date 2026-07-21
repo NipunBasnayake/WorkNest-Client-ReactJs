@@ -7,6 +7,7 @@ export interface Announcement {
   pinned: boolean;
   authorId: string;
   authorName: string;
+  authorAvatarUrl?: string;
   authorRole?: string;
   teamId?: string;
   teamName?: string;

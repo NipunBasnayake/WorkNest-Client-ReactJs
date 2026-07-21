@@ -80,6 +80,12 @@ function normalizeTeamMember(input: unknown): TeamMember | null {
       getString(value.email),
       getString(employee.email)
     ),
+    avatarUrl: firstDefined(
+      getString(value.avatarUrl),
+      getString(value.avatar),
+      getString(employee.avatarUrl),
+      getString(employee.avatar)
+    ),
     functionalRole: normalizeFunctionalRole(
       firstDefined(value.functionalRole, value.memberRole, value.teamRole, value.role)
     ),
@@ -123,6 +129,10 @@ function normalizeTeam(input: unknown, members: TeamMember[] = []): Team {
     getString(asRecord(value.manager).fullName),
     getString(asRecord(value.manager).name)
   ) ?? "Unassigned";
+  const managerAvatarUrl = firstDefined(
+    getString(value.managerAvatarUrl),
+    getString(asRecord(value.manager).avatarUrl)
+  );
 
   let normalizedMembers = dedupeMembers(members).map((member) => {
     if (managerEmployeeId && member.employeeId === managerEmployeeId) {
@@ -171,6 +181,7 @@ function normalizeTeam(input: unknown, members: TeamMember[] = []): Team {
     name: firstDefined(getString(value.name), getString(value.teamName)) ?? "Team",
     description: firstDefined(getString(value.description), getString(value.summary)),
     managerName,
+    managerAvatarUrl,
     managerEmployeeId,
     members: normalizedMembers,
     memberIds: Array.from(memberIds),

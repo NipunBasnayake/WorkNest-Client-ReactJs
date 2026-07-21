@@ -15,6 +15,7 @@ function statusFrom(value: unknown): AttendanceStatus {
 
 function normalizeRecord(input: unknown): AttendanceRecord {
   const value = asRecord(input);
+  const employee = asRecord(value.employee);
   const checkIn = firstDefined(getString(value.checkIn), getString(value.checkInTime));
   const checkOut = firstDefined(getString(value.checkOut), getString(value.checkOutTime));
   const late = firstDefined(
@@ -27,12 +28,13 @@ function normalizeRecord(input: unknown): AttendanceRecord {
 
   return {
     id: getId(firstDefined(value.id, value.attendanceId)),
-    employeeId: getId(firstDefined(value.employeeId, asRecord(value.employee).id)),
+    employeeId: getId(firstDefined(value.employeeId, employee.id)),
     employeeName: firstDefined(
       getString(value.employeeName),
-      getString(asRecord(value.employee).fullName),
-      getString(asRecord(value.employee).name)
+      getString(employee.fullName),
+      getString(employee.name)
     ) ?? "Employee",
+    employeeAvatarUrl: getString(employee.avatarUrl),
     date: toIsoDate(firstDefined(value.date, value.workDate, value.attendanceDate)),
     checkIn,
     checkOut,
@@ -45,6 +47,7 @@ function normalizeRecord(input: unknown): AttendanceRecord {
           id: getId(firstDefined(markedByEmployee.id, markedByEmployee.employeeId)),
           name: firstDefined(getString(markedByEmployee.name), getString(markedByEmployee.fullName)) ?? "Employee",
           email: firstDefined(getString(markedByEmployee.email), getString(markedByEmployee.workEmail)),
+          avatarUrl: getString(markedByEmployee.avatarUrl),
         }
       : undefined,
     workedMinutes: firstDefined(

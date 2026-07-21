@@ -34,6 +34,7 @@ function employeeSummary(value: unknown) {
     id: getId(firstDefined(record.id, record.employeeId, record.userId)),
     name: firstDefined(getString(record.name), getString(record.fullName), `${getString(record.firstName) ?? ""} ${getString(record.lastName) ?? ""}`.trim()) || undefined,
     email: getString(record.email),
+    avatarUrl: getString(record.avatarUrl),
   };
 }
 
@@ -111,11 +112,13 @@ function application(value: unknown): RecruitmentApplication {
     hiredAt: toIsoDateTime(record.hiredAt),
     hiredEmployeeId: record.hiredEmployeeId == null ? undefined : getId(record.hiredEmployeeId),
     version: getNumber(record.version),
+    createdBy: record.createdBy ? employeeSummary(record.createdBy) : null,
   };
 }
 
 function interview(value: unknown): RecruitmentInterview {
   const record = asRecord(value);
+  const feedback = asRecord(record.feedback);
   return {
     id: getId(record.id),
     applicationId: getId(record.applicationId),
@@ -128,6 +131,15 @@ function interview(value: unknown): RecruitmentInterview {
     location: getString(record.location),
     meetingLink: getString(record.meetingLink),
     notes: getString(record.notes),
+    feedback: Object.keys(feedback).length > 0 ? {
+      id: getId(feedback.id),
+      reviewer: feedback.reviewer ? employeeSummary(feedback.reviewer) : null,
+      rating: getNumber(feedback.rating),
+      recommendation: getString(feedback.recommendation),
+      strengths: getString(feedback.strengths),
+      concerns: getString(feedback.concerns),
+      notes: getString(feedback.notes),
+    } : null,
   };
 }
 

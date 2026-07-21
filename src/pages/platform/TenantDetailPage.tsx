@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Activity, ArrowLeft, BarChart3, BriefcaseBusiness, Building2, Calendar, Database, FileClock, FileText, Key, ListTodo, Mail, Shield, Users } from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
@@ -10,6 +10,11 @@ import { getErrorMessage } from "@/utils/errorHandler";
 import { Button } from "@/components/common/Button";
 import { PlatformStatusBadge } from "@/modules/platform/components/PlatformStatusBadge";
 import { TenantActionsMenu } from "@/modules/platform/components/TenantActionsMenu";
+import { Input } from "@/components/common/Input";
+import { BrandColorPicker, BrandPreview } from "@/features/branding/BrandingEditor";
+import { isValidBrandColor } from "@/features/branding/colorTokens";
+import { getPlatformTenantBranding, updatePlatformTenantBranding } from "@/features/branding/brandingService";
+import type { TenantBranding } from "@/features/branding/types";
 
 export function TenantDetailPage() {
   const { tenantKey } = useParams<{ tenantKey: string }>();
@@ -83,6 +88,8 @@ export function TenantDetailPage() {
             )}
           </SectionCard>
 
+          <PlatformBrandingCard tenantKey={tenant.tenantKey} onCompanyChanged={() => void refetch()} />
+
           <SectionCard title="Operational drill-down" subtitle="Open platform-wide tools already filtered to this company.">
             <div className="flex flex-wrap gap-3">
               <Button variant="outline" size="sm" to={`/platform/analytics?tenant=${encodeURIComponent(tenant.tenantKey)}`}><BarChart3 size={16} />View analytics</Button>
@@ -93,6 +100,66 @@ export function TenantDetailPage() {
         </>
       ) : null}
     </div>
+  );
+}
+
+function PlatformBrandingCard({ tenantKey, onCompanyChanged }: { tenantKey: string; onCompanyChanged: () => void }) {
+  const [branding, setBranding] = useState<TenantBranding | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLoading(true);
+    getPlatformTenantBranding(tenantKey)
+      .then(setBranding)
+      .catch((loadError: unknown) => setError(getErrorMessage(loadError, "Unable to load tenant branding.")))
+      .finally(() => setLoading(false));
+  }, [tenantKey]);
+
+  async function saveBranding() {
+    if (!branding || !branding.companyName.trim() || !isValidBrandColor(branding.primaryColor)) return;
+    setSaving(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const updated = await updatePlatformTenantBranding(tenantKey, {
+        companyName: branding.companyName.trim(),
+        primaryColor: branding.primaryColor.toUpperCase(),
+        brandingVersion: branding.brandingVersion,
+      });
+      setBranding(updated);
+      setMessage("Tenant branding saved.");
+      onCompanyChanged();
+    } catch (saveError: unknown) {
+      setError(getErrorMessage(saveError, "Unable to save tenant branding."));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <SectionCard title="Tenant branding" subtitle="Platform administrators can manage the tenant's canonical company identity.">
+      {error ? <div className="mb-4 rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-sm text-red-500">{error}</div> : null}
+      {message ? <div className="mb-4 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3 text-sm text-emerald-600">{message}</div> : null}
+      {loading || !branding ? (
+        <LoadingSkeleton lines={6} />
+      ) : (
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
+          <div className="space-y-5">
+            <Input id="platform-brand-company" label="Company name" value={branding.companyName} onChange={(event) => setBranding((previous) => previous ? { ...previous, companyName: event.target.value } : previous)} />
+            <BrandColorPicker value={branding.primaryColor} onChange={(primaryColor) => setBranding((previous) => previous ? { ...previous, primaryColor } : previous)} disabled={saving} />
+            <div className="flex justify-end">
+              <Button onClick={() => void saveBranding()} disabled={saving || !branding.companyName.trim() || !isValidBrandColor(branding.primaryColor)}>
+                {saving ? "Saving..." : "Save Branding"}
+              </Button>
+            </div>
+          </div>
+          <BrandPreview branding={branding} />
+        </div>
+      )}
+    </SectionCard>
   );
 }
 

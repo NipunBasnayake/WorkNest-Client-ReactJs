@@ -24,7 +24,7 @@ import { getErrorMessage } from "@/utils/errorHandler";
 import { SearchField } from "@/components/common/SearchField";
 
 type Action = "publish" | "unpublish" | "close" | "reopen" | "duplicate";
-const MENU_ACTION = "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition hover:bg-purple-500/5";
+const MENU_ACTION = "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition hover:bg-primary-500/5";
 
 export function RecruitmentJobsPage() {
   usePageMeta({ title: "Job Openings", breadcrumb: ["Workspace", "Recruitment", "Job Openings"] });

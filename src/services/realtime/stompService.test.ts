@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { resolveWebSocketUrl } from "@/services/realtime/stompService";
+import { resolveBackendHealthUrl, resolveWebSocketUrl } from "@/services/realtime/stompService";
 
 describe("native realtime WebSocket URL", () => {
   afterEach(() => {
@@ -23,6 +23,12 @@ describe("native realtime WebSocket URL", () => {
     vi.stubEnv("VITE_API_BASE_URL", "https://api.example.test/base/");
 
     expect(resolveWebSocketUrl()).toBe("wss://api.example.test/base/ws");
+  });
+
+  it("derives the backend readiness endpoint from the API base URL", () => {
+    vi.stubEnv("VITE_API_BASE_URL", "https://api.example.test/base/");
+
+    expect(resolveBackendHealthUrl()).toBe("https://api.example.test/base/actuator/health");
   });
 
   it("rejects protocols that cannot carry a WebSocket connection", () => {

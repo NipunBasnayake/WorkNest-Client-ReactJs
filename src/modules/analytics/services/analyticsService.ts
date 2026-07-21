@@ -37,8 +37,8 @@ import type { RecruitmentDashboardSummary, RecruitmentInterviewMode, Recruitment
 import { tenantRoutes } from '@/utils/tenantRoutes';
 
 const STATUS_COLORS: Record<string, string> = {
-  TODO: "#6366f1",
-  IN_PROGRESS: "#9332EA",
+  TODO: "var(--brand-action)",
+  IN_PROGRESS: "var(--color-primary-500)",
   IN_REVIEW: "#d97706",
   BLOCKED: "#ef4444",
   DONE: "#10b981",
@@ -49,7 +49,7 @@ const STATUS_COLORS: Record<string, string> = {
   ACTIVE: "#10b981",
   INACTIVE: "#64748b",
   SUSPENDED: "#ef4444",
-  TENANT_ADMIN: "#9332EA",
+  TENANT_ADMIN: "var(--color-primary-500)",
   HR: "#d97706",
   EMPLOYEE: "#10b981",
 };
@@ -66,7 +66,7 @@ function toDistribution(data: Record<string, number>): DistributionDatum[] {
     .map(([key, value]) => ({
       label: labelize(key),
       value,
-      color: STATUS_COLORS[key.toUpperCase()] ?? "#9332EA",
+      color: STATUS_COLORS[key.toUpperCase()] ?? "var(--color-primary-500)",
     }))
     .sort((a, b) => b.value - a.value);
 }

@@ -111,6 +111,16 @@ table tbody > tr:last-child {
    ────────────────────────────────────────── */
 
 :root {
+  --worknest-primary: #9332ea;
+  --worknest-highlight: #c084fc;
+  --tenant-primary: var(--worknest-primary);
+  --brand-action: var(--color-primary-600);
+  --brand-action-hover: var(--color-primary-700);
+  --brand-action-active: var(--color-primary-800);
+  --brand-on-primary: #ffffff;
+  --brand-soft: var(--color-primary-50);
+  --brand-border: var(--color-primary-200);
+  --brand-focus: var(--color-primary-600);
   /* Canonical neutral base tokens */
   --bg-base: #f7f8fa;
   --surface: #ffffff;

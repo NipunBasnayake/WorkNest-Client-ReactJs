@@ -10,7 +10,7 @@ interface StatCardProps {
   accentColor?: string;
 }
 
-export function StatCard({ label, value, icon, trend, accentColor = "#9332EA" }: StatCardProps) {
+export function StatCard({ label, value, icon, trend, accentColor = "var(--brand-action)" }: StatCardProps) {
   return (
     <div
       className="rounded-2xl p-5 border flex items-start gap-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm"

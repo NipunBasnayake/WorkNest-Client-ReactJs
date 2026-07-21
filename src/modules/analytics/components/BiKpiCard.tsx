@@ -3,7 +3,7 @@ import { ArrowDownRight, ArrowUpRight, Minus } from 'lucide-react';
 import type { BiMetric } from '@/modules/analytics/types';
 
 const tones: Record<string, [string, string]> = {
-  purple: ['#9332ea', 'rgba(147,50,234,.12)'], blue: ['#2563eb', 'rgba(37,99,235,.12)'],
+  purple: ['var(--color-primary-600)', 'var(--brand-soft)'], blue: ['#2563eb', 'rgba(37,99,235,.12)'],
   green: ['#059669', 'rgba(5,150,105,.12)'], amber: ['#d97706', 'rgba(217,119,6,.12)'], red: ['#dc2626', 'rgba(220,38,38,.12)'],
 };
 

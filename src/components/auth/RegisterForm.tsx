@@ -6,6 +6,9 @@ import { Button } from "@/components/common/Button";
 import { registerTenantPublicApi } from "@/services/api/platformApi";
 import { validatePasswordStrength } from "@/modules/auth/passwordValidation";
 import { getErrorMessage } from "@/utils/errorHandler";
+import { BrandColorPicker, BrandPreview } from "@/features/branding/BrandingEditor";
+import { isValidBrandColor } from "@/features/branding/colorTokens";
+import { WORKNEST_PRIMARY_COLOR, type TenantBranding } from "@/features/branding/types";
 
 interface RegisterTouched {
   companyName: boolean;
@@ -25,6 +28,7 @@ export function RegisterForm() {
   const [adminEmail, setAdminEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [primaryColor, setPrimaryColor] = useState(WORKNEST_PRIMARY_COLOR);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -47,6 +51,12 @@ export function RegisterForm() {
       }
     };
   }, []);
+
+  const previewBranding = useMemo<TenantBranding>(() => ({
+    companyName: companyName.trim() || "Your Company",
+    primaryColor: isValidBrandColor(primaryColor) ? primaryColor : WORKNEST_PRIMARY_COLOR,
+    brandingVersion: 0,
+  }), [companyName, primaryColor]);
 
   const companyNameError = useMemo(() => {
     if (!touched.companyName) return undefined;
@@ -99,7 +109,7 @@ export function RegisterForm() {
       workspaceKey: true,
     }));
 
-    if (!hasCompanyName || !hasWorkspaceKey || !workspaceKeyValid) {
+    if (!hasCompanyName || !hasWorkspaceKey || !workspaceKeyValid || !isValidBrandColor(primaryColor)) {
       setSubmitMessage("Please complete company details before continuing.");
       return false;
     }
@@ -156,6 +166,7 @@ export function RegisterForm() {
         adminFullName: adminName.trim(),
         adminEmail: adminEmail.trim(),
         adminPassword: password,
+        primaryColor,
       });
       const loginTenantKey = tenant.tenantKey || workspaceKey.trim();
 
@@ -250,6 +261,10 @@ export function RegisterForm() {
             required
             autoComplete="off"
           />
+
+          <BrandColorPicker value={primaryColor} onChange={(value) => { setPrimaryColor(value); setSubmitMessage(null); }} />
+
+          <BrandPreview branding={previewBranding} />
 
           <Button
             type="submit"
