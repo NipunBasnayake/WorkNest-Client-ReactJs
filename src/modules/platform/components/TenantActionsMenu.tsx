@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Archive, BarChart3, FileClock, FileText, KeyRound, MoreHorizontal, Pencil, RefreshCw, ShieldCheck, UserRoundCheck } from "lucide-react";
+import { Archive, FileClock, FileText, KeyRound, MoreHorizontal, Pencil, RefreshCw, ShieldCheck, UserRoundCheck } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/common/Button";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
@@ -101,7 +101,6 @@ export function TenantActionsMenu({ tenant, buttonLabel }: Props) {
         <DropdownMenuItem onSelect={() => { setCompanyName(tenant.companyName); setEditOpen(true); }}><Pencil size={16} />Edit company information</DropdownMenuItem>
         <DropdownMenuItem onSelect={() => openLifecycle()}><RefreshCw size={16} />Manage lifecycle</DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={() => navigate(`/platform/analytics?tenant=${encodeURIComponent(tenant.tenantKey)}`)}><BarChart3 size={16} />View analytics</DropdownMenuItem>
         <DropdownMenuItem onSelect={() => navigate(`/platform/audit-logs?tenant=${encodeURIComponent(tenant.tenantKey)}`)}><FileClock size={16} />View audit logs</DropdownMenuItem>
         <DropdownMenuItem onSelect={() => navigate(`/platform/reports?tenant=${encodeURIComponent(tenant.tenantKey)}`)}><FileText size={16} />Open reports</DropdownMenuItem>
         <DropdownMenuSeparator />

@@ -1,7 +1,8 @@
 import { Input } from "@/components/common/Input";
 import { Button } from "@/components/common/Button";
 import { AppSelect } from "@/components/common/AppSelect";
-import type { EmployeeFormErrors, EmployeeFormValues } from "@/modules/employees/types";
+import { EmployeeSkillsField } from "@/modules/employees/components/EmployeeSkillsField";
+import type { EmployeeFormErrors, EmployeeFormValues, SkillSuggestion } from "@/modules/employees/types";
 
 interface EmployeeFormProps {
   values: EmployeeFormValues;
@@ -9,6 +10,7 @@ interface EmployeeFormProps {
   submitting: boolean;
   isEdit: boolean;
   submitLabel: string;
+  skillSuggestions?: SkillSuggestion[];
   preventSelfDeactivation?: boolean;
   onChange: (next: EmployeeFormValues) => void;
   onSubmit: () => void;
@@ -21,6 +23,7 @@ export function EmployeeForm({
   submitting,
   isEdit,
   submitLabel,
+  skillSuggestions = [],
   preventSelfDeactivation = false,
   onChange,
   onSubmit,
@@ -176,6 +179,13 @@ export function EmployeeForm({
           {preventSelfDeactivation && <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>Your own account must remain active.</p>}
         </div>
       </div>
+
+      <EmployeeSkillsField
+        skills={values.skills}
+        suggestions={skillSuggestions}
+        error={errors.skills}
+        onChange={(skills) => onChange({ ...values, skills })}
+      />
 
       <div className="flex flex-wrap items-center justify-end gap-2 pt-2">
         <Button type="button" variant="ghost" onClick={onCancel} disabled={submitting}>

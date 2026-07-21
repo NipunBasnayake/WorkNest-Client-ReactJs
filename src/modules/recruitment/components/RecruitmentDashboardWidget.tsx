@@ -3,6 +3,7 @@ import { BriefcaseBusiness, CalendarClock, ClipboardList, Send, UserCheck, Users
 import { PageSection, StatCard } from "@/components/common/AppUI";
 import { Button } from "@/components/common/Button";
 import { SectionCard } from "@/components/common/SectionCard";
+import { UserAvatar } from "@/components/common/UserAvatar";
 import { RecruitmentStatusBadge } from "@/modules/recruitment/components/RecruitmentStatusBadge";
 import type { RecruitmentDashboardSummary } from "@/modules/recruitment/types";
 import { formatDateTime } from "@/utils/formatting";
@@ -31,14 +32,16 @@ export function RecruitmentDashboardWidget({ summary }: { summary: RecruitmentDa
           action={<Button variant="ghost" size="sm" to={tenantRoutes.recruitmentApplications()}>View all</Button>}
         >
           {summary.recentApplications.length > 0 ? (
-            <div className="divide-y" style={{ borderColor: "var(--border-default)" }}>
+            <div className="space-y-3">
               {summary.recentApplications.map((application) => (
                 <Link
                   key={application.id}
                   to={tenantRoutes.recruitmentApplication(application.id)}
-                  className="flex items-center justify-between gap-4 py-3 no-underline first:pt-0 last:pb-0"
+                  className="group flex items-center gap-3 rounded-xl border p-3 no-underline transition-colors hover:bg-primary-500/[.04]"
+                  style={{ borderColor: "var(--border-default)" }}
                 >
-                  <div className="min-w-0">
+                  <UserAvatar name={application.candidateName} size="sm" />
+                  <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{application.candidateName}</p>
                     <p className="mt-0.5 truncate text-xs" style={{ color: "var(--text-secondary)" }}>
                       {application.jobTitle}{application.appliedAt ? ` · ${formatDateTime(application.appliedAt)}` : ""}
@@ -64,17 +67,18 @@ export function RecruitmentDashboardWidget({ summary }: { summary: RecruitmentDa
                 <Link
                   key={interview.id}
                   to={tenantRoutes.recruitmentApplication(interview.applicationId)}
-                  className="flex items-center gap-3 rounded-xl border p-3 no-underline"
+                  className="group flex items-center gap-3 rounded-xl border p-3 no-underline transition-colors hover:bg-primary-500/[.04]"
                   style={{ borderColor: "var(--border-default)" }}
                 >
-                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-amber-500/10 text-amber-600">
-                    <CalendarClock size={18} />
-                  </span>
-                  <span className="min-w-0">
+                  <UserAvatar name={interview.candidateName} size="sm" />
+                  <span className="min-w-0 flex-1">
                     <strong className="block truncate text-sm" style={{ color: "var(--text-primary)" }}>{interview.candidateName}</strong>
                     <span className="mt-0.5 block truncate text-xs" style={{ color: "var(--text-secondary)" }}>
-                      {interview.jobTitle} · {formatDateTime(interview.scheduledAt)} · {interview.mode === "REMOTE" ? "Online" : interview.mode === "ONSITE" ? "On-site" : "Phone"}
+                      {interview.jobTitle} · {formatDateTime(interview.scheduledAt)}
                     </span>
+                  </span>
+                  <span className="shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-semibold" style={{ borderColor: "var(--border-default)", color: "var(--text-secondary)", background: "var(--bg-muted)" }}>
+                    {interview.mode === "REMOTE" ? "Online" : interview.mode === "ONSITE" ? "On-site" : "Phone"}
                   </span>
                 </Link>
               ))}

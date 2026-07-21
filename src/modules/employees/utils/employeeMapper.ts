@@ -1,5 +1,6 @@
 import type { Employee } from "@/types";
 import type { EmployeeFormValues, EmployeeRole, EmployeeViewModel } from "@/modules/employees/types";
+import { normalizeSkillName } from "@/modules/employees/utils/employeeSkills";
 
 function pickString(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
@@ -70,6 +71,7 @@ export function toEmployeeFormValues(employee: Employee): EmployeeFormValues {
     joinedDate: pickString(view.joinedAt) ?? "",
     salary: view.salary !== undefined ? String(view.salary) : "",
     status: normalizeStatus(view.status),
+    skills: [],
   };
 }
 
@@ -90,6 +92,9 @@ export function toEmployeePayload(values: EmployeeFormValues) {
     phone: values.phone.trim() || undefined,
     department: values.department.trim() || undefined,
     salary: salary !== undefined && Number.isFinite(salary) ? salary : undefined,
+    skills: values.skills.map((skill) => ({
+      name: normalizeSkillName(skill.name),
+    })),
   };
 }
 

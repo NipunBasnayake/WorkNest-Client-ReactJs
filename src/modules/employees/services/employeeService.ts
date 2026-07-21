@@ -1,14 +1,12 @@
 import {
-  addEmployeeSkillApi,
   createEmployeeApi,
-  deleteEmployeeSkillApi,
   getEmployeeByIdApi,
   getEmployeeSkillsApi,
   getMyEmployeeSkillsApi,
+  getSkillSuggestionsApi,
   getEmployeesApi,
   getMyEmployeeProfileApi,
   provisionEmployeeAccountApi,
-  updateEmployeeSkillApi,
   updateEmployeeApi,
   updateEmployeeStatusApi,
   type EmployeeApiRole,
@@ -25,7 +23,13 @@ import {
   toIsoDate,
 } from "@/services/http/parsers";
 import type { Employee } from "@/types";
-import type { EmployeeSkill, EmployeeSkillPayload } from "@/modules/employees/types";
+import type { EmployeeSkill, EmployeeSkillPayload, SkillSuggestion } from "@/modules/employees/types";
+import { normalizeSkillName } from "@/modules/employees/utils/employeeSkills";
+
+type EmployeeUpsertPayload = Partial<Employee> & {
+  password?: string;
+  skills?: EmployeeSkillPayload[];
+};
 
 function toApiRole(role: unknown): EmployeeApiRole {
   const value = getString(role)?.toUpperCase();
@@ -76,34 +80,16 @@ function normalizeEmployee(input: unknown): Employee {
 function normalizeSkill(input: unknown): EmployeeSkill {
   const value = asRecord(input);
   const name = firstDefined(getString(value.name), getString(value.skillName)) ?? "Skill";
-  const normalizedLevel = (firstDefined(
-    getString(value.level),
-    getString(value.skillLevel),
-    getString(value.proficiency)
-  ) ?? "INTERMEDIATE").toUpperCase();
-
-  const level =
-    normalizedLevel === "BEGINNER" ||
-    normalizedLevel === "INTERMEDIATE" ||
-    normalizedLevel === "ADVANCED" ||
-    normalizedLevel === "EXPERT"
-      ? normalizedLevel
-      : "INTERMEDIATE";
 
   return {
     id: getId(firstDefined(value.id, value.skillId)),
     name,
-    level,
-    yearsOfExperience: firstDefined(
-      getNumber(value.yearsOfExperience),
-      getNumber(value.experienceYears)
-    ),
   };
 }
 
-function buildUpsertPayload(payload: Partial<Employee>, isCreate: true): EmployeeCreateRequest;
-function buildUpsertPayload(payload: Partial<Employee>, isCreate: false): EmployeeUpdateRequest;
-function buildUpsertPayload(payload: Partial<Employee>, isCreate: boolean): EmployeeCreateRequest | EmployeeUpdateRequest {
+function buildUpsertPayload(payload: EmployeeUpsertPayload, isCreate: true): EmployeeCreateRequest;
+function buildUpsertPayload(payload: EmployeeUpsertPayload, isCreate: false): EmployeeUpdateRequest;
+function buildUpsertPayload(payload: EmployeeUpsertPayload, isCreate: boolean): EmployeeCreateRequest | EmployeeUpdateRequest {
   const firstName = getString(payload.firstName) ?? "";
   const lastName = getString(payload.lastName) ?? "";
   const designation = firstDefined(getString(payload.position), getString(payload.designation)) ?? "";
@@ -120,6 +106,9 @@ function buildUpsertPayload(payload: Partial<Employee>, isCreate: boolean): Empl
     designation,
     joinedDate,
     status,
+    skills: payload.skills?.map((skill) => ({
+      skillName: normalizeSkillName(skill.name),
+    })),
   };
 
   if (password) basePayload.password = password;
@@ -146,6 +135,12 @@ export async function getEmployees(): Promise<Employee[]> {
   return sortEmployees(list.map(normalizeEmployee));
 }
 
+export async function searchEmployees(search: string): Promise<Employee[]> {
+  const normalizedSearch = search.trim();
+  const list = await getEmployeesApi(normalizedSearch ? { search: normalizedSearch } : {});
+  return sortEmployees(list.map(normalizeEmployee));
+}
+
 export async function getEmployeeById(id: string): Promise<Employee> {
   const employee = await getEmployeeByIdApi(id);
   return normalizeEmployee(employee);
@@ -162,12 +157,12 @@ export async function getEmployeesByDepartment(department: string): Promise<Empl
   return all.filter((item) => (item.department ?? "").toLowerCase() === target);
 }
 
-export async function createEmployee(payload: Partial<Employee>): Promise<Employee> {
+export async function createEmployee(payload: EmployeeUpsertPayload): Promise<Employee> {
   const created = await createEmployeeApi(buildUpsertPayload(payload, true));
   return normalizeEmployee(created);
 }
 
-export async function updateEmployee(id: string, payload: Partial<Employee>): Promise<Employee> {
+export async function updateEmployee(id: string, payload: EmployeeUpsertPayload): Promise<Employee> {
   const updated = await updateEmployeeApi(id, buildUpsertPayload(payload, false));
   return normalizeEmployee(updated);
 }
@@ -190,24 +185,17 @@ export async function getMyEmployeeSkills(): Promise<EmployeeSkill[]> {
   return list.map(normalizeSkill).sort((a, b) => a.name.localeCompare(b.name));
 }
 
-export async function addEmployeeSkill(employeeId: string, payload: EmployeeSkillPayload): Promise<EmployeeSkill> {
-  const created = await addEmployeeSkillApi(employeeId, {
-    skillName: payload.name.trim(),
-    skillLevel: payload.level,
-  });
-  return normalizeSkill(created);
-}
-
-export async function updateEmployeeSkill(employeeId: string, skillId: string, payload: EmployeeSkillPayload): Promise<EmployeeSkill> {
-  const updated = await updateEmployeeSkillApi(employeeId, skillId, {
-    skillName: payload.name.trim(),
-    skillLevel: payload.level,
-  });
-  return normalizeSkill(updated);
-}
-
-export async function deleteEmployeeSkill(employeeId: string, skillId: string): Promise<void> {
-  await deleteEmployeeSkillApi(employeeId, skillId);
+export async function getSkillSuggestions(search = ""): Promise<SkillSuggestion[]> {
+  const values = await getSkillSuggestionsApi(search);
+  return values
+    .map((value) => {
+      const record = asRecord(value);
+      return {
+        name: firstDefined(getString(record.name), getString(record.skillName)) ?? "",
+      };
+    })
+    .filter((skill) => Boolean(skill.name))
+    .sort((left, right) => left.name.localeCompare(right.name));
 }
 
 export async function provisionEmployeeAccount(employeeId: string, temporaryPassword: string): Promise<void> {
