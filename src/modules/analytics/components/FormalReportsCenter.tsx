@@ -41,7 +41,6 @@ import { useClientPagination } from '@/hooks/useClientPagination';
 import { tenantRoutes } from '@/utils/tenantRoutes';
 import { usePermission } from '@/hooks/usePermission';
 import { PERMISSIONS } from '@/constants/permissions';
-import { TenantLogo } from '@/features/branding/TenantLogo';
 import { useBranding } from '@/features/branding/useBranding';
 
 const BiChartCard = lazy(() => import('@/modules/analytics/components/BiChartCard'));
@@ -158,7 +157,7 @@ function ReportDetail({ active, role }: { active: FormalReportDefinition; role: 
   const handleReportFilter: typeof setFilter = (key, value) => { setServerPage(1); setFilter(key, value); };
   const fullReportLoader = active.serverPaginated ? () => loadFullFormalReport(active.id, filters, role, serverRequest) : undefined;
   return <main className='min-w-0 space-y-5 pb-8'>
-    <div className='flex flex-col gap-3 rounded-2xl border p-4 sm:flex-row sm:items-center sm:justify-between' style={{ borderColor: 'var(--brand-border)', borderLeft: '4px solid var(--brand-action)', background: 'var(--bg-surface)' }}><TenantLogo size='report' eager /><p className='text-xs font-semibold' style={{ color: 'var(--text-secondary)' }}>{branding.companyName} · Formal report</p></div>
+    <div className='flex flex-col gap-3 rounded-2xl border p-4 sm:flex-row sm:items-center sm:justify-between' style={{ borderColor: 'var(--brand-border)', borderLeft: '4px solid var(--brand-action)', background: 'var(--bg-surface)' }}><p className='break-words text-lg font-bold' style={{ color: 'var(--text-primary)' }}>{branding.companyName}</p><p className='text-xs font-semibold' style={{ color: 'var(--text-secondary)' }}>Formal report</p></div>
     <PageHeader title={active.title} description={active.description} backButton={<Button to={backTo} variant='ghost' size='sm'><ArrowLeft size={15} />Back to reports</Button>} status={<span className='text-xs font-semibold text-emerald-600'>Governed · {roleLabel(role)} scope</span>} secondaryActions={<Button variant='outline' size='sm' onClick={() => void query.refetch()} loading={query.isFetching}><RefreshCw size={14} />Refresh</Button>} />
     <ReportFilters filters={filters} setFilter={handleReportFilter} onReset={() => { reset(); setSearch(''); setColumnFilters({}); setSort(null); setServerPage(1); }} />
     {query.isLoading && <ReportLoading />}{query.isError && <ErrorState message='Unable to generate this formal report.' onRetry={() => void query.refetch()} />}

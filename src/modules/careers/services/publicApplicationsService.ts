@@ -15,7 +15,6 @@ function normalizeCompany(value: unknown): PublicCompany {
   return {
     tenantSlug: getString(record.tenantSlug) ?? getString(record.slug) ?? "",
     companyName: getString(record.companyName) ?? "Company",
-    logoUrl: getString(record.logoUrl),
     about: getString(record.about),
   };
 }

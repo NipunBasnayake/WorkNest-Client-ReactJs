@@ -18,8 +18,6 @@ export interface WorkspaceSettings {
   createdAt: string;
   databaseName?: string;
   dataSource: "backend" | "inferred";
-  logoUrl?: string;
-  logo?: UploadedFileAsset | null;
 }
 
 export interface PreferenceSettings {

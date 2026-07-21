@@ -3,7 +3,6 @@ export type PublicEmploymentType = "FULL_TIME" | "PART_TIME" | "CONTRACT" | "INT
 export interface PublicCompany {
   tenantSlug: string;
   companyName: string;
-  logoUrl?: string;
   about?: string;
 }
 
