@@ -1,32 +1,69 @@
-export type ReportCell = string | number | boolean | null | undefined;
-export interface ReportDataset { title: string; headers: string[]; rows: ReportCell[][] }
-export interface ReportBrandContext { companyName: string; primaryColor: string }
+export type ReportCell = string | number | boolean | Date | null | undefined;
 
-const clean = (value: ReportCell) => String(value ?? '');
-const spreadsheetSafe = (value: ReportCell) => { const text = clean(value); return /^[=+\-@]/.test(text.trimStart()) ? `'${text}` : text; };
-const csvCell = (value: ReportCell) => { const quote = String.fromCharCode(34); return quote + spreadsheetSafe(value).replaceAll(quote, quote + quote) + quote; };
-const escapeHtml = (value: ReportCell) => spreadsheetSafe(value)
-  .replaceAll('&', '&amp;')
-  .replaceAll('<', '&lt;')
-  .replaceAll('>', '&gt;')
-  .replaceAll('"', '&quot;')
-  .replaceAll("'", '&#39;');
-function download(content: BlobPart, mime: string, filename: string) {
-  const url = URL.createObjectURL(new Blob([content], { type: mime }));
-  const link = document.createElement('a'); link.href = url; link.download = filename; link.click();
-  window.setTimeout(() => URL.revokeObjectURL(url), 500);
+export interface ReportDataset {
+  title: string;
+  headers: string[];
+  rows: ReportCell[][];
 }
-export function exportCsv(report: ReportDataset) {
-  const csv = [report.headers, ...report.rows].map((row) => row.map(csvCell).join(',')).join('\n');
-  download(`\ufeff${csv}`, 'text/csv;charset=utf-8', `${report.title}.csv`);
+
+const CSV_MIME_TYPE = 'text/csv;charset=utf-8';
+const UTF8_BOM = '\ufeff';
+const FORMULA_PREFIX = /^[\t\r\n ]*[=+\-@]/;
+const INVALID_FILENAME_CHARACTERS = /[<>:"/\\|?*]/g;
+
+function cellText(value: ReportCell): string {
+  if (value == null) return '';
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? '' : value.toISOString();
+  return String(value);
 }
-export function exportExcel(report: ReportDataset, branding?: ReportBrandContext) {
-  const table = `<table><thead><tr>${report.headers.map((item) => `<th>${escapeHtml(item)}</th>`).join('')}</tr></thead><tbody>${report.rows.map((row) => `<tr>${row.map((item) => `<td>${escapeHtml(item)}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
-  const brandHeader = branding
-    ? `<div style="border-bottom:4px solid ${escapeHtml(branding.primaryColor)};padding-bottom:12px;margin-bottom:16px"><strong>${escapeHtml(branding.companyName)}</strong></div>`
-    : '';
-  download(`\ufeff<html><body>${brandHeader}<h1>${escapeHtml(report.title)}</h1>${table}</body></html>`, 'application/vnd.ms-excel', `${report.title}.xls`);
+
+export function escapeCsvCell(value: ReportCell): string {
+  const raw = cellText(value);
+  const safe = FORMULA_PREFIX.test(raw) ? `'${raw}` : raw;
+  return `"${safe.replaceAll('"', '""')}"`;
 }
-export function printReport(title: string) {
-  const previous = document.title; document.title = title; window.print(); document.title = previous;
+
+export function buildCsvFilename(title: string, generatedAt = new Date()): string {
+  const safeTitle = title
+    .normalize('NFKC')
+    .replace(INVALID_FILENAME_CHARACTERS, ' ')
+    .split('')
+    .map((character) => character.charCodeAt(0) < 32 ? ' ' : character)
+    .join('')
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .slice(0, 100) || 'report';
+  const date = generatedAt.toISOString().slice(0, 10);
+  return `${safeTitle}-${date}.csv`;
+}
+
+export function createCsvBlob(report: ReportDataset): Blob {
+  const parts: BlobPart[] = [UTF8_BOM];
+  const rows: ReportCell[][] = [report.headers, ...report.rows];
+  const batchSize = 2_000;
+
+  for (let start = 0; start < rows.length; start += batchSize) {
+    const end = Math.min(start + batchSize, rows.length);
+    let chunk = '';
+    for (let index = start; index < end; index += 1) {
+      chunk += rows[index].map(escapeCsvCell).join(',');
+      chunk += '\r\n';
+    }
+    parts.push(chunk);
+  }
+
+  return new Blob(parts, { type: CSV_MIME_TYPE });
+}
+
+export function exportCsv(report: ReportDataset): void {
+  const url = URL.createObjectURL(createCsvBlob(report));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = buildCsvFilename(report.title);
+  link.hidden = true;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1_000);
 }

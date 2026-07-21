@@ -131,7 +131,7 @@ function isRecruitmentReport(id: FormalReportId): id is Extract<FormalReportId, 
 }
 
 async function loadRecruitmentReport(definition: FormalReportDefinition, id: Extract<FormalReportId, `recruitment-${string}`>, filters: AnalyticsFilters, request?: FormalReportRequest): Promise<FormalReportData> {
-  const reportType = id.replace('recruitment-', '');
+  const reportType = id === 'recruitment-jobs' ? 'job-openings' : id.replace('recruitment-', '');
   const pageRequest = request ?? { page: 0, size: 20, search: '', sort: null, columnFilters: {} };
   const params: Record<string, string | number> = {
     page: pageRequest.page,

@@ -1,10 +1,9 @@
-import { lazy, Suspense, type ReactNode } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { lazy, Suspense, useState, type ReactNode } from 'react';
+import { useParams } from 'react-router-dom';
 import { BarChart3, Bell, BriefcaseBusiness, CalendarCheck2, CheckSquare2, FileBarChart2, FolderKanban, RefreshCw, Users, UsersRound } from 'lucide-react';
 import { useBusinessIntelligenceQuery, useTenantAnalyticsQuery, useTenantDashboardQuery } from '@/hooks/queries/useDashboardQueries';
 import { useAuthStore } from '@/store/authStore';
 import { normalizeAppRole } from '@/constants/rolePermissionMap';
-import { tenantRoutes } from '@/utils/tenantRoutes';
 import { BiFilterBar } from '@/modules/analytics/components/BiFilterBar';
 import { BiKpiCard } from '@/modules/analytics/components/BiKpiCard';
 import { ReportExportMenu } from '@/modules/analytics/components/ReportExportMenu';
@@ -24,14 +23,15 @@ export function BusinessIntelligenceCenter({ mode }: { mode: 'analytics' | 'repo
   const role = normalizeAppRole(useAuthStore((state) => state.user?.role));
   const allowed = role === 'TENANT_ADMIN' || role === 'HR';
   const query = useBusinessIntelligenceQuery(allowed);
-  if (role === 'MANAGER' || role === 'EMPLOYEE') return <ScopedAnalyticsCenter role={role} />;
   const visibleDomains = role === 'HR' ? domains.filter((item) => ['employees', 'attendance', 'leave', 'recruitment'].includes(item.id)) : domains;
-  const domain = (visibleDomains.some((item) => item.id === params.domain) ? params.domain : visibleDomains[0]?.id ?? 'overview') as Domain;
-  const base = mode === 'reports' ? tenantRoutes.reports() : tenantRoutes.analytics();
+  const routeDomain = (visibleDomains.some((item) => item.id === params.domain) ? params.domain : visibleDomains[0]?.id ?? 'overview') as Domain;
+  const [selectedDomain, setSelectedDomain] = useState<Domain | null>(null);
+  const domain = selectedDomain && visibleDomains.some((item) => item.id === selectedDomain) ? selectedDomain : routeDomain;
+  if (role === 'MANAGER' || role === 'EMPLOYEE') return <ScopedAnalyticsCenter role={role} />;
   if (!allowed) return <SectionCard title='Business Intelligence Center' subtitle='Company-wide intelligence is governed by tenant administration.'><p className='text-sm' style={{ color: 'var(--text-secondary)' }}>Your Manager workspace remains scoped to operational dashboards. Ask a Tenant Admin for an exported company report when required.</p></SectionCard>;
   return <div className='space-y-5 pb-8'>
     <div className='flex flex-col gap-3 lg:flex-row lg:items-center'>
-      <nav className='scrollbar-hide flex min-w-0 flex-1 gap-1 overflow-x-auto rounded-2xl border p-1.5 print:hidden' style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-default)' }}>{visibleDomains.map((item) => <Link key={item.id} to={item.id === 'overview' ? base : `${base}/${item.id}`} className={`shrink-0 rounded-xl px-3 py-2 text-xs font-bold transition ${domain === item.id ? 'bg-primary-600 text-white shadow-md shadow-primary-500/20' : 'hover:bg-primary-500/10'}`} style={domain === item.id ? undefined : { color: 'var(--text-secondary)' }}>{item.label}</Link>)}</nav>
+      <label className='min-w-0 flex-1 print:hidden'><span className='mb-1 block text-[10px] font-bold uppercase tracking-wider' style={{ color: 'var(--text-tertiary)' }}>{mode === 'reports' ? 'Report view' : 'Analytics view'}</span><select value={domain} onChange={(event) => setSelectedDomain(event.target.value as Domain)} className='h-10 w-full max-w-xs rounded-xl border px-3 text-sm font-semibold outline-none' style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-default)', color: 'var(--text-primary)' }}>{visibleDomains.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
       <div className='flex shrink-0 flex-wrap gap-2 print:hidden'>{query.data && <ReportExportMenu report={{ title: 'WorkNest executive BI report', headers: ['KPI', 'Value', 'Context'], rows: query.data.kpis.map((item) => [item.label, `${item.value}${item.unit}`, item.context]) }} />}<button onClick={() => void query.refetch()} className='inline-flex h-9 items-center gap-2 rounded-xl bg-primary-600 px-3 text-xs font-bold text-white shadow-lg shadow-primary-500/20'><RefreshCw size={14} className={query.isFetching ? 'animate-spin' : ''} />Refresh</button></div>
     </div>
     <BiFilterBar options={query.data?.filterOptions} />
@@ -69,18 +69,18 @@ function ScopedDashboard({ role, data, snapshot }: { role: 'MANAGER' | 'EMPLOYEE
     roleMetric('leave', 'Pending leave', data.pendingLeaves, 'Awaiting a decision', 'amber'),
   ];
   const attendancePoints: BiChartPoint[] = [{ label: 'Present', value: attendance.present, secondaryValue: null, tertiaryValue: null, id: null }, { label: 'Late', value: attendance.late, secondaryValue: null, tertiaryValue: null, id: null }, { label: 'Absent', value: attendance.absent, secondaryValue: null, tertiaryValue: null, id: null }, { label: 'Half day', value: attendance.halfDay, secondaryValue: null, tertiaryValue: null, id: null }];
-  type ScopedChart = { title: string; subtitle: string; data: Array<{ label: string; value: number; id?: string | null; secondaryValue?: number | null }>; variant: BiChartVariant; route: (point: BiChartPoint) => string; unit?: string };
+  type ScopedChart = { title: string; subtitle: string; data: Array<{ label: string; value: number; id?: string | null; secondaryValue?: number | null }>; variant: BiChartVariant; unit?: string };
   const charts: ScopedChart[] = role === 'MANAGER' ? [
-    { title: 'Task progress', subtitle: 'Visible work by workflow status', data: data.taskStatusDistribution, variant: 'donut' as const, route: (point: BiChartPoint) => `${tenantRoutes.tasks()}?status=${point.label.replaceAll(' ', '_').toUpperCase()}` },
-    { title: 'Project progress', subtitle: 'Task completion by project', data: data.projectProgress, variant: 'horizontalBar' as const, route: (point: BiChartPoint) => point.id ? tenantRoutes.projectDetail(point.id) : tenantRoutes.projects(), unit: '%' },
-    { title: 'Team workload', subtitle: 'Open work distributed across teams', data: data.teamWorkload, variant: 'horizontalBar' as const, route: () => tenantRoutes.teams() },
-    { title: 'Resource utilization', subtitle: 'Assigned work by employee', data: data.workloadByEmployee, variant: 'bar' as const, route: () => tenantRoutes.tasks() },
+    { title: 'Task progress', subtitle: 'Visible work by workflow status', data: data.taskStatusDistribution, variant: 'donut' as const },
+    { title: 'Project progress', subtitle: 'Task completion by project', data: data.projectProgress, variant: 'horizontalBar' as const, unit: '%' },
+    { title: 'Team workload', subtitle: 'Open work distributed across teams', data: data.teamWorkload, variant: 'horizontalBar' as const },
+    { title: 'Resource utilization', subtitle: 'Assigned work by employee', data: data.workloadByEmployee, variant: 'bar' as const },
   ] : [
-    { title: 'My task completion', subtitle: 'Assigned tasks by workflow status', data: data.taskStatusDistribution, variant: 'donut' as const, route: (point: BiChartPoint) => `${tenantRoutes.tasks()}?status=${point.label.replaceAll(' ', '_').toUpperCase()}` },
-    { title: 'My attendance', subtitle: 'Personal attendance summary', data: attendancePoints, variant: 'bar' as const, route: () => tenantRoutes.attendance() },
-    { title: 'My leave history', subtitle: 'Leave requests by decision status', data: data.leaveStatusDistribution, variant: 'donut' as const, route: () => tenantRoutes.leave() },
+    { title: 'My task completion', subtitle: 'Assigned tasks by workflow status', data: data.taskStatusDistribution, variant: 'donut' as const },
+    { title: 'My attendance', subtitle: 'Personal attendance summary', data: attendancePoints, variant: 'bar' as const },
+    { title: 'My leave history', subtitle: 'Leave requests by decision status', data: data.leaveStatusDistribution, variant: 'donut' as const },
   ];
-  return <><div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5'>{metrics.map((metric) => <BiKpiCard key={metric.key} metric={metric} icon={metricIcon(metric.key)} />)}</div><div className='grid gap-5 xl:grid-cols-2'>{charts.map((chart) => <Suspense key={chart.title} fallback={<LoadingSkeleton lines={7} className='h-96' />}><BiChartCard title={chart.title} subtitle={chart.subtitle} data={chart.data.map((item) => ({ ...item, secondaryValue: item.secondaryValue ?? null, tertiaryValue: null, id: item.id ?? null }))} variant={chart.variant} drillDown={chart.route} unit={chart.unit} /></Suspense>)}</div></>;
+  return <><div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5'>{metrics.map((metric) => <BiKpiCard key={metric.key} metric={metric} icon={metricIcon(metric.key)} />)}</div><div className='grid gap-5 xl:grid-cols-2'>{charts.map((chart) => <Suspense key={chart.title} fallback={<LoadingSkeleton lines={7} className='h-96' />}><BiChartCard title={chart.title} subtitle={chart.subtitle} data={chart.data.map((item) => ({ ...item, secondaryValue: item.secondaryValue ?? null, tertiaryValue: null, id: item.id ?? null }))} variant={chart.variant} unit={chart.unit} /></Suspense>)}</div></>;
 }
 
 function roleMetric(key: string, label: string, value: number, context: string, tone: string, unit = ''): BiMetric { return { key, label, value, context, tone, unit, changePercent: null }; }
@@ -98,37 +98,36 @@ function Dashboard({ domain, data }: { domain: Domain; data: BusinessIntelligenc
 
 function ChartGrid({ domain, data }: { domain: Domain; data: BusinessIntelligenceData }) {
   const configs = chartConfigs(data).filter((item) => item.domains.includes(domain));
-  return <div className='grid gap-5 xl:grid-cols-2'>{configs.map((config) => <Suspense key={config.key} fallback={<LoadingSkeleton lines={7} className='h-96' />}><BiChartCard title={config.title} subtitle={config.subtitle} data={config.data} variant={config.variant} series={config.series} unit={config.unit} drillDown={config.drillDown} /></Suspense>)}</div>;
+  return <div className='grid gap-5 xl:grid-cols-2'>{configs.map((config) => <Suspense key={config.key} fallback={<LoadingSkeleton lines={7} className='h-96' />}><BiChartCard title={config.title} subtitle={config.subtitle} data={config.data} variant={config.variant} series={config.series} unit={config.unit} /></Suspense>)}</div>;
 }
 
-interface ChartConfig { key: string; domains: Domain[]; title: string; subtitle: string; data: BiChartPoint[]; variant: BiChartVariant; series?: BiSeries[]; unit?: string; drillDown?: (point: BiChartPoint) => string; }
+interface ChartConfig { key: string; domains: Domain[]; title: string; subtitle: string; data: BiChartPoint[]; variant: BiChartVariant; series?: BiSeries[]; unit?: string; }
 function chartConfigs(data: BusinessIntelligenceData): ChartConfig[] {
   const chart = (key: string) => data.charts[key] ?? [];
-  const path = (base: string, key: string, point: BiChartPoint) => `${base}?${new URLSearchParams({ [key]: point.id ?? point.label.replaceAll(' ', '_').toUpperCase() })}`;
   const healthMetric = data.kpis.find((item) => item.key === 'projectHealth');
   const health: BiChartPoint[] = [{ label: 'Project health', value: healthMetric?.value ?? 0, secondaryValue: null, tertiaryValue: null, id: null }];
   return [
-    { key: 'employeeGrowth', domains: ['employees'], title: 'Employee joining trend', subtitle: 'New employees joining over the selected period', data: chart('employeeGrowth'), variant: 'area', drillDown: () => tenantRoutes.employees() },
-    { key: 'employeesByDepartment', domains: ['overview', 'employees'], title: 'Employees by department', subtitle: 'Workforce allocation across business functions', data: chart('employeesByDepartment'), variant: 'donut', drillDown: (point) => path(tenantRoutes.employees(), 'department', point) },
-    { key: 'employeesByDesignation', domains: ['employees'], title: 'Employees by designation', subtitle: 'Capability mix and role concentration', data: chart('employeesByDesignation'), variant: 'horizontalBar', drillDown: (point) => path(tenantRoutes.employees(), 'search', point) },
-    { key: 'employeeStatus', domains: ['employees'], title: 'Employee status', subtitle: 'Active and inactive workforce composition', data: chart('employeeStatus'), variant: 'pie', drillDown: (point) => path(tenantRoutes.employees(), 'status', point) },
-    { key: 'projectsByStatus', domains: ['overview', 'projects'], title: 'Projects by status', subtitle: 'Portfolio distribution and delivery state', data: chart('projectsByStatus'), variant: 'donut', drillDown: (point) => path(tenantRoutes.projects(), 'status', point) },
-    { key: 'projectProgress', domains: ['projects'], title: 'Project progress', subtitle: 'Task-based completion percentage by project', data: chart('projectProgress'), variant: 'horizontalBar', unit: '%', drillDown: (point) => point.id ? tenantRoutes.projectDetail(point.id) : tenantRoutes.projects() },
-    { key: 'projectsCreated', domains: ['projects'], title: 'Projects created per month', subtitle: 'Demand entering the delivery portfolio', data: chart('projectsCreated'), variant: 'line', drillDown: () => tenantRoutes.projects() },
-    { key: 'projectHealth', domains: ['projects'], title: 'Project health score', subtitle: 'Completion-weighted portfolio signal', data: health, variant: 'gauge', unit: '%', drillDown: () => tenantRoutes.projects() },
-    { key: 'tasksByStatus', domains: ['overview', 'tasks'], title: 'Tasks by status', subtitle: 'Work distribution across the delivery workflow', data: chart('tasksByStatus'), variant: 'donut', drillDown: (point) => path(tenantRoutes.tasks(), 'status', point) },
-    { key: 'taskPriority', domains: ['tasks'], title: 'Task priority mix', subtitle: 'Urgency profile of current work', data: chart('taskPriority'), variant: 'bar', drillDown: (point) => path(tenantRoutes.tasks(), 'priority', point) },
-    { key: 'taskCompletionTrend', domains: ['tasks'], title: 'Task completion trend', subtitle: 'Completed work compared with total activity', data: chart('taskCompletionTrend'), variant: 'line', series: [{ key: 'value', label: 'Completed', color: '#10b981' }, { key: 'secondaryValue', label: 'Total', color: 'var(--color-primary-500)' }], drillDown: () => tenantRoutes.tasks() },
-    { key: 'teamWorkload', domains: ['tasks', 'teams'], title: 'Team workload', subtitle: 'Open work currently assigned to each team', data: chart('teamWorkload'), variant: 'horizontalBar', drillDown: (point) => path(tenantRoutes.tasks(), 'team', point) },
-    { key: 'attendanceTrend', domains: ['overview', 'attendance'], title: 'Attendance trend', subtitle: 'Present, late, and absent records by day', data: chart('attendanceTrend'), variant: 'area', series: [{ key: 'value', label: 'Present', color: '#10b981' }, { key: 'secondaryValue', label: 'Late', color: '#f59e0b' }, { key: 'tertiaryValue', label: 'Absent', color: '#ef4444' }], drillDown: () => tenantRoutes.attendance() },
-    { key: 'leaveTypes', domains: ['leave'], title: 'Leave type distribution', subtitle: 'Demand by leave category', data: chart('leaveTypes'), variant: 'pie', drillDown: (point) => path(tenantRoutes.leave(), 'type', point) },
-    { key: 'leaveTrend', domains: ['leave'], title: 'Leave trend and approvals', subtitle: 'Requests compared with approvals by month', data: chart('leaveTrend'), variant: 'area', series: [{ key: 'value', label: 'Requests', color: 'var(--color-primary-500)' }, { key: 'secondaryValue', label: 'Approved', color: '#10b981' }], drillDown: () => tenantRoutes.leave() },
-    { key: 'recruitmentPipeline', domains: ['overview', 'recruitment'], title: 'Recruitment conversion funnel', subtitle: 'Candidate movement from application to hire', data: chart('recruitmentPipeline'), variant: 'funnel', drillDown: (point) => path(tenantRoutes.recruitmentApplications(), 'status', point) },
-    { key: 'applicationsByJob', domains: ['recruitment'], title: 'Applications per job', subtitle: 'Candidate demand by open position', data: chart('applicationsByJob'), variant: 'horizontalBar', drillDown: () => tenantRoutes.recruitmentApplications() },
-    { key: 'hiringTrend', domains: ['recruitment'], title: 'Hiring trend', subtitle: 'Successful hires by month', data: chart('hiringTrend'), variant: 'line', drillDown: () => tenantRoutes.recruitmentApplications() },
-    { key: 'teamSizes', domains: ['teams'], title: 'Team member distribution', subtitle: 'Active membership across teams', data: chart('teamSizes'), variant: 'radar', drillDown: (point) => point.id ? tenantRoutes.teamDetail(point.id) : tenantRoutes.teams() },
-    { key: 'notificationVolume', domains: ['system'], title: 'Notification volume', subtitle: 'System messaging generated by month', data: chart('notificationVolume'), variant: 'line', drillDown: () => tenantRoutes.notifications() },
-    { key: 'announcementVolume', domains: ['system'], title: 'Announcements created', subtitle: 'Company communication cadence', data: chart('announcementVolume'), variant: 'bar', drillDown: () => tenantRoutes.announcements() },
+    { key: 'employeeGrowth', domains: ['employees'], title: 'Employee joining trend', subtitle: 'New employees joining over the selected period', data: chart('employeeGrowth'), variant: 'area' },
+    { key: 'employeesByDepartment', domains: ['overview', 'employees'], title: 'Employees by department', subtitle: 'Workforce allocation across business functions', data: chart('employeesByDepartment'), variant: 'donut' },
+    { key: 'employeesByDesignation', domains: ['employees'], title: 'Employees by designation', subtitle: 'Capability mix and role concentration', data: chart('employeesByDesignation'), variant: 'horizontalBar' },
+    { key: 'employeeStatus', domains: ['employees'], title: 'Employee status', subtitle: 'Active and inactive workforce composition', data: chart('employeeStatus'), variant: 'pie' },
+    { key: 'projectsByStatus', domains: ['overview', 'projects'], title: 'Projects by status', subtitle: 'Portfolio distribution and delivery state', data: chart('projectsByStatus'), variant: 'donut' },
+    { key: 'projectProgress', domains: ['projects'], title: 'Project progress', subtitle: 'Task-based completion percentage by project', data: chart('projectProgress'), variant: 'horizontalBar', unit: '%' },
+    { key: 'projectsCreated', domains: ['projects'], title: 'Projects created per month', subtitle: 'Demand entering the delivery portfolio', data: chart('projectsCreated'), variant: 'line' },
+    { key: 'projectHealth', domains: ['projects'], title: 'Project health score', subtitle: 'Completion-weighted portfolio signal', data: health, variant: 'gauge', unit: '%' },
+    { key: 'tasksByStatus', domains: ['overview', 'tasks'], title: 'Tasks by status', subtitle: 'Work distribution across the delivery workflow', data: chart('tasksByStatus'), variant: 'donut' },
+    { key: 'taskPriority', domains: ['tasks'], title: 'Task priority mix', subtitle: 'Urgency profile of current work', data: chart('taskPriority'), variant: 'bar' },
+    { key: 'taskCompletionTrend', domains: ['tasks'], title: 'Task completion trend', subtitle: 'Completed work compared with total activity', data: chart('taskCompletionTrend'), variant: 'line', series: [{ key: 'value', label: 'Completed', color: '#10b981' }, { key: 'secondaryValue', label: 'Total', color: 'var(--color-primary-500)' }] },
+    { key: 'teamWorkload', domains: ['tasks', 'teams'], title: 'Team workload', subtitle: 'Open work currently assigned to each team', data: chart('teamWorkload'), variant: 'horizontalBar' },
+    { key: 'attendanceTrend', domains: ['overview', 'attendance'], title: 'Attendance trend', subtitle: 'Present, late, and absent records by day', data: chart('attendanceTrend'), variant: 'area', series: [{ key: 'value', label: 'Present', color: '#10b981' }, { key: 'secondaryValue', label: 'Late', color: '#f59e0b' }, { key: 'tertiaryValue', label: 'Absent', color: '#ef4444' }] },
+    { key: 'leaveTypes', domains: ['leave'], title: 'Leave type distribution', subtitle: 'Demand by leave category', data: chart('leaveTypes'), variant: 'pie' },
+    { key: 'leaveTrend', domains: ['leave'], title: 'Leave trend and approvals', subtitle: 'Requests compared with approvals by month', data: chart('leaveTrend'), variant: 'area', series: [{ key: 'value', label: 'Requests', color: 'var(--color-primary-500)' }, { key: 'secondaryValue', label: 'Approved', color: '#10b981' }] },
+    { key: 'recruitmentPipeline', domains: ['overview', 'recruitment'], title: 'Recruitment conversion funnel', subtitle: 'Candidate movement from application to hire', data: chart('recruitmentPipeline'), variant: 'funnel' },
+    { key: 'applicationsByJob', domains: ['recruitment'], title: 'Applications per job', subtitle: 'Candidate demand by open position', data: chart('applicationsByJob'), variant: 'horizontalBar' },
+    { key: 'hiringTrend', domains: ['recruitment'], title: 'Hiring trend', subtitle: 'Successful hires by month', data: chart('hiringTrend'), variant: 'line' },
+    { key: 'teamSizes', domains: ['teams'], title: 'Team member distribution', subtitle: 'Active membership across teams', data: chart('teamSizes'), variant: 'radar' },
+    { key: 'notificationVolume', domains: ['system'], title: 'Notification volume', subtitle: 'System messaging generated by month', data: chart('notificationVolume'), variant: 'line' },
+    { key: 'announcementVolume', domains: ['system'], title: 'Announcements created', subtitle: 'Company communication cadence', data: chart('announcementVolume'), variant: 'bar' },
   ];
 }
 

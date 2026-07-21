@@ -1,17 +1,14 @@
 import type { ProgressDatum } from "@/modules/analytics/types";
 
-import { Link } from 'react-router-dom';
-
 interface BarChartProps {
   title: string;
   subtitle?: string;
   data: ProgressDatum[];
   color?: string;
   unit?: string;
-  drillDownTo?: string;
 }
 
-export function BarChart({ title, subtitle, data, color = 'var(--color-primary-500)', unit = '', drillDownTo }: BarChartProps) {
+export function BarChart({ title, subtitle, data, color = "var(--color-primary-500)", unit = "" }: BarChartProps) {
   const max = data.reduce((acc, item) => Math.max(acc, item.value), 0);
 
   return (
@@ -25,7 +22,6 @@ export function BarChart({ title, subtitle, data, color = 'var(--color-primary-5
             {subtitle}
           </p>
         )}
-        {drillDownTo && <Link to={drillDownTo} className='mt-2 inline-block text-xs font-semibold text-primary-600 hover:underline'>View underlying records →</Link>}
       </div>
 
       <div className="space-y-3">
