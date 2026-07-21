@@ -136,7 +136,6 @@ export interface TenantProvisioningData {
   tenantAdminEmail: string;
   primaryColor?: string;
   brandingVersion?: number;
-  logoUrl?: string;
   createdAt: string;
 }
 

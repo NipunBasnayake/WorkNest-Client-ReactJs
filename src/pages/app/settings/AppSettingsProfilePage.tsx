@@ -214,7 +214,7 @@ export function AppSettingsProfilePage() {
     <div className="space-y-6 pb-6">
       <PageHeader
         title="My profile"
-        description="Manage the identity, photo, and security details used throughout your WorkNest workspace."
+        description="Manage the identity, photo, and security details used throughout your company workspace."
         status={employeeProfile ? <SemanticBadge label={String(employeeProfile.status || "ACTIVE")} variant={employeeProfile.status === "inactive" ? "neutral" : "success"} showDot /> : undefined}
       />
 

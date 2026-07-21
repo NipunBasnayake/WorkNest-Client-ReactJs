@@ -11,16 +11,10 @@ import { Button } from "@/components/common/Button";
 import { PlatformStatusBadge } from "@/modules/platform/components/PlatformStatusBadge";
 import { TenantActionsMenu } from "@/modules/platform/components/TenantActionsMenu";
 import { Input } from "@/components/common/Input";
-import { BrandColorPicker, BrandLogoField, BrandPreview } from "@/features/branding/BrandingEditor";
+import { BrandColorPicker, BrandPreview } from "@/features/branding/BrandingEditor";
 import { isValidBrandColor } from "@/features/branding/colorTokens";
-import {
-  deletePlatformTenantLogo,
-  getPlatformTenantBranding,
-  updatePlatformTenantBranding,
-  uploadPlatformTenantLogo,
-} from "@/features/branding/brandingService";
+import { getPlatformTenantBranding, updatePlatformTenantBranding } from "@/features/branding/brandingService";
 import type { TenantBranding } from "@/features/branding/types";
-import type { ImageUploadRequestOptions } from "@/services/uploads/uploadTypes";
 
 export function TenantDetailPage() {
   const { tenantKey } = useParams<{ tenantKey: string }>();
@@ -145,20 +139,6 @@ function PlatformBrandingCard({ tenantKey, onCompanyChanged }: { tenantKey: stri
     }
   }
 
-  async function uploadLogo(file: File, options: ImageUploadRequestOptions) {
-    if (!branding) return;
-    const updated = await uploadPlatformTenantLogo(tenantKey, file, branding.brandingVersion, options);
-    setBranding(updated);
-    setMessage("Tenant logo updated.");
-  }
-
-  async function removeLogo() {
-    if (!branding) return;
-    const updated = await deletePlatformTenantLogo(tenantKey, branding.brandingVersion);
-    setBranding(updated);
-    setMessage("Tenant logo removed.");
-  }
-
   return (
     <SectionCard title="Tenant branding" subtitle="Platform administrators can manage the tenant's canonical company identity.">
       {error ? <div className="mb-4 rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-sm text-red-500">{error}</div> : null}
@@ -170,7 +150,6 @@ function PlatformBrandingCard({ tenantKey, onCompanyChanged }: { tenantKey: stri
           <div className="space-y-5">
             <Input id="platform-brand-company" label="Company name" value={branding.companyName} onChange={(event) => setBranding((previous) => previous ? { ...previous, companyName: event.target.value } : previous)} />
             <BrandColorPicker value={branding.primaryColor} onChange={(primaryColor) => setBranding((previous) => previous ? { ...previous, primaryColor } : previous)} disabled={saving} />
-            <BrandLogoField branding={branding} onUpload={uploadLogo} onRemove={removeLogo} disabled={saving} />
             <div className="flex justify-end">
               <Button onClick={() => void saveBranding()} disabled={saving || !branding.companyName.trim() || !isValidBrandColor(branding.primaryColor)}>
                 {saving ? "Saving..." : "Save Branding"}

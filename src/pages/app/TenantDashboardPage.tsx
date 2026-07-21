@@ -29,7 +29,7 @@ import { getErrorMessage } from "@/utils/errorHandler";
 import { tenantRoutes } from "@/utils/tenantRoutes";
 import type { DashboardTaskStatusSummary, TenantDashboardSnapshot } from "@/modules/analytics/types";
 import { RecruitmentDashboardWidget } from "@/modules/recruitment/components/RecruitmentDashboardWidget";
-import { TenantLogo } from "@/features/branding/TenantLogo";
+import { useBranding } from "@/features/branding/useBranding";
 
 interface QuickAction {
   label: string;
@@ -67,7 +67,8 @@ const TASK_STATUS_META: Array<{ key: keyof DashboardTaskStatusSummary; label: st
 ];
 
 export function TenantDashboardPage() {
-  usePageMeta({ title: "Dashboard", breadcrumb: ["Workspace", "Dashboard"] });
+  const { branding } = useBranding();
+  usePageMeta({ title: `${branding.companyName} Dashboard`, breadcrumb: [branding.companyName, "Dashboard"] });
   const { role, user, tenantKey } = useAuth();
   const { hasPermission } = usePermission();
   const normalizedRole = String(role ?? user?.role ?? '').toUpperCase();
@@ -94,6 +95,7 @@ export function TenantDashboardPage() {
     <div className="space-y-6">
       <DashboardHero
         greeting={greeting}
+        companyName={branding.companyName}
         name={user?.name}
         tenantKey={tenantKey}
         role={user?.role}
@@ -503,11 +505,13 @@ function TenantUserDashboard({
 
 function DashboardHero({
   greeting,
+  companyName,
   name,
   tenantKey,
   role,
 }: {
   greeting: string;
+  companyName: string;
   name?: string;
   tenantKey?: string | null;
   role?: string;
@@ -522,7 +526,7 @@ function DashboardHero({
       }}
     >
       <div className="relative z-10">
-        <div className="mb-4"><TenantLogo size="header" eager /></div>
+        <div className="mb-4 break-words text-xl font-extrabold" style={{ color: "var(--color-primary-700)" }}>{companyName}</div>
         <p className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
           {greeting}
         </p>

@@ -91,8 +91,6 @@ async function resolveWorkspace(authUser: AuthUser | null): Promise<WorkspaceSet
       status: (getString(payload.status) ?? "ACTIVE").toUpperCase(),
       createdAt: toIsoDate(firstDefined(payload.createdAt, payload.createdDate)),
       databaseName: getString(payload.databaseName),
-      logoUrl: getString(payload.logoUrl),
-      logo: extractUploadedFileAssets(payload.logoUrl)[0] ?? null,
       dataSource: "backend",
     };
   } catch (error: unknown) {

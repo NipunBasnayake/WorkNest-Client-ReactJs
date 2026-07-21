@@ -13,7 +13,6 @@ import { getPublicCareers } from "@/modules/careers/services/publicCareersServic
 import { buildCareersUrl, copyPublicUrl } from "@/modules/careers/share";
 import type { PublicCareerJobSummary, PublicCareersResponse, PublicEmploymentType } from "@/modules/careers/types";
 import { formatEmploymentType, formatPublicDate } from "@/modules/careers/utils";
-import { TenantLogo } from "@/features/branding/TenantLogo";
 
 export function CareersPage() {
   const { tenantSlug = "" } = useParams();
@@ -172,9 +171,6 @@ function CompanyHeader({
     <section className="rounded-2xl border p-6 sm:p-8" style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-default)", boxShadow: "var(--shadow-sm)" }}>
       <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
         <div className="flex min-w-0 flex-col gap-5 sm:flex-row sm:items-center">
-          <div className="flex min-h-16 min-w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl border p-2" style={{ backgroundColor: "var(--bg-muted)", borderColor: "var(--border-default)" }}>
-            <TenantLogo size="settings" showName={false} eager />
-          </div>
           <div className="min-w-0">
             <p className="text-sm font-semibold" style={{ color: "var(--color-primary-600)" }}>Careers</p>
             <h1 className="mt-1 text-3xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>{companyName}</h1>

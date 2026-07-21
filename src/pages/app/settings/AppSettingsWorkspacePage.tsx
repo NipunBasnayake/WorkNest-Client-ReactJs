@@ -7,17 +7,11 @@ import { SectionCard } from "@/components/common/SectionCard";
 import { ErrorBanner } from "@/components/common/AppUI";
 import { getTenantSettings } from "@/modules/settings/services/settingsService";
 import type { WorkspaceSettings } from "@/modules/settings/types";
-import {
-  deleteTenantLogo,
-  getEditableTenantBranding,
-  updateTenantBranding,
-  uploadTenantLogo,
-} from "@/features/branding/brandingService";
-import { BrandColorPicker, BrandLogoField, BrandPreview } from "@/features/branding/BrandingEditor";
+import { getEditableTenantBranding, updateTenantBranding } from "@/features/branding/brandingService";
+import { BrandColorPicker, BrandPreview } from "@/features/branding/BrandingEditor";
 import { isValidBrandColor } from "@/features/branding/colorTokens";
 import type { TenantBranding } from "@/features/branding/types";
 import { getErrorMessage } from "@/utils/errorHandler";
-import type { ImageUploadRequestOptions } from "@/services/uploads/uploadTypes";
 
 export function AppSettingsWorkspacePage() {
   usePageMeta({ title: "Settings - Workspace", breadcrumb: ["Workspace", "Settings", "Workspace"] });
@@ -81,22 +75,6 @@ export function AppSettingsWorkspacePage() {
     }
   }
 
-  async function handleLogoUpload(file: File, options: ImageUploadRequestOptions) {
-    if (!branding) return;
-    const updated = await uploadTenantLogo(file, branding.brandingVersion, options);
-    setBranding(updated);
-    refreshBrandingConsumers(updated);
-    setMessage("Company logo updated.");
-  }
-
-  async function handleLogoRemove() {
-    if (!branding) return;
-    const updated = await deleteTenantLogo(branding.brandingVersion);
-    setBranding(updated);
-    refreshBrandingConsumers(updated);
-    setMessage("Company logo removed.");
-  }
-
   return (
     <div className="space-y-4">
       {error && <ErrorBanner message={error} />}
@@ -119,7 +97,6 @@ export function AppSettingsWorkspacePage() {
                 onChange={(primaryColor) => setBranding((previous) => previous ? { ...previous, primaryColor } : previous)}
                 disabled={saving}
               />
-              <BrandLogoField branding={branding} onUpload={handleLogoUpload} onRemove={handleLogoRemove} disabled={saving} />
               <div className="flex justify-end">
                 <Button variant="primary" onClick={() => void handleSave()} disabled={saving || !branding.companyName.trim() || !isValidBrandColor(branding.primaryColor)}>
                   {saving ? "Saving..." : "Save Branding"}
