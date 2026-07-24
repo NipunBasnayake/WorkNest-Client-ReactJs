@@ -21,6 +21,7 @@ export function PlatformTrendChart({
   compact = false,
 }: Props) {
   const gradientId = `platform-trend-${title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+  const hasData = data.some((point) => point.value > 0 || (point.cumulativeValue ?? 0) > 0);
   return (
     <section className="rounded-2xl border p-5" style={{ background: "var(--bg-surface)", borderColor: "var(--border-default)" }}>
       <div className="mb-4">
@@ -28,8 +29,8 @@ export function PlatformTrendChart({
         <p className="mt-0.5 text-xs" style={{ color: "var(--text-secondary)" }}>{subtitle}</p>
       </div>
       <div className={compact ? "h-52" : "h-72"}>
-        {data.length === 0 ? (
-          <div className="grid h-full place-items-center text-sm" style={{ color: "var(--text-tertiary)" }}>No trend data available.</div>
+        {!hasData ? (
+          <div className="grid h-full place-items-center text-sm" style={{ color: "var(--text-tertiary)" }}>No data available</div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={data} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>

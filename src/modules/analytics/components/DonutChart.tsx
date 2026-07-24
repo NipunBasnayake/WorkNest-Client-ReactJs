@@ -38,7 +38,7 @@ export function DonutChart({ title, subtitle, data }: DonutChartProps) {
         )}
       </div>
 
-      <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
+      {total <= 0 ? <div className="grid min-h-48 place-items-center text-sm" style={{ color: "var(--text-tertiary)" }}>No data available</div> : <div className="flex min-h-48 flex-col items-center justify-center gap-5 sm:flex-row">
         <div className="relative h-40 w-40 shrink-0 rounded-full" style={{ background: gradient }}>
           <div
             className="absolute left-1/2 top-1/2 h-24 w-24 -translate-x-1/2 -translate-y-1/2 rounded-full border"
@@ -63,7 +63,7 @@ export function DonutChart({ title, subtitle, data }: DonutChartProps) {
             </div>
           ))}
         </div>
-      </div>
+      </div>}
     </section>
   );
 }

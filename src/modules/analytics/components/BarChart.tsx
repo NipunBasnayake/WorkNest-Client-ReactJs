@@ -25,12 +25,12 @@ export function BarChart({ title, subtitle, data, color = "var(--color-primary-5
       </div>
 
       <div className="space-y-3">
-        {data.length === 0 && (
+        {max <= 0 && (
           <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>
-            No data available.
+            No data available
           </p>
         )}
-        {data.map((item) => (
+        {max > 0 && data.map((item) => (
           <div key={item.label} className="space-y-1.5">
             <div className="flex items-center justify-between gap-2 text-xs">
               <span className="truncate" style={{ color: "var(--text-secondary)" }}>{item.label}</span>

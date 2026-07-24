@@ -62,7 +62,7 @@ export function summarizeAttendance(records: AttendanceRecord[]): AttendanceSumm
   return records.reduce<AttendanceSummary>(
     (acc, record) => {
       acc.total += 1;
-      if (record.status === "PRESENT") acc.present += 1;
+      if (record.status === "PRESENT" && !record.late) acc.present += 1;
       if (record.status === "ABSENT") acc.absent += 1;
       if (record.status === "HALF_DAY") acc.halfDay += 1;
       if (record.status === "INCOMPLETE") acc.incomplete += 1;
@@ -96,6 +96,15 @@ export async function getAllAttendanceRecords(): Promise<AttendanceRecord[]> {
   return extractList(unwrapApiData<unknown>(data))
     .map(normalizeRecord)
     .sort((a, b) => b.date.localeCompare(a.date));
+}
+
+export async function getAttendanceRecordsByRange(fromDate: string, toDate: string, filters?: { employeeId?: string; department?: string }): Promise<AttendanceRecord[]> {
+  const { data } = await apiClient.get<ApiResponse<unknown> | unknown>("/api/tenant/attendance/range", {
+    params: { fromDate, toDate, ...(filters?.employeeId ? { employeeId: filters.employeeId } : {}), ...(filters?.department ? { department: filters.department } : {}) },
+  });
+  return extractList(unwrapApiData<unknown>(data))
+    .map(normalizeRecord)
+    .sort((left, right) => left.date.localeCompare(right.date) || left.employeeName.localeCompare(right.employeeName));
 }
 
 export async function getAttendanceSummary(date?: string): Promise<AttendanceSummary> {

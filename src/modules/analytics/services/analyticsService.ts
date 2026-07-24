@@ -269,7 +269,7 @@ function toTimestamp(value: string | undefined): number {
 function summarizeAttendance(records: AttendanceRecord[]): DashboardAttendanceSummary {
   return records.reduce<DashboardAttendanceSummary>((acc, record) => {
     acc.total += 1;
-    if (record.status === "PRESENT") acc.present += 1;
+    if (record.status === "PRESENT" && !record.late) acc.present += 1;
     if (record.status === "ABSENT") acc.absent += 1;
     if (record.status === "HALF_DAY") acc.halfDay += 1;
     if (record.status === "INCOMPLETE") acc.incomplete += 1;
@@ -661,13 +661,11 @@ async function getTenantAnalyticsDataLegacy(): Promise<Partial<TenantAnalyticsDa
 
 void getTenantAnalyticsDataLegacy;
 
-export async function getTenantAnalyticsData(filters?: AnalyticsFilters): Promise<TenantAnalyticsData> {
+export async function getTenantAnalyticsData(filters?: AnalyticsFilters, dashboardSnapshot?: TenantDashboardSnapshot): Promise<TenantAnalyticsData> {
   const role = normalizeAppRole(useAuthStore.getState().user?.role);
   const canWorkforce = role === 'TENANT_ADMIN' || role === 'HR';
-  const canWork = role === 'TENANT_ADMIN' || role === 'MANAGER';
   const range = filters ?? { fromDate: '', toDate: '', department: '', projectId: '', teamId: '', employeeId: '', status: '', recruitmentStatus: '', attendancePeriod: 'daily', leaveType: '' };
-  const snapshotPromise = getTenantDashboardSnapshot();
-  const safePayload = (endpoint: string, params?: Record<string, string>) => fetchTenantAnalyticsPayload(endpoint, params).catch(() => []);
+  const snapshotPromise = dashboardSnapshot ? Promise.resolve(dashboardSnapshot) : getTenantDashboardSnapshot();
   const [snapshot, tasksRaw, leavesRaw, employees, teams, projects] = await Promise.all([
     snapshotPromise, getTasks().catch(() => []), getLeaveRequests().catch(() => []),
     canWorkforce ? getEmployees().catch(() => []) : Promise.resolve([]),
@@ -678,16 +676,12 @@ export async function getTenantAnalyticsData(filters?: AnalyticsFilters): Promis
     (!range.teamId || task.assignedTeamId === range.teamId) &&
     (!range.employeeId || [task.assigneeId, task.assignedEmployeeId, task.assigneeEmployeeId].includes(range.employeeId)) &&
     (!range.status || task.status === range.status) &&
-    (!range.fromDate || !task.dueDate || task.dueDate >= range.fromDate) && (!range.toDate || !task.dueDate || task.dueDate <= range.toDate)
+    (!range.fromDate || task.createdAt >= range.fromDate) && (!range.toDate || task.createdAt.slice(0, 10) <= range.toDate)
   );
-  const leaves = leavesRaw.filter((leave) => (!range.employeeId || leave.employeeId === range.employeeId) && (!range.status || leave.status === range.status) && (!range.fromDate || leave.endDate >= range.fromDate) && (!range.toDate || leave.startDate <= range.toDate));
-  const [assigneeRaw, progressRaw, attendanceRaw, rolesRaw, designationsRaw] = await Promise.all([
-    canWork ? safePayload('/api/tenant/analytics/tasks/by-assignee') : Promise.resolve([]),
-    canWork ? safePayload('/api/tenant/analytics/projects/progress') : Promise.resolve([]),
-    canWorkforce ? safePayload('/api/tenant/analytics/attendance/trend', { fromDate: range.fromDate, toDate: range.toDate }) : Promise.resolve([]),
-    canWorkforce ? safePayload('/api/tenant/analytics/employees/role-distribution') : Promise.resolve([]),
-    canWorkforce ? safePayload('/api/tenant/analytics/employees/designation-distribution') : Promise.resolve([]),
-  ]);
+  const leaves = leavesRaw.filter((leave) => (!range.employeeId || leave.employeeId === range.employeeId) && (!range.status || leave.status === range.status) && (!range.leaveType || leave.leaveType === range.leaveType) && (!range.fromDate || leave.endDate >= range.fromDate) && (!range.toDate || leave.startDate <= range.toDate));
+  const attendanceRaw = canWorkforce
+    ? await fetchTenantAnalyticsPayload('/api/tenant/analytics/attendance/trend', { fromDate: range.fromDate, toDate: range.toDate }).catch(() => [])
+    : [];
   const taskCounts = tasks.reduce<Record<string, number>>((map, task) => ({ ...map, [task.status]: (map[task.status] ?? 0) + 1 }), {});
   const leaveCounts = leaves.reduce<Record<string, number>>((map, leave) => ({ ...map, [leave.status]: (map[leave.status] ?? 0) + 1 }), {});
   const attendanceTrend = extractList(attendanceRaw).map((item) => { const value = asRecord(item); return {
@@ -703,9 +697,40 @@ export async function getTenantAnalyticsData(filters?: AnalyticsFilters): Promis
   const openTasks = tasks.filter((task) => task.status !== 'DONE');
   const overdue = openTasks.filter((task) => task.dueDate && task.dueDate < now).sort((a, b) => a.dueDate.localeCompare(b.dueDate));
   const upcoming = openTasks.filter((task) => task.dueDate && task.dueDate >= now).sort((a, b) => a.dueDate.localeCompare(b.dueDate));
-  const filteredEmployees = employees.filter((employee) => !range.department || employee.department === range.department);
-  const teamMap = tasks.reduce<Record<string, number>>((map, task) => { const name = task.assignedTeamName ?? 'Unassigned'; map[name] = (map[name] ?? 0) + 1; return map; }, {});
+  const filteredEmployees = employees.filter((employee) =>
+    (!range.department || employee.department === range.department)
+    && (!range.employeeId || employee.id === range.employeeId)
+    && (!range.fromDate || String(employee.joinedDate ?? employee.joinedAt ?? '') >= range.fromDate)
+    && (!range.toDate || String(employee.joinedDate ?? employee.joinedAt ?? '').slice(0, 10) <= range.toDate)
+  );
+  const teamMap = tasks.filter((task) => task.status !== 'DONE').reduce<Record<string, number>>((map, task) => { const name = task.assignedTeamName ?? 'Unassigned'; map[name] = (map[name] ?? 0) + 1; return map; }, {});
   const teamWorkload = Object.entries(teamMap).map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value);
+  const projectProgressMap = tasks.reduce<Record<string, { id: string; label: string; total: number; completed: number }>>((map, task) => {
+    if (!task.projectId) return map;
+    const current = map[task.projectId] ?? { id: task.projectId, label: task.projectName ?? 'Unnamed project', total: 0, completed: 0 };
+    current.total += 1;
+    if (task.status === 'DONE') current.completed += 1;
+    map[task.projectId] = current;
+    return map;
+  }, {});
+  const projectProgress = Object.values(projectProgressMap)
+    .map((item) => ({ id: item.id, label: item.label, value: item.total ? Math.round(item.completed * 1000 / item.total) / 10 : 0, secondaryValue: item.completed }))
+    .sort((left, right) => right.value - left.value || left.label.localeCompare(right.label));
+  const workloadMap = tasks.reduce<Record<string, { id: string; label: string; value: number }>>((map, task) => {
+    const id = task.assigneeEmployeeId ?? task.assignedEmployeeId ?? task.assigneeId;
+    if (!id) return map;
+    const current = map[id] ?? { id, label: task.assigneeName ?? 'Unassigned', value: 0 };
+    current.value += 1;
+    map[id] = current;
+    return map;
+  }, {});
+  const workloadByEmployee = Object.values(workloadMap).sort((left, right) => right.value - left.value || left.label.localeCompare(right.label));
+  const roleCounts = filteredEmployees.reduce<Record<string, number>>((map, employee) => {
+    const key = String(employee.role ?? 'UNSPECIFIED').toUpperCase(); map[key] = (map[key] ?? 0) + 1; return map;
+  }, {});
+  const designationCounts = filteredEmployees.reduce<Record<string, number>>((map, employee) => {
+    const key = String(employee.designation ?? employee.position ?? 'Unspecified'); map[key] = (map[key] ?? 0) + 1; return map;
+  }, {});
   const completed = tasks.filter((task) => task.status === 'DONE').length;
   const completion = tasks.length ? Math.round((completed / tasks.length) * 100) : 0;
   const blocked = taskCounts.BLOCKED ?? 0;
@@ -716,20 +741,26 @@ export async function getTenantAnalyticsData(filters?: AnalyticsFilters): Promis
   if (!insights.length) insights.push({ id: 'stable', severity: 'info', title: 'Operations are stable', description: 'No critical workload or deadline signals were detected for this filter range.' });
 
   return {
-    totalEmployees: filteredEmployees.length || snapshot.totalEmployees,
-    activeProjects: range.projectId ? projects.filter((project) => project.id === range.projectId).length : snapshot.activeProjects,
+    totalEmployees: canWorkforce ? filteredEmployees.length : snapshot.totalEmployees,
+    activeProjects: projects.filter((project) =>
+      (!range.projectId || project.id === range.projectId)
+      && (!range.teamId || project.teamIds.includes(range.teamId))
+      && (!range.fromDate || project.createdAt >= range.fromDate)
+      && (!range.toDate || project.createdAt.slice(0, 10) <= range.toDate)
+      && !['completed', 'cancelled'].includes(project.status)
+    ).length,
     openTasks: openTasks.length,
     pendingLeaves: leaves.filter((leave) => leave.status === 'PENDING').length,
     presentToday: attendanceTrend.at(-1)?.present ?? snapshot.presentToday,
     taskStatusDistribution: toDistribution(taskCounts),
-    projectProgress: toProgressFromUnknown(progressRaw).slice(0, 10),
-    workloadByEmployee: toProgressFromUnknown(assigneeRaw).slice(0, 10),
+    projectProgress,
+    workloadByEmployee,
     attendanceTrend,
     leaveStatusDistribution: toDistribution(leaveCounts),
     upcomingDeadlines: previews(upcoming.slice(0, 8)),
     overdueTasks: previews(overdue.slice(0, 8)),
-    employeeRoleDistribution: toDistributionFromUnknown(rolesRaw),
-    employeeDesignationDistribution: toDistributionFromUnknown(designationsRaw),
+    employeeRoleDistribution: toDistribution(roleCounts),
+    employeeDesignationDistribution: toDistribution(designationCounts),
     teamWorkload,
     filterOptions: {
       departments: [...new Set(employees.map((item) => item.department).filter(Boolean))].sort().map((item) => ({ value: String(item), label: String(item) })),

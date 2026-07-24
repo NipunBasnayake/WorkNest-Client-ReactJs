@@ -15,7 +15,7 @@ import { getErrorMessage } from "@/utils/errorHandler";
 import { formatRelativeTime } from "@/utils/formatting";
 import type { DistributionDatum } from "@/modules/analytics/types";
 
-const STATUS_COLORS = ["#059669", "#2563eb", "#dc2626", "#64748b", "#7c3aed", "#b45309"];
+const STATUS_COLORS: Record<string, string> = { Active: "#059669", Provisioning: "#2563eb", Suspended: "#dc2626", Rejected: "#dc2626", Inactive: "#64748b", Archived: "#64748b" };
 
 export function PlatformAnalyticsPage() {
   usePageMeta({ title: "Platform Analytics", breadcrumb: ["Platform", "Analytics"] });
@@ -24,10 +24,10 @@ export function PlatformAnalyticsPage() {
   const { data, error, isLoading, refetch } = usePlatformAnalyticsQuery(true);
   const errorMessage = useMemo(() => error ? getErrorMessage(error, "Unable to load platform analytics.") : null, [error]);
 
-  const statusData: DistributionDatum[] = data?.tenantStatusDistribution.map((item, index) => ({
+  const statusData: DistributionDatum[] = data?.tenantStatusDistribution.map((item) => ({
     ...item,
     label: item.label === "Provisioning" ? "Pending setup" : item.label === "Inactive" ? "Deactivated" : item.label,
-    color: STATUS_COLORS[index % STATUS_COLORS.length],
+    color: STATUS_COLORS[item.label] ?? "#7c3aed",
   })) ?? [];
   const roleData = data?.userRoleDistribution.map((item) => ({ label: item.label, value: item.value })) ?? [];
   const focusedTenant = data?.tenantHealth.find((tenant) => tenant.tenantKey.toLowerCase() === tenantFilter);

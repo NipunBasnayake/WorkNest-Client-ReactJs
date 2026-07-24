@@ -7,8 +7,6 @@ import {
   KeyRound,
   Mail,
   Phone,
-  ShieldCheck,
-  UserRound,
 } from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { invalidateWorkflowQueries } from "@/hooks/queries/workflowInvalidation";
