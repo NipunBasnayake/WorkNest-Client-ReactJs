@@ -107,8 +107,9 @@ function chartConfigs(data: BusinessIntelligenceData): ChartConfig[] {
   const healthMetric = data.kpis.find((item) => item.key === 'projectHealth');
   const health: BiChartPoint[] = [{ label: 'Project health', value: healthMetric?.value ?? 0, secondaryValue: null, tertiaryValue: null, id: null }];
   return [
-    { key: 'employeeGrowth', domains: ['employees'], title: 'Employee joining trend', subtitle: 'New employees joining over the selected period', data: chart('employeeGrowth'), variant: 'area' },
+    { key: 'employeeGrowth', domains: ['employees'], title: 'Employee joining trend', subtitle: 'New employees joining over the selected period', data: chart('employeeGrowth'), variant: 'line' },
     { key: 'employeesByDepartment', domains: ['overview', 'employees'], title: 'Employees by department', subtitle: 'Workforce allocation across business functions', data: chart('employeesByDepartment'), variant: 'donut' },
+    { key: 'employeesByRole', domains: ['employees'], title: 'Employees by role', subtitle: 'Application responsibilities across the selected workforce', data: chart('employeesByRole'), variant: 'bar' },
     { key: 'employeesByDesignation', domains: ['employees'], title: 'Employees by designation', subtitle: 'Capability mix and role concentration', data: chart('employeesByDesignation'), variant: 'horizontalBar' },
     { key: 'employeeStatus', domains: ['employees'], title: 'Employee status', subtitle: 'Active and inactive workforce composition', data: chart('employeeStatus'), variant: 'pie' },
     { key: 'projectsByStatus', domains: ['overview', 'projects'], title: 'Projects by status', subtitle: 'Portfolio distribution and delivery state', data: chart('projectsByStatus'), variant: 'donut' },
@@ -119,13 +120,15 @@ function chartConfigs(data: BusinessIntelligenceData): ChartConfig[] {
     { key: 'taskPriority', domains: ['tasks'], title: 'Task priority mix', subtitle: 'Urgency profile of current work', data: chart('taskPriority'), variant: 'bar' },
     { key: 'taskCompletionTrend', domains: ['tasks'], title: 'Task completion trend', subtitle: 'Completed work compared with total activity', data: chart('taskCompletionTrend'), variant: 'line', series: [{ key: 'value', label: 'Completed', color: '#10b981' }, { key: 'secondaryValue', label: 'Total', color: 'var(--color-primary-500)' }] },
     { key: 'teamWorkload', domains: ['tasks', 'teams'], title: 'Team workload', subtitle: 'Open work currently assigned to each team', data: chart('teamWorkload'), variant: 'horizontalBar' },
-    { key: 'attendanceTrend', domains: ['overview', 'attendance'], title: 'Attendance trend', subtitle: 'Present, late, and absent records by day', data: chart('attendanceTrend'), variant: 'area', series: [{ key: 'value', label: 'Present', color: '#10b981' }, { key: 'secondaryValue', label: 'Late', color: '#f59e0b' }, { key: 'tertiaryValue', label: 'Absent', color: '#ef4444' }] },
+    { key: 'attendanceTrend', domains: ['overview', 'attendance'], title: 'Attendance trend', subtitle: 'On-time, late, and absent records by period', data: chart('attendanceTrend'), variant: 'line', series: [{ key: 'value', label: 'Present on time', color: '#10b981' }, { key: 'secondaryValue', label: 'Late', color: '#f59e0b' }, { key: 'tertiaryValue', label: 'Absent', color: '#ef4444' }] },
     { key: 'leaveTypes', domains: ['leave'], title: 'Leave type distribution', subtitle: 'Demand by leave category', data: chart('leaveTypes'), variant: 'pie' },
-    { key: 'leaveTrend', domains: ['leave'], title: 'Leave trend and approvals', subtitle: 'Requests compared with approvals by month', data: chart('leaveTrend'), variant: 'area', series: [{ key: 'value', label: 'Requests', color: 'var(--color-primary-500)' }, { key: 'secondaryValue', label: 'Approved', color: '#10b981' }] },
+    { key: 'leaveTrend', domains: ['leave'], title: 'Leave trend and approvals', subtitle: 'Requests compared with approvals by month', data: chart('leaveTrend'), variant: 'line', series: [{ key: 'value', label: 'Requests', color: 'var(--color-primary-500)' }, { key: 'secondaryValue', label: 'Approved', color: '#10b981' }] },
     { key: 'recruitmentPipeline', domains: ['overview', 'recruitment'], title: 'Recruitment conversion funnel', subtitle: 'Candidate movement from application to hire', data: chart('recruitmentPipeline'), variant: 'funnel' },
     { key: 'applicationsByJob', domains: ['recruitment'], title: 'Applications per job', subtitle: 'Candidate demand by open position', data: chart('applicationsByJob'), variant: 'horizontalBar' },
     { key: 'hiringTrend', domains: ['recruitment'], title: 'Hiring trend', subtitle: 'Successful hires by month', data: chart('hiringTrend'), variant: 'line' },
-    { key: 'teamSizes', domains: ['teams'], title: 'Team member distribution', subtitle: 'Active membership across teams', data: chart('teamSizes'), variant: 'radar' },
+    { key: 'recruitmentSources', domains: ['recruitment'], title: 'Application sources', subtitle: 'Where candidates in the selected scope originated', data: chart('recruitmentSources'), variant: 'donut' },
+    { key: 'teamSizes', domains: ['teams'], title: 'Team member distribution', subtitle: 'Active membership across teams', data: chart('teamSizes'), variant: 'horizontalBar' },
+    { key: 'riskSeverity', domains: ['overview', 'system'], title: 'Operational risk severity', subtitle: 'Backend risk signals grouped by severity', data: chart('riskSeverity'), variant: 'donut' },
     { key: 'notificationVolume', domains: ['system'], title: 'Notification volume', subtitle: 'System messaging generated by month', data: chart('notificationVolume'), variant: 'line' },
     { key: 'announcementVolume', domains: ['system'], title: 'Announcements created', subtitle: 'Company communication cadence', data: chart('announcementVolume'), variant: 'bar' },
   ];

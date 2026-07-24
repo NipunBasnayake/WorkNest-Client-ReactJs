@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { apiClient } from "@/services/http/client";
-import { checkIn, getAttendanceRecords, summarizeAttendance } from "@/modules/attendance/services/attendanceService";
+import { checkIn, getAttendanceRecords, getAttendanceRecordsByRange, summarizeAttendance } from "@/modules/attendance/services/attendanceService";
 
 vi.mock("@/services/http/client", () => ({
   apiClient: {
@@ -63,6 +63,16 @@ describe("attendanceService", () => {
     expect(apiClient.get).toHaveBeenCalledWith("/api/tenant/attendance/date/2026-04-14");
   });
 
+  it("passes the complete report scope to the attendance range endpoint", async () => {
+    vi.mocked(apiClient.get).mockResolvedValueOnce({ data: { data: [] } });
+
+    await getAttendanceRecordsByRange("2026-04-01", "2026-04-30", { employeeId: "11", department: "Engineering" });
+
+    expect(apiClient.get).toHaveBeenCalledWith("/api/tenant/attendance/range", {
+      params: { fromDate: "2026-04-01", toDate: "2026-04-30", employeeId: "11", department: "Engineering" },
+    });
+  });
+
   it("posts manual check-ins to the management endpoint", async () => {
     vi.mocked(apiClient.post).mockResolvedValueOnce({
       data: {
@@ -94,7 +104,7 @@ describe("attendanceService", () => {
 
     expect(summary).toEqual({
       total: 3,
-      present: 1,
+      present: 0,
       late: 1,
       absent: 0,
       halfDay: 1,

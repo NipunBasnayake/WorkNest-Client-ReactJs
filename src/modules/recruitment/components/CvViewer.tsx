@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { ChevronLeft, ChevronRight, Download, ExternalLink, FileQuestion, Fullscreen, LoaderCircle, Maximize2, Minus, Move, Plus, RotateCcw } from 'lucide-react';
 import { EmptyState } from '@/components/common/AppUI';
+import { useProtectedFileResource } from '@/hooks/useProtectedFileUrl';
 
 interface CvViewerProps {
   src?: string;
@@ -32,19 +33,30 @@ function FileActions({ src, fileName }: { src: string; fileName?: string }) {
 }
 
 export function CvViewer({ src, fileName, mimeType, applicantName }: CvViewerProps) {
+  const protectedFile = useProtectedFileResource(src);
   if (!src) {
     return <EmptyState icon={<FileQuestion size={30} />} title='No CV uploaded' description='This applicant did not attach a CV to the application.' />;
   }
+  if (protectedFile.isLoading) return <CvResourceState />;
+  if (protectedFile.isError || !protectedFile.url) return <CvResourceState error />;
 
   const kind = fileKind(mimeType, fileName);
-  if (kind === 'pdf') return <PdfViewer key={src} src={src} fileName={fileName} applicantName={applicantName} />;
-  if (kind === 'image') return <ImageViewer key={src} src={src} fileName={fileName} applicantName={applicantName} />;
+  if (kind === 'pdf') return <PdfViewer key={protectedFile.url} src={protectedFile.url} fileName={fileName} applicantName={applicantName} />;
+  if (kind === 'image') return <ImageViewer key={protectedFile.url} src={protectedFile.url} fileName={fileName} applicantName={applicantName} />;
 
   return <div className='rounded-xl border p-6 text-center' style={{ borderColor: 'var(--border-default)', background: 'var(--bg-muted)' }}>
     <FileQuestion size={28} className='mx-auto text-primary-600' />
     <p className='mt-3 font-medium' style={{ color: 'var(--text-primary)' }}>{fileName ?? 'CV attached'}</p>
     <p className='mt-1 text-sm' style={{ color: 'var(--text-secondary)' }}>This file type cannot be previewed safely in the browser.</p>
-    <div className='mt-4 flex flex-wrap justify-center gap-2'><FileActions src={src} fileName={fileName} /></div>
+    <div className='mt-4 flex flex-wrap justify-center gap-2'><FileActions src={protectedFile.url} fileName={fileName} /></div>
+  </div>;
+}
+
+function CvResourceState({ error = false }: { error?: boolean }) {
+  return <div className='relative h-64 overflow-hidden rounded-xl border' style={{ borderColor: 'var(--border-default)', background: 'var(--bg-muted)' }}>
+    {error
+      ? <div className='absolute inset-0 grid place-items-center p-6 text-center'><div><FileQuestion size={30} className='mx-auto text-primary-600' /><p className='mt-3 font-semibold' style={{ color: 'var(--text-primary)' }}>CV could not be loaded</p><p className='mt-1 text-sm' style={{ color: 'var(--text-secondary)' }}>The protected file request failed. Refresh the page or try again.</p></div></div>
+      : <ViewerStatus label='Loading CV…' />}
   </div>;
 }
 

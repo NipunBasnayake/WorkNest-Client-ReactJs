@@ -88,6 +88,7 @@ export function useTenantDashboardQuery(enabled = true) {
 }
 
 export function useTenantAnalyticsQuery(enabled = true) {
+  const queryClient = useQueryClient();
   const authReady = useAuthStore((s) => s.authReady);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const sessionType = useAuthStore((s) => s.sessionType);
@@ -97,7 +98,10 @@ export function useTenantAnalyticsQuery(enabled = true) {
   useBiRealtime(queryEnabled ? tenantKey : null);
   return useQuery({
     queryKey: [...queryKeys.tenantAnalytics(), filters],
-    queryFn: () => getTenantAnalyticsData(filters),
+    queryFn: async () => {
+      const snapshot = await queryClient.ensureQueryData({ queryKey: queryKeys.tenantDashboard(), queryFn: getTenantDashboardSnapshot, staleTime: 30_000 });
+      return getTenantAnalyticsData(filters, snapshot);
+    },
     enabled: queryEnabled,
     staleTime: 30_000,
   });

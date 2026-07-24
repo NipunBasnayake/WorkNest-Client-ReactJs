@@ -330,6 +330,11 @@ export async function getTasks(): Promise<Task[]> {
   });
 }
 
+export async function getAllTasksForProjectReport(): Promise<Task[]> {
+  const { data } = await apiClient.get<ApiResponse<unknown> | unknown>("/api/tenant/tasks/all");
+  return extractList(unwrapApiData<unknown>(data)).map(normalizeTask);
+}
+
 export async function getMyTasks(): Promise<Task[]> {
   const { data } = await apiClient.get<ApiResponse<unknown> | unknown>("/api/tenant/tasks/my");
   const list = extractList(unwrapApiData<unknown>(data));
