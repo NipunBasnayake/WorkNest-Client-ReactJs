@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Download, FileSearch, Users } from "lucide-react";
+import { Download, FileSearch, LoaderCircle, Users } from "lucide-react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { PageHeader } from "@/components/common/PageHeader";
 import { SectionCard } from "@/components/common/SectionCard";
@@ -13,6 +13,8 @@ import type { RecruitmentStage } from "@/modules/recruitment/types";
 import { tenantRoutes } from "@/utils/tenantRoutes";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { SearchField } from "@/components/common/SearchField";
+import { openProtectedFile } from "@/services/uploads/fileUploadService";
+import { useToast } from "@/hooks/useToast";
 
 const STAGES: Array<{ value: RecruitmentStage; label: string }> = [
   { value: "APPLIED", label: "Applied" }, { value: "SHORTLISTED", label: "Shortlisted" },
@@ -54,13 +56,36 @@ export function RecruitmentApplicationsPage() {
             <td className="px-5 py-4"><p style={{ color: "var(--text-primary)" }}>{item.jobPosition.title}</p><p className="mt-0.5 text-xs" style={{ color: "var(--text-tertiary)" }}>{item.jobPosition.department ?? "No department"}</p></td>
             <td className="whitespace-nowrap px-5 py-4" style={{ color: "var(--text-secondary)" }}>{formatDate(item.appliedAt)}</td>
             <td className="px-5 py-4"><RecruitmentStatusBadge value={item.status} /></td>
-            <td className="px-5 py-4">{item.candidate.resumeFileUrl ? <a href={item.candidate.resumeFileUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 font-medium text-primary-600 hover:underline"><Download size={14} />CV</a> : <span style={{ color: "var(--text-tertiary)" }}>Not attached</span>}</td>
+            <td className="px-5 py-4">{item.candidate.resumeFileUrl ? <ResumeDownloadButton url={item.candidate.resumeFileUrl} fileName={item.candidate.resumeFileName} /> : <span style={{ color: "var(--text-tertiary)" }}>Not attached</span>}</td>
             <td className="px-5 py-4 text-right"><Button size="sm" variant="outline" to={tenantRoutes.recruitmentApplication(item.id, tenantSlug)}><FileSearch size={14} />Review</Button></td>
           </tr>)}</tbody>
         </table></div>}
       {(applicationsQuery.data?.totalElements ?? 0) > 0 ? <div className="p-4"><Pagination currentPage={page} totalItems={applicationsQuery.data?.totalElements ?? 0} pageSize={pageSize} onPageChange={setPage} onPageSizeChange={(size) => { setPageSize(size); setPage(1); }} itemLabel="applications" /></div> : null}
     </SectionCard>
   </div>;
+}
+
+function ResumeDownloadButton({ url, fileName }: { url: string; fileName?: string }) {
+  const [loading, setLoading] = useState(false);
+  const toast = useToast();
+
+  async function downloadResume() {
+    setLoading(true);
+    try {
+      await openProtectedFile(url, fileName || "cv", true);
+    } catch {
+      toast.error({
+        title: "CV download failed",
+        description: "The protected CV could not be downloaded. Please try again.",
+      });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return <button type="button" onClick={() => void downloadResume()} disabled={loading} className="inline-flex items-center gap-1.5 font-medium text-primary-600 hover:underline disabled:cursor-wait disabled:opacity-60">
+    {loading ? <LoaderCircle size={14} className="animate-spin" /> : <Download size={14} />}CV
+  </button>;
 }
 
 function formatDate(value?: string) {

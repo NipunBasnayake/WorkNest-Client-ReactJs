@@ -138,19 +138,29 @@ export async function fetchProtectedFileUrl(url: string): Promise<string> {
   return URL.createObjectURL(data);
 }
 
+export async function openProtectedFile(
+  url: string,
+  fileName?: string,
+  download = false
+): Promise<void> {
+  const objectUrl = await fetchProtectedFileUrl(url);
+  const anchor = document.createElement("a");
+  anchor.href = objectUrl;
+  anchor.target = "_blank";
+  anchor.rel = "noreferrer";
+  if (download) anchor.download = fileName || "file";
+  anchor.click();
+  if (objectUrl.startsWith("blob:")) {
+    window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+  }
+}
+
 export async function openUploadedFile(asset: UploadedFileAsset, download = false): Promise<void> {
   const id = getStoredFileId(asset);
   const source = id
     ? buildTenantApiUrl(`/files/${id}/${download ? "download" : "preview"}`)
     : asset.url;
-  const objectUrl = await fetchProtectedFileUrl(source);
-  const anchor = document.createElement("a");
-  anchor.href = objectUrl;
-  anchor.target = "_blank";
-  anchor.rel = "noreferrer";
-  if (download) anchor.download = asset.name;
-  anchor.click();
-  if (objectUrl.startsWith("blob:")) window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+  await openProtectedFile(source, asset.name, download);
 }
 
 export function uploadImageFiles(files: File[], options: UploadOptions): Promise<UploadedFileAsset[]> {
