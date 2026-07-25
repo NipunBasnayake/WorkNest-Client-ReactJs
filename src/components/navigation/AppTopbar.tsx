@@ -355,22 +355,22 @@ export function AppTopbar({ area, pageTitle, breadcrumb, onMobileMenuToggle }: A
               <Separator className="my-1 bg-[var(--border-default)]" decorative />
 
               <DropdownMenuGroup>
-                <DropdownMenuItem onSelect={() => navigate(isTenantArea ? tenantRoutes.profile(tenantSlug) : platformRoutes.profile())}>
+                {/* <DropdownMenuItem onSelect={() => navigate(isTenantArea ? tenantRoutes.profile(tenantSlug) : platformRoutes.profile())}>
                   <User size={16} />
                   My Profile
-                </DropdownMenuItem>
+                </DropdownMenuItem> */}
                 {isTenantArea && (
                   <DropdownMenuItem onSelect={() => navigate(tenantRoutes.settingsProfile(tenantSlug))}>
                     <Settings size={16} />
                     Account Settings
                   </DropdownMenuItem>
                 )}
-                {isTenantArea && (
+                {/* {isTenantArea && (
                   <DropdownMenuItem onSelect={() => navigate(tenantRoutes.settingsSecurity(tenantSlug))}>
                     <Shield size={16} />
                     Change Password
                   </DropdownMenuItem>
-                )}
+                )} */}
                 <DropdownMenuItem onSelect={() => toggleTheme()}>
                   {theme === "light" ? <Moon size={16} /> : <Sun size={16} />}
                   Appearance / Theme
@@ -389,9 +389,16 @@ export function AppTopbar({ area, pageTitle, breadcrumb, onMobileMenuToggle }: A
                 onSelect={() => {
                   void handleLogout();
                 }}
-                className="text-danger-600 focus:bg-danger-50 focus:text-danger-700 dark:text-danger-300 dark:focus:bg-danger-900/30 dark:focus:text-danger-200"
+                className="
+                  text-danger-600
+                  hover:bg-danger-600 hover:text-white
+                  focus:bg-danger-600 focus:text-white
+                  dark:text-danger-400
+                  dark:hover:bg-danger-600 dark:hover:text-white
+                  dark:focus:bg-danger-600 dark:focus:text-white
+                "
               >
-                <LogOut size={16} />
+                <LogOut size={16} className="text-current" />
                 Logout
               </DropdownMenuItem>
             </DropdownMenuContent>
