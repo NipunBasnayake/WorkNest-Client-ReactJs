@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, UserPlus } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { invalidateWorkflowQueries } from "@/hooks/queries/workflowInvalidation";
 import {
@@ -158,15 +158,6 @@ export function EmployeeFormPage() {
         <SectionCard
           title={isEdit ? "Edit Employee Record" : "New Employee Record"}
           subtitle="Fields marked by validation are required before submission."
-          action={!isEdit ? (
-            <span
-              className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold"
-              style={{ color: "var(--color-primary-600)", borderColor: "var(--brand-border)", background: "var(--brand-soft)" }}
-            >
-              <UserPlus size={12} />
-              New Hire
-            </span>
-          ) : undefined}
         >
           {message && (
             <div

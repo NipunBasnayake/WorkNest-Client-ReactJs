@@ -156,11 +156,18 @@ export async function openProtectedFile(
 }
 
 export async function openUploadedFile(asset: UploadedFileAsset, download = false): Promise<void> {
+  const source = getUploadedFileAccessUrl(asset, download);
+  await openProtectedFile(source, asset.name, download);
+}
+
+export function getUploadedFileAccessUrl(
+  asset: Pick<UploadedFileAsset, "id" | "path" | "url">,
+  download = false,
+): string {
   const id = getStoredFileId(asset);
-  const source = id
+  return id
     ? buildTenantApiUrl(`/files/${id}/${download ? "download" : "preview"}`)
     : asset.url;
-  await openProtectedFile(source, asset.name, download);
 }
 
 export function uploadImageFiles(files: File[], options: UploadOptions): Promise<UploadedFileAsset[]> {
