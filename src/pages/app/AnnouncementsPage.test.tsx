@@ -1,16 +1,25 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AnnouncementsPage } from "@/pages/app/AnnouncementsPage";
-import { getAnnouncements, deleteAnnouncement } from "@/modules/announcements/services/announcementService";
+import {
+  deleteAnnouncement,
+  getAnnouncements,
+  setAnnouncementPinned,
+} from "@/modules/announcements/services/announcementService";
 import type { Announcement } from "@/modules/announcements/types";
 import { getNotifications } from "@/modules/notifications/services/notificationService";
 import { useAuthStore } from "@/store/authStore";
 
+const realtime = vi.hoisted(() => ({
+  listener: null as ((payload: unknown) => void) | null,
+}));
+
 vi.mock("@/modules/announcements/services/announcementService", () => ({
   getAnnouncements: vi.fn(),
   deleteAnnouncement: vi.fn(),
+  setAnnouncementPinned: vi.fn(),
 }));
 
 vi.mock("@/modules/notifications/services/notificationService", () => ({
@@ -19,6 +28,13 @@ vi.mock("@/modules/notifications/services/notificationService", () => ({
 
 vi.mock("@/hooks/usePageMeta", () => ({
   usePageMeta: () => undefined,
+}));
+
+vi.mock("@/services/realtime/stompService", () => ({
+  subscribeRealtime: vi.fn((_destinations: string[], listener: (payload: unknown) => void) => {
+    realtime.listener = listener;
+    return vi.fn();
+  }),
 }));
 
 function renderPage() {
@@ -55,7 +71,16 @@ function makeAnnouncement(overrides: Partial<Announcement> = {}): Announcement {
 describe("AnnouncementsPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    realtime.listener = null;
     vi.mocked(deleteAnnouncement).mockResolvedValue(undefined);
+    vi.mocked(setAnnouncementPinned).mockImplementation(
+      async (_id, pinned) => makeAnnouncement({
+        pinned,
+        ownedByCurrentUser: true,
+        canEdit: true,
+        canDelete: true,
+      }),
+    );
     useAuthStore.setState({
       isAuthenticated: true,
       sessionType: "tenant",
@@ -78,9 +103,8 @@ describe("AnnouncementsPage", () => {
 
     renderPage();
 
-    await waitFor(() => expect(getAnnouncements).toHaveBeenCalledTimes(1));
-
-    expect(screen.getByText("Workspace Update")).toBeInTheDocument();
+    expect(await screen.findByText("Workspace Update")).toBeInTheDocument();
+    expect(getAnnouncements).toHaveBeenCalledTimes(1);
     expect(screen.getByText("Office will open at 9 AM next Monday.")).toBeInTheDocument();
     expect(screen.getByText("Edit")).toBeInTheDocument();
     expect(screen.getByText("Delete")).toBeInTheDocument();
@@ -102,9 +126,8 @@ describe("AnnouncementsPage", () => {
 
     renderPage();
 
-    await waitFor(() => expect(getAnnouncements).toHaveBeenCalledTimes(1));
-
-    expect(screen.getByText("Edit")).toBeInTheDocument();
+    expect(await screen.findByText("Edit")).toBeInTheDocument();
+    expect(getAnnouncements).toHaveBeenCalledTimes(1);
     expect(screen.getByText("Delete")).toBeInTheDocument();
   });
 
@@ -120,9 +143,8 @@ describe("AnnouncementsPage", () => {
 
     renderPage();
 
-    await waitFor(() => expect(getAnnouncements).toHaveBeenCalledTimes(1));
-
-    expect(screen.getByText("Workspace Update")).toBeInTheDocument();
+    expect(await screen.findByText("Workspace Update")).toBeInTheDocument();
+    expect(getAnnouncements).toHaveBeenCalledTimes(1);
     expect(screen.getByText("New Announcement")).toBeInTheDocument();
     expect(screen.queryByText("Edit")).not.toBeInTheDocument();
     expect(screen.queryByText("Delete")).not.toBeInTheDocument();
@@ -142,9 +164,8 @@ describe("AnnouncementsPage", () => {
 
     renderPage();
 
-    await waitFor(() => expect(getAnnouncements).toHaveBeenCalledTimes(1));
-
-    expect(screen.getByText("Workspace Update")).toBeInTheDocument();
+    expect(await screen.findByText("Workspace Update")).toBeInTheDocument();
+    expect(getAnnouncements).toHaveBeenCalledTimes(1);
     expect(screen.queryByText("New Announcement")).not.toBeInTheDocument();
     expect(screen.queryByText("Edit")).not.toBeInTheDocument();
     expect(screen.queryByText("Delete")).not.toBeInTheDocument();
@@ -157,6 +178,26 @@ describe("AnnouncementsPage", () => {
 
     await waitFor(() => expect(getAnnouncements).toHaveBeenCalledTimes(1));
     expect(getNotifications).not.toHaveBeenCalled();
+  });
+
+  it("pins an announcement using the simplified pin endpoint", async () => {
+    vi.mocked(getAnnouncements).mockResolvedValueOnce([
+      makeAnnouncement({
+        ownedByCurrentUser: true,
+        canEdit: true,
+        canDelete: true,
+      }),
+    ]);
+
+    renderPage();
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Pin announcement" }),
+    );
+
+    await waitFor(() =>
+      expect(setAnnouncementPinned).toHaveBeenCalledWith("101", true),
+    );
   });
 
   it("filters announcements with the shared search field and clears the query", async () => {
@@ -184,5 +225,23 @@ describe("AnnouncementsPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Clear Search announcements" }));
 
     expect(screen.getByText("Workspace Update")).toBeInTheDocument();
+  });
+
+  it("refreshes the React Query list when an announcement realtime event arrives", async () => {
+    vi.mocked(getAnnouncements)
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([makeAnnouncement({ title: "Realtime Announcement" })]);
+
+    renderPage();
+
+    await waitFor(() => expect(getAnnouncements).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(realtime.listener).not.toBeNull());
+
+    act(() => {
+      realtime.listener?.({ id: "101" });
+    });
+
+    expect(await screen.findByText("Realtime Announcement")).toBeInTheDocument();
+    expect(getAnnouncements).toHaveBeenCalledTimes(2);
   });
 });
