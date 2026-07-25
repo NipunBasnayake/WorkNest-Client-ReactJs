@@ -14,7 +14,7 @@ import { unwrapApiData } from '@/services/http/response';
 import { asRecord, extractList, firstDefined, getNumber, getString } from '@/services/http/parsers';
 import type { ApiResponse } from '@/types';
 
-export type FormalReportId = 'employees' | 'attendance' | 'leave' | 'projects' | 'tasks' | 'recruitment-jobs' | 'recruitment-applications' | 'recruitment-interviews' | 'recruitment-hiring' | 'teams' | 'audit' | 'notifications' | 'organization' | 'system-health' | 'departments' | 'new-joiners' | 'employee-status' | 'project-progress' | 'workload';
+export type FormalReportId = 'employees' | 'attendance' | 'leave' | 'projects' | 'tasks' | 'recruitment-jobs' | 'recruitment-applications' | 'recruitment-interviews' | 'recruitment-hiring' | 'teams' | 'audit' | 'notifications' | 'organization' | 'organizsation' | 'system-health' | 'departments' | 'new-joiners' | 'employee-status' | 'project-progress' | 'workload';
 export interface FormalReportDefinition { id: FormalReportId; title: string; description: string; group: string; serverPaginated?: boolean; }
 export interface FormalReportColumn { key: string; label: string; align?: 'left' | 'right'; }
 export interface FormalReportSupportingChart { title: string; subtitle: string; variant: 'line' | 'bar' | 'horizontalBar' | 'donut' | 'pie'; data: Array<{ label: string; value: number; secondaryValue: null; tertiaryValue: null; id: null }>; }
@@ -36,6 +36,8 @@ const definitions: Record<FormalReportId, FormalReportDefinition> = {
   audit: { id: 'audit', title: 'Audit Report', description: 'Governance-ready history of actors, actions, entities, and timestamps.', group: 'Governance' },
   notifications: { id: 'notifications', title: 'Notification Report', description: 'Tenant notification delivery, category, recipient, and read-status register.', group: 'System', serverPaginated: true },
   organization: { id: 'organization', title: 'Organization Summary', description: 'Formal company KPI statement for the selected reporting period.', group: 'Executive' },
+  organizsation: { id: 'organizsation', title: 'Organization organizsation Summary', description: 'Formal company KPI statement for the selected reporting period.', group: 'Executive' },
+
   'system-health': { id: 'system-health', title: 'System Health Report', description: 'Operational warnings, communication volume, and system risk statement.', group: 'System' },
   departments: { id: 'departments', title: 'Department Report', description: 'Department-level workforce totals for capacity review.', group: 'People' },
   'new-joiners': { id: 'new-joiners', title: 'New Joiners Report', description: 'Employees who joined within the selected reporting period.', group: 'People' },

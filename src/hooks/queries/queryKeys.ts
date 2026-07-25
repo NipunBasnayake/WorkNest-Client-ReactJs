@@ -18,6 +18,7 @@ export const queryKeys = {
   taskDetail: (taskId: string | undefined) => ["task", taskId ?? ""] as const,
   taskComments: (taskId: string | undefined) => ["task-comments", taskId ?? ""] as const,
   taskViewerIdentity: () => ["task-viewer-identity"] as const,
+  announcements: () => ["announcements"] as const,
   employees: () => ["employees"] as const,
   myEmployeeProfile: () => ["my-employee-profile"] as const,
   hrConversations: () => ["chat", "hr-conversations"] as const,

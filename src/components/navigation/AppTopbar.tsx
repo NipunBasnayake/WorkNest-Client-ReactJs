@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Bell, BellRing, ChevronDown, LogOut, Menu, Moon, Settings, Shield, Sun, User } from "lucide-react";
+import { Bell, BellRing, ChevronDown, LogOut, Menu, Moon, Settings, Sun } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/hooks/useTheme";
@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
 import { NotificationItem } from "@/modules/notifications/components/NotificationItem";
-import { authRoutes, platformRoutes, tenantRoutes } from "@/utils/tenantRoutes";
+import { authRoutes, tenantRoutes } from "@/utils/tenantRoutes";
 import {
   getNotifications,
   getUnreadNotificationCount,
