@@ -2,6 +2,7 @@ import { useState, type ChangeEvent } from "react";
 import { Download, ExternalLink, FileText, Image as ImageIcon, LoaderCircle, RefreshCw, Trash2, UploadCloud } from "lucide-react";
 import { Button } from "@/components/common/Button";
 import { ProtectedFileImage } from "@/components/common/ProtectedFileImage";
+import { FilePreviewDialog } from "@/components/common/FilePreviewDialog";
 import { useToast } from "@/hooks/useToast";
 import {
   deleteUploadedFile,
@@ -44,6 +45,7 @@ export function FileUploadField({
   const [deletingUrl, setDeletingUrl] = useState<string | null>(null);
   const [replacingUrl, setReplacingUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [previewFile, setPreviewFile] = useState<UploadedFileAsset | null>(null);
 
   async function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files ?? []);
@@ -90,12 +92,16 @@ export function FileUploadField({
     }
   }
 
-  async function handleOpen(asset: UploadedFileAsset) {
+  function handleOpen(asset: UploadedFileAsset) {
+    setPreviewFile(asset);
+  }
+
+  async function handleDownload(asset: UploadedFileAsset) {
     try {
-      await openUploadedFile(asset);
+      await openUploadedFile(asset, true);
     } catch (openError: unknown) {
-      const message = openError instanceof Error ? openError.message : "Unable to open the file.";
-      toast.error({ title: "Preview failed", description: message });
+      const message = openError instanceof Error ? openError.message : "Unable to download the file.";
+      toast.error({ title: "Download failed", description: message });
     }
   }
 
@@ -202,7 +208,7 @@ export function FileUploadField({
                     {asset.size ? <span>{Math.max(1, Math.round(asset.size / 1024))} KB</span> : null}
                     <button
                       type="button"
-                      onClick={() => void handleOpen(asset)}
+                      onClick={() => handleOpen(asset)}
                       className="inline-flex items-center gap-1 font-semibold no-underline"
                       style={{ color: "var(--color-primary-600)" }}
                     >
@@ -211,7 +217,7 @@ export function FileUploadField({
                     </button>
                     <button
                       type="button"
-                      onClick={() => void openUploadedFile(asset, true)}
+                      onClick={() => void handleDownload(asset)}
                       className="inline-flex items-center gap-1 font-semibold"
                       style={{ color: "var(--color-primary-600)" }}
                     >
@@ -253,6 +259,7 @@ export function FileUploadField({
           })}
         </div>
       ) : null}
+      <FilePreviewDialog file={previewFile} onClose={() => setPreviewFile(null)} />
     </div>
   );
 }

@@ -1,6 +1,8 @@
-import { Download, ExternalLink, FileText, Image as ImageIcon } from "lucide-react";
+import { useState } from "react";
+import { Download, Eye, FileText, Image as ImageIcon, LoaderCircle } from "lucide-react";
 import { ProtectedFileImage } from "@/components/common/ProtectedFileImage";
 import { openUploadedFile } from "@/services/uploads/fileUploadService";
+import { FilePreviewDialog } from "@/components/common/FilePreviewDialog";
 import { useToast } from "@/hooks/useToast";
 import type { UploadedFileAsset } from "@/types";
 
@@ -14,7 +16,14 @@ export function FileAssetList({
   emptyLabel = "No files attached yet.",
 }: FileAssetListProps) {
   const toast = useToast();
+  const [previewFile, setPreviewFile] = useState<UploadedFileAsset | null>(null);
+  const [downloadingUrl, setDownloadingUrl] = useState<string | null>(null);
   async function openFile(item: UploadedFileAsset, download: boolean) {
+    if (!download) {
+      setPreviewFile(item);
+      return;
+    }
+    setDownloadingUrl(item.url);
     try {
       await openUploadedFile(item, download);
     } catch (error: unknown) {
@@ -22,6 +31,8 @@ export function FileAssetList({
         title: download ? "Download failed" : "Preview failed",
         description: error instanceof Error ? error.message : "Unable to access this file.",
       });
+    } finally {
+      setDownloadingUrl(null);
     }
   }
 
@@ -37,6 +48,7 @@ export function FileAssetList({
   }
 
   return (
+    <>
     <div className="space-y-2">
       {items.map((item) => {
         const isImage = item.mimeType?.startsWith("image/") || /\.(png|jpe?g|webp|gif|svg)$/i.test(item.name);
@@ -68,15 +80,17 @@ export function FileAssetList({
 
             <div className="flex items-center gap-1">
               <button type="button" onClick={() => void openFile(item, false)} className="rounded-lg p-2" aria-label={`Preview ${item.name}`}>
-                <ExternalLink size={14} />
+                <Eye size={14} />
               </button>
-              <button type="button" onClick={() => void openFile(item, true)} className="rounded-lg p-2" aria-label={`Download ${item.name}`}>
-                <Download size={14} />
+              <button type="button" disabled={downloadingUrl === item.url} onClick={() => void openFile(item, true)} className="rounded-lg p-2 disabled:opacity-60" aria-label={`Download ${item.name}`}>
+                {downloadingUrl === item.url ? <LoaderCircle className="animate-spin" size={14} /> : <Download size={14} />}
               </button>
             </div>
           </div>
         );
       })}
     </div>
+    <FilePreviewDialog file={previewFile} onClose={() => setPreviewFile(null)} />
+    </>
   );
 }
