@@ -31,7 +31,10 @@ export interface AnnouncementFormValues {
   title: string;
   content: string;
   pinned: boolean;
+  teamId: string;
   attachments: UploadedFileAsset[];
 }
 
-export type AnnouncementFormErrors = Partial<Record<keyof AnnouncementFormValues, string>>;
+export type AnnouncementFormErrors = Partial<
+  Record<keyof AnnouncementFormValues, string>
+>;

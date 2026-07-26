@@ -21,6 +21,10 @@ vi.mock("@/features/branding/useBranding", () => ({
   }),
 }));
 
+vi.mock("@/hooks/queries/useSubscriptionQueries", () => ({
+  useCurrentSubscriptionQuery: () => ({ data: null }),
+}));
+
 describe("AppSidebar", () => {
   it("shows only the wrapping tenant company name and has no desktop collapse control", () => {
     render(

@@ -5,6 +5,7 @@ export const PERMISSIONS = {
   PLATFORM_USERS_VIEW: "platform.users.view",
   PLATFORM_AUDIT_LOGS_VIEW: "platform.audit-logs.view",
   PLATFORM_REPORTS_VIEW: "platform.reports.view",
+  PLATFORM_SUBSCRIPTIONS_MANAGE: "platform.subscriptions.manage",
   TENANT_DASHBOARD_VIEW: "tenant.dashboard.view",
   EMPLOYEES_VIEW: "employees.view",
   EMPLOYEES_MANAGE: "employees.manage",

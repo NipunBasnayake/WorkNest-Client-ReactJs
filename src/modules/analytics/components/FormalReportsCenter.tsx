@@ -56,6 +56,7 @@ const reportIcons: Record<FormalReportId, LucideIcon> = {
   audit: ShieldCheck,
   notifications: Bell,
   organization: Building2,
+  organizsation: Building2,
   'system-health': Activity,
   departments: Network,
   'new-joiners': UserPlus,

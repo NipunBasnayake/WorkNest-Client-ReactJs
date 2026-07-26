@@ -7,6 +7,7 @@ import {
   Lock,
   FileText,
   Mail,
+  CreditCard,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { type Permission, PERMISSIONS } from "@/constants/permissions";
@@ -15,6 +16,7 @@ import { tenantRoutes, platformRoutes } from "@/utils/tenantRoutes";
 import { Separator } from "@/components/ui/separator";
 import { WorkNestBrand } from "@/components/common/Logo";
 import { useBranding } from "@/features/branding/useBranding";
+import { useCurrentSubscriptionQuery } from "@/hooks/queries/useSubscriptionQueries";
 
 interface SidebarNavDef {
   label: string;
@@ -22,6 +24,7 @@ interface SidebarNavDef {
   to: string | ((tenantSlug: string) => string);
   icon: ReactNode;
   permission?: Permission;
+  featureKey?: string;
 }
 
 interface SidebarNavGroup {
@@ -48,30 +51,30 @@ const TENANT_NAV_GROUPS: SidebarNavGroup[] = [
   {
     label: "Overview",
     items: [
-      { label: "Dashboard", to: (t: string) => tenantRoutes.dashboard(t), icon: <LayoutDashboard size={18} /> },
-      { label: "Analytics", to: (t: string) => tenantRoutes.analytics(t), icon: <BarChart3 size={18} />, permission: PERMISSIONS.ANALYTICS_VIEW },
-      { label: "Reports", to: (t: string) => tenantRoutes.reports(t), icon: <FileText size={18} />, permission: PERMISSIONS.REPORTS_VIEW },
+      { label: "Dashboard", to: (t: string) => tenantRoutes.dashboard(t), icon: <LayoutDashboard size={18} />, featureKey: "DASHBOARD" },
+      { label: "Analytics", to: (t: string) => tenantRoutes.analytics(t), icon: <BarChart3 size={18} />, permission: PERMISSIONS.ANALYTICS_VIEW, featureKey: "ANALYTICS" },
+      { label: "Reports", to: (t: string) => tenantRoutes.reports(t), icon: <FileText size={18} />, permission: PERMISSIONS.REPORTS_VIEW, featureKey: "REPORTS" },
     ],
   },
   {
     label: "People",
     items: [
-      { label: "Employees", to: (t: string) => tenantRoutes.employees(t), icon: <Users size={18} />, permission: PERMISSIONS.EMPLOYEES_VIEW },
-      { label: "Teams", to: (t: string) => tenantRoutes.teams(t), icon: <Briefcase size={18} />, permission: PERMISSIONS.TEAMS_VIEW },
+      { label: "Employees", to: (t: string) => tenantRoutes.employees(t), icon: <Users size={18} />, permission: PERMISSIONS.EMPLOYEES_VIEW, featureKey: "EMPLOYEE" },
+      { label: "Teams", to: (t: string) => tenantRoutes.teams(t), icon: <Briefcase size={18} />, permission: PERMISSIONS.TEAMS_VIEW, featureKey: "TEAMS" },
     ],
   },
   {
     label: "Work",
     items: [
-      { label: "Projects", to: (t: string) => tenantRoutes.projects(t), icon: <ClipboardList size={18} />, permission: PERMISSIONS.PROJECTS_VIEW },
-      { label: "Tasks", to: (t: string) => tenantRoutes.tasks(t), icon: <CheckSquare size={18} />, permission: PERMISSIONS.TASKS_VIEW },
+      { label: "Projects", to: (t: string) => tenantRoutes.projects(t), icon: <ClipboardList size={18} />, permission: PERMISSIONS.PROJECTS_VIEW, featureKey: "PROJECTS" },
+      { label: "Tasks", to: (t: string) => tenantRoutes.tasks(t), icon: <CheckSquare size={18} />, permission: PERMISSIONS.TASKS_VIEW, featureKey: "TASKS" },
     ],
   },
   {
     label: "HR",
     items: [
-      { label: "Attendance", to: (t: string) => tenantRoutes.attendance(t), icon: <CalendarCheck size={18} />, permission: PERMISSIONS.ATTENDANCE_VIEW },
-      { label: "Leave", to: (t: string) => tenantRoutes.leave(t), icon: <CalendarCheck size={18} />, permission: PERMISSIONS.LEAVE_VIEW },
+      { label: "Attendance", to: (t: string) => tenantRoutes.attendance(t), icon: <CalendarCheck size={18} />, permission: PERMISSIONS.ATTENDANCE_VIEW, featureKey: "ATTENDANCE" },
+      { label: "Leave", to: (t: string) => tenantRoutes.leave(t), icon: <CalendarCheck size={18} />, permission: PERMISSIONS.LEAVE_VIEW, featureKey: "LEAVE" },
     ],
   },
   {
@@ -79,23 +82,23 @@ const TENANT_NAV_GROUPS: SidebarNavGroup[] = [
     collapsible: true,
     icon: <Briefcase size={18} />,
     items: [
-      { label: "Job Openings", to: (t: string) => tenantRoutes.recruitmentJobs(t), icon: <Briefcase size={18} />, permission: PERMISSIONS.RECRUITMENT_VIEW },
-      { label: "Applications", to: (t: string) => tenantRoutes.recruitmentApplications(t), icon: <ClipboardList size={18} />, permission: PERMISSIONS.RECRUITMENT_VIEW },
-      { label: "Email Templates", to: (t: string) => tenantRoutes.recruitmentEmailTemplates(t), icon: <Mail size={18} />, permission: PERMISSIONS.RECRUITMENT_VIEW },
+      { label: "Job Openings", to: (t: string) => tenantRoutes.recruitmentJobs(t), icon: <Briefcase size={18} />, permission: PERMISSIONS.RECRUITMENT_VIEW, featureKey: "RECRUITMENT" },
+      { label: "Applications", to: (t: string) => tenantRoutes.recruitmentApplications(t), icon: <ClipboardList size={18} />, permission: PERMISSIONS.RECRUITMENT_VIEW, featureKey: "RECRUITMENT" },
+      { label: "Email Templates", to: (t: string) => tenantRoutes.recruitmentEmailTemplates(t), icon: <Mail size={18} />, permission: PERMISSIONS.RECRUITMENT_VIEW, featureKey: "RECRUITMENT" },
     ],
   },
   {
     label: "Communication",
     items: [
-      { label: "Announcements", to: (t: string) => tenantRoutes.announcements(t), icon: <Bell size={18} />, permission: PERMISSIONS.ANNOUNCEMENTS_VIEW },
-      { label: "Notifications", to: (t: string) => tenantRoutes.notifications(t), icon: <BellRing size={18} />, permission: PERMISSIONS.NOTIFICATIONS_VIEW },
-      { label: "Chat", to: (t: string) => tenantRoutes.chat(t), icon: <MessageSquare size={18} />, permission: PERMISSIONS.CHAT_VIEW },
+      { label: "Announcements", to: (t: string) => tenantRoutes.announcements(t), icon: <Bell size={18} />, permission: PERMISSIONS.ANNOUNCEMENTS_VIEW, featureKey: "ANNOUNCEMENTS" },
+      { label: "Notifications", to: (t: string) => tenantRoutes.notifications(t), icon: <BellRing size={18} />, permission: PERMISSIONS.NOTIFICATIONS_VIEW, featureKey: "NOTIFICATIONS" },
+      { label: "Chat", to: (t: string) => tenantRoutes.chat(t), icon: <MessageSquare size={18} />, permission: PERMISSIONS.CHAT_VIEW, featureKey: "CHAT" },
     ],
   },
   {
     label: "Administration",
     items: [
-      { label: "Audit Logs", to: (t: string) => tenantRoutes.auditLogs(t), icon: <Lock size={18} />, permission: PERMISSIONS.AUDIT_LOGS_VIEW },
+      { label: "Audit Logs", to: (t: string) => tenantRoutes.auditLogs(t), icon: <Lock size={18} />, permission: PERMISSIONS.AUDIT_LOGS_VIEW, featureKey: "AUDIT" },
     ],
   },
 ];
@@ -114,6 +117,7 @@ const PLATFORM_NAV_GROUPS: SidebarNavGroup[] = [
     items: [
       { label: "Tenants", to: platformRoutes.tenants(), icon: <Building2 size={18} />, permission: PERMISSIONS.PLATFORM_TENANTS_VIEW },
       { label: "Platform Users", to: platformRoutes.users(), icon: <Users size={18} />, permission: PERMISSIONS.PLATFORM_USERS_VIEW },
+      { label: "Subscriptions", to: platformRoutes.subscriptions(), icon: <CreditCard size={18} />, permission: PERMISSIONS.PLATFORM_SUBSCRIPTIONS_MANAGE },
       { label: "Audit Logs", to: platformRoutes.auditLogs(), icon: <Lock size={18} />, permission: PERMISSIONS.PLATFORM_AUDIT_LOGS_VIEW },
     ],
   },
@@ -273,12 +277,18 @@ export function AppSidebar({ area, mobileOpen, onMobileClose }: AppSidebarProps)
   const { branding } = useBranding();
 
   const resolvedTenantSlug = tenantKey ?? "app";
+  const subscriptionQuery = useCurrentSubscriptionQuery(resolvedTenantSlug, area === "tenant");
+  const enabledFeatures = subscriptionQuery.data
+    ? new Set(subscriptionQuery.data.features)
+    : null;
 
   const sourceGroups = area === "tenant" ? TENANT_NAV_GROUPS : PLATFORM_NAV_GROUPS;
   const mainNavGroups = sourceGroups
       .map((group) => ({
         ...group,
-        items: group.items.filter((item) => !item.permission || hasPermission(item.permission)),
+        items: group.items.filter((item) =>
+          (!item.permission || hasPermission(item.permission))
+          && (area !== "tenant" || !item.featureKey || !enabledFeatures || enabledFeatures.has(item.featureKey))),
       }))
       .filter((group) => group.items.length > 0);
 

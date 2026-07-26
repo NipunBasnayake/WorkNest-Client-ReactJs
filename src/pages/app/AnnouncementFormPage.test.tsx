@@ -1,10 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AnnouncementFormPage } from "@/pages/app/AnnouncementFormPage";
 import { useAuthStore } from "@/store/authStore";
-import { getAnnouncementById } from "@/modules/announcements/services/announcementService";
+import { createAnnouncement, getAnnouncementById } from "@/modules/announcements/services/announcementService";
+import { queryKeys } from "@/hooks/queries/queryKeys";
+import type { Announcement } from "@/modules/announcements/types";
 
 vi.mock("@/modules/announcements/services/announcementService", () => ({
   createAnnouncement: vi.fn(),
@@ -18,16 +20,18 @@ vi.mock("@/hooks/usePageMeta", () => ({
 
 function renderPage(path = "/demo/announcements/1/edit") {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
+  const result = render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={[path]}>
         <Routes>
           <Route path="/:tenantSlug/announcements/new" element={<AnnouncementFormPage />} />
           <Route path="/:tenantSlug/announcements/:id/edit" element={<AnnouncementFormPage />} />
+          <Route path="/app/announcements" element={<div>Announcements Destination</div>} />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>
   );
+  return { ...result, queryClient };
 }
 
 describe("AnnouncementFormPage", () => {
@@ -89,5 +93,32 @@ describe("AnnouncementFormPage", () => {
       expect(screen.getByDisplayValue("Editable announcement")).toBeInTheDocument();
       expect(screen.getByDisplayValue("Announcement body that the HR user can manage.")).toBeInTheDocument();
     });
+  });
+
+  it("places a newly created announcement in the shared cache before navigating", async () => {
+    const created: Announcement = {
+      id: "77",
+      title: "New policy",
+      content: "The new policy is effective immediately.",
+      pinned: false,
+      authorId: "10",
+      authorName: "HR User",
+      authorRole: "HR",
+      ownedByCurrentUser: true,
+      canEdit: true,
+      canDelete: true,
+      createdAt: "2026-07-25T12:00:00.000Z",
+      updatedAt: "2026-07-25T12:00:00.000Z",
+    };
+    vi.mocked(createAnnouncement).mockResolvedValueOnce(created);
+
+    const { queryClient } = renderPage("/demo/announcements/new");
+
+    fireEvent.change(screen.getByLabelText("Title"), { target: { value: created.title } });
+    fireEvent.change(screen.getByLabelText("Content"), { target: { value: created.content } });
+    fireEvent.click(screen.getByRole("button", { name: "Publish Announcement" }));
+
+    expect(await screen.findByText("Announcements Destination")).toBeInTheDocument();
+    expect(queryClient.getQueryData<Announcement[]>(queryKeys.announcements())).toEqual([created]);
   });
 });

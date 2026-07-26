@@ -111,6 +111,7 @@ export const platformRoutes = {
   tenantDetail: (tenantKey: string) => platformRoutes.path(`/tenants/${tenantKey}`),
   users: () => platformRoutes.path("/users"),
   auditLogs: () => platformRoutes.path("/audit-logs"),
+  subscriptions: () => platformRoutes.path("/subscriptions"),
   profile: () => platformRoutes.path("/profile"),
 };
 

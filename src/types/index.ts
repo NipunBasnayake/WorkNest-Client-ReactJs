@@ -146,6 +146,7 @@ export interface Employee {
   employeeCode?: string;
   firstName?: string;
   lastName?: string;
+  nic?: string;
   name: string;
   email: string;
   position?: string;

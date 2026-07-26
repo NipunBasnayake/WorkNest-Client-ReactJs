@@ -4,6 +4,7 @@ export const DEFAULT_EMPLOYEE_FORM: EmployeeFormValues = {
   employeeCode: "",
   firstName: "",
   lastName: "",
+  nic: "",
   email: "",
   password: "",
   phone: "",

@@ -100,6 +100,7 @@ const tenantDetailPlatformPage = lazyElement(() => import("@/pages/platform/Tena
 const platformUsersPage = lazyElement(() => import("@/pages/platform/PlatformUsersPage"), "PlatformUsersPage");
 const platformAuditLogsPage = lazyElement(() => import("@/pages/platform/PlatformAuditLogsPage"), "PlatformAuditLogsPage");
 const platformReportsPage = lazyElement(() => import("@/pages/platform/PlatformReportsPage"), "PlatformReportsPage");
+const platformSubscriptionsPage = lazyElement(() => import("@/pages/platform/PlatformSubscriptionsPage"), "PlatformSubscriptionsPage");
 
 const router = createBrowserRouter([
   {
@@ -339,6 +340,7 @@ const router = createBrowserRouter([
           { element: <PlatformPermissionGuard permission={PERMISSIONS.PLATFORM_USERS_VIEW} />, children: [{ path: "platform/users", element: platformUsersPage }] },
           { element: <PlatformPermissionGuard permission={PERMISSIONS.PLATFORM_AUDIT_LOGS_VIEW} />, children: [{ path: "platform/audit-logs", element: platformAuditLogsPage }] },
           { element: <PlatformPermissionGuard permission={PERMISSIONS.PLATFORM_REPORTS_VIEW} />, children: [{ path: "platform/reports", element: platformReportsPage }] },
+          { element: <PlatformPermissionGuard permission={PERMISSIONS.PLATFORM_SUBSCRIPTIONS_MANAGE} />, children: [{ path: "platform/subscriptions", element: platformSubscriptionsPage }] },
           { path: "platform/profile", element: profilePage },
           { path: "platform/*", element: notFoundPage },
         ],

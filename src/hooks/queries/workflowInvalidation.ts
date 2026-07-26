@@ -20,7 +20,7 @@ const DASHBOARD_KEYS: QueryKey[] = [
 ];
 
 const DOMAIN_QUERY_KEYS: Record<WorkflowDomain, QueryKey[]> = {
-  announcements: [["announcements"], ...DASHBOARD_KEYS],
+  announcements: [queryKeys.announcements(), ...DASHBOARD_KEYS],
   attendance: [["attendance"], ...DASHBOARD_KEYS],
   employees: [queryKeys.employees(), queryKeys.myEmployeeProfile(), ...DASHBOARD_KEYS],
   leave: [["leave"], ...DASHBOARD_KEYS],

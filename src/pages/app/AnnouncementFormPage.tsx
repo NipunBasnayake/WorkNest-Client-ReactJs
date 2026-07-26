@@ -1,19 +1,32 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
-import { usePageMeta } from "@/hooks/usePageMeta";
-import { invalidateWorkflowQueries } from "@/hooks/queries/workflowInvalidation";
-import { useAuth } from "@/hooks/useAuth";
-import { canCreateAnnouncements } from "@/modules/announcements/access";
-import { createAnnouncement, getAnnouncementById, updateAnnouncement } from "@/modules/announcements/services/announcementService";
-import { DEFAULT_ANNOUNCEMENT_FORM, validateAnnouncementForm } from "@/modules/announcements/schemas/announcementForm";
-import { AnnouncementForm } from "@/modules/announcements/components/AnnouncementForm";
-import { SectionCard } from "@/components/common/SectionCard";
-import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/common/Button";
 import { ErrorBanner } from "@/components/common/AppUI";
-import type { AnnouncementFormErrors, AnnouncementFormValues } from "@/modules/announcements/types";
+import { PageHeader } from "@/components/common/PageHeader";
+import { SectionCard } from "@/components/common/SectionCard";
+import { queryKeys } from "@/hooks/queries/queryKeys";
+import { invalidateWorkflowQueries } from "@/hooks/queries/workflowInvalidation";
+import { useAuth } from "@/hooks/useAuth";
+import { usePageMeta } from "@/hooks/usePageMeta";
+import { canCreateAnnouncements } from "@/modules/announcements/access";
+import { AnnouncementForm } from "@/modules/announcements/components/AnnouncementForm";
+import {
+  DEFAULT_ANNOUNCEMENT_FORM,
+  validateAnnouncementForm,
+} from "@/modules/announcements/schemas/announcementForm";
+import {
+  createAnnouncement,
+  getAnnouncementById,
+  updateAnnouncement,
+} from "@/modules/announcements/services/announcementService";
+import type {
+  Announcement,
+  AnnouncementFormErrors,
+  AnnouncementFormValues,
+} from "@/modules/announcements/types";
+import { getTeams } from "@/modules/teams/services/teamService";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { tenantRoutes } from "@/utils/tenantRoutes";
 
@@ -27,47 +40,79 @@ export function AnnouncementFormPage() {
 
   usePageMeta({
     title: isEdit ? "Edit Announcement" : "Create Announcement",
-    breadcrumb: ["Workspace", "Announcements", isEdit ? "Edit" : "Create"],
+    breadcrumb: [
+      "Workspace",
+      "Announcements",
+      isEdit ? "Edit" : "Create",
+    ],
   });
 
-  const [form, setForm] = useState<AnnouncementFormValues>(DEFAULT_ANNOUNCEMENT_FORM);
+  const [form, setForm] = useState<AnnouncementFormValues>(
+    DEFAULT_ANNOUNCEMENT_FORM,
+  );
   const [errors, setErrors] = useState<AnnouncementFormErrors>({});
   const [loading, setLoading] = useState(isEdit);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [fatalError, setFatalError] = useState<string | null>(null);
-  const redirectTimerRef = useRef<number | null>(null);
+  const [teamOptions, setTeamOptions] = useState<
+    Array<{ value: string; label: string }>
+  >([]);
 
-  useEffect(() => () => {
-    if (redirectTimerRef.current !== null) window.clearTimeout(redirectTimerRef.current);
-  }, []);
+  useEffect(() => {
+    if (!canCreate) return;
+    let active = true;
+    void getTeams()
+      .then((teams) => {
+        if (active) {
+          setTeamOptions(
+            teams.map((team) => ({ value: team.id, label: team.name })),
+          );
+        }
+      })
+      .catch(() => {
+        if (active) setTeamOptions([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, [canCreate]);
 
   useEffect(() => {
     if (!id) {
       setLoading(false);
-      setFatalError(canCreate ? null : "You are not allowed to manage announcements.");
+      setFatalError(
+        canCreate ? null : "You are not allowed to manage announcements.",
+      );
       return;
     }
 
     let active = true;
     setLoading(true);
     setFatalError(null);
-    getAnnouncementById(id)
+    void getAnnouncementById(id)
       .then((item) => {
         if (!active) return;
         if (!item.canEdit) {
-          setFatalError("You can edit only announcements you are allowed to manage.");
+          setFatalError(
+            "You can edit only announcements you are allowed to manage.",
+          );
           return;
         }
         setForm({
           title: item.title,
           content: item.content,
           pinned: item.pinned,
+          teamId: item.teamId ?? "",
           attachments: item.attachments ?? [],
         });
       })
-      .catch((err: unknown) => {
-        if (active) setFatalError(getErrorMessage(err, "Unable to load announcement."));
+      .catch((error: unknown) => {
+        if (active) {
+          setFatalError(
+            getErrorMessage(error, "Unable to load announcement."),
+          );
+        }
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -78,7 +123,10 @@ export function AnnouncementFormPage() {
     };
   }, [canCreate, id]);
 
-  const title = useMemo(() => (isEdit ? "Update Announcement" : "Create Announcement"), [isEdit]);
+  const title = useMemo(
+    () => (isEdit ? "Update Announcement" : "Create Announcement"),
+    [isEdit],
+  );
 
   async function handleSubmit() {
     if (!user || !canCreate) {
@@ -93,20 +141,23 @@ export function AnnouncementFormPage() {
 
     setSubmitting(true);
     try {
-      if (id) {
-        await updateAnnouncement(id, form);
-        setMessage("Announcement updated successfully.");
-      } else {
-        await createAnnouncement(form);
-        setMessage("Announcement published successfully.");
-      }
+      const saved = id
+        ? await updateAnnouncement(id, form)
+        : await createAnnouncement(form);
+      queryClient.setQueryData<Announcement[]>(
+        queryKeys.announcements(),
+        (current = []) =>
+          sortAnnouncements([
+            saved,
+            ...current.filter((item) => item.id !== saved.id),
+          ]),
+      );
       await invalidateWorkflowQueries(queryClient, ["announcements"]);
-      redirectTimerRef.current = window.setTimeout(() => {
-        redirectTimerRef.current = null;
-        navigate(tenantRoutes.announcements(), { replace: true });
-      }, 500);
-    } catch (err: unknown) {
-      setMessage(getErrorMessage(err, "Unable to save announcement right now."));
+      navigate(tenantRoutes.announcements(), { replace: true });
+    } catch (error: unknown) {
+      setMessage(
+        getErrorMessage(error, "Unable to save announcement right now."),
+      );
     } finally {
       setSubmitting(false);
     }
@@ -117,45 +168,48 @@ export function AnnouncementFormPage() {
       <PageHeader
         title={title}
         description="Publish updates and keep everyone aligned across the workspace."
-        actions={(
-          <Button variant="ghost" onClick={() => navigate(tenantRoutes.announcements())}>
+        actions={
+          <Button
+            variant="ghost"
+            onClick={() => navigate(tenantRoutes.announcements())}
+          >
             <ArrowLeft size={16} />
             Back to Announcements
           </Button>
-        )}
+        }
       />
 
       {loading && (
-        <div className="py-20 flex items-center justify-center">
-          <div className="w-10 h-10 rounded-full border-4 border-transparent animate-spin" style={{ borderTopColor: "var(--brand-action)", borderLeftColor: "var(--brand-border)" }} />
+        <div className="flex items-center justify-center py-20">
+          <div
+            className="h-10 w-10 animate-spin rounded-full border-4 border-transparent"
+            style={{
+              borderTopColor: "var(--brand-action)",
+              borderLeftColor: "var(--brand-border)",
+            }}
+          />
         </div>
       )}
 
       {!loading && fatalError && <ErrorBanner message={fatalError} />}
 
       {!loading && !fatalError && (
-        <SectionCard title={isEdit ? "Edit Announcement" : "New Announcement"} subtitle="Clear and concise announcements improve team visibility.">
-          {message && (
-            <div
-              className="mb-4 rounded-xl border px-4 py-3 text-sm"
-              style={{
-                borderColor: message.toLowerCase().includes("unable") ? "rgba(239,68,68,0.25)" : "rgba(16,185,129,0.25)",
-                backgroundColor: message.toLowerCase().includes("unable") ? "rgba(239,68,68,0.06)" : "rgba(16,185,129,0.08)",
-                color: message.toLowerCase().includes("unable") ? "#ef4444" : "#10b981",
-              }}
-            >
-              {message}
-            </div>
-          )}
-
+        <SectionCard
+          title={isEdit ? "Edit Announcement" : "New Announcement"}
+          subtitle="Create a company-wide update or select one team."
+        >
+          {message && <ErrorBanner message={message} />}
           <AnnouncementForm
             values={form}
             errors={errors}
             submitting={submitting}
-            submitLabel={isEdit ? "Save Announcement" : "Publish Announcement"}
+            submitLabel={
+              isEdit ? "Save Announcement" : "Publish Announcement"
+            }
+            teamOptions={teamOptions}
             onChange={(next) => {
               setForm(next);
-              if (Object.keys(errors).length) setErrors({});
+              if (Object.keys(errors).length > 0) setErrors({});
             }}
             onSubmit={handleSubmit}
             onCancel={() => navigate(tenantRoutes.announcements())}
@@ -164,4 +218,11 @@ export function AnnouncementFormPage() {
       )}
     </div>
   );
+}
+
+function sortAnnouncements(items: Announcement[]): Announcement[] {
+  return items.slice().sort((left, right) => {
+    if (left.pinned !== right.pinned) return left.pinned ? -1 : 1;
+    return right.createdAt.localeCompare(left.createdAt);
+  });
 }
