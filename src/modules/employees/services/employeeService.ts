@@ -92,6 +92,7 @@ function buildUpsertPayload(payload: EmployeeUpsertPayload, isCreate: false): Em
 function buildUpsertPayload(payload: EmployeeUpsertPayload, isCreate: boolean): EmployeeCreateRequest | EmployeeUpdateRequest {
   const firstName = getString(payload.firstName) ?? "";
   const lastName = getString(payload.lastName) ?? "";
+  const nic = getString(payload.nic) ?? "";
   const designation = firstDefined(getString(payload.position), getString(payload.designation)) ?? "";
   const joinedDate = toIsoDate(firstDefined(payload.joinedDate, payload.joinedAt));
   const salary = getNumber(payload.salary);
@@ -101,6 +102,7 @@ function buildUpsertPayload(payload: EmployeeUpsertPayload, isCreate: boolean): 
   const basePayload: EmployeeUpdateRequest = {
     firstName,
     lastName,
+    nic,
     email: getString(payload.email) ?? "",
     role: toApiRole(payload.role),
     designation,

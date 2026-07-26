@@ -29,6 +29,10 @@ export function EmployeeForm({
   onSubmit,
   onCancel,
 }: EmployeeFormProps) {
+
+// console.log(values);
+
+
   return (
     <form
       className="space-y-4"
@@ -86,6 +90,14 @@ export function EmployeeForm({
           onChange={(e) => onChange({ ...values, lastName: e.target.value })}
           error={errors.lastName}
           placeholder="e.g. Perera"
+        />
+        <Input
+          id="employee-nic"
+          label="NIC"
+          value={values.nic}
+          onChange={(e) => onChange({ ...values, nic: e.target.value })}
+          error={errors.nic}
+          placeholder="e.g. 190000000000 / 9900000000v"
         />
       </div>
 
