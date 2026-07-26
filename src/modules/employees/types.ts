@@ -20,6 +20,7 @@ export interface EmployeeFormValues {
   employeeCode: string;
   firstName: string;
   lastName: string;
+  nic: string;
   email: string;
   password: string;
   phone: string;

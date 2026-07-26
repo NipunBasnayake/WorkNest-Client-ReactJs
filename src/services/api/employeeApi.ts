@@ -11,6 +11,7 @@ export type EmployeeApiStatus = "ACTIVE" | "INACTIVE";
 interface EmployeeBaseRequest {
   firstName: string;
   lastName: string;
+  nic : string
   email: string;
   password?: string;
   role: EmployeeApiRole;

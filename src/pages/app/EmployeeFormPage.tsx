@@ -114,6 +114,8 @@ export function EmployeeFormPage() {
         await updateEmployee(id, payload);
         setMessage("Employee details updated successfully.");
       } else {
+        console.log(payload);
+        
         await createEmployee(payload);
         setMessage("Employee created successfully.");
       }
