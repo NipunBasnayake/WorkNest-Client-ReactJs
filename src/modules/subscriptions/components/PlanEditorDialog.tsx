@@ -17,6 +17,13 @@ const emptyForm: SubscriptionPlanInput = {
   name: "",
   code: "",
   description: "",
+  monthlyPrice: 0,
+  yearlyPrice: 0,
+  billingPeriod: "MONTHLY",
+  badge: "",
+  recommended: false,
+  color: "#2563eb",
+  icon: "package",
   active: true,
   displayOrder: 50,
 };
@@ -32,6 +39,13 @@ export function PlanEditorDialog({
     name: plan.name,
     code: plan.code,
     description: plan.description ?? "",
+    monthlyPrice: plan.monthlyPrice ?? 0,
+    yearlyPrice: plan.yearlyPrice ?? 0,
+    billingPeriod: plan.billingPeriod ?? "MONTHLY",
+    badge: plan.badge ?? "",
+    recommended: plan.recommended,
+    color: plan.color ?? "#2563eb",
+    icon: plan.icon ?? "package",
     active: plan.active,
     displayOrder: plan.displayOrder,
   } : emptyForm);
@@ -53,6 +67,13 @@ export function PlanEditorDialog({
       name: form.name.trim(),
       code: form.code.trim().toUpperCase(),
       description: form.description?.trim(),
+      monthlyPrice: Number(form.monthlyPrice),
+      yearlyPrice: Number(form.yearlyPrice),
+      billingPeriod: form.billingPeriod,
+      badge: form.badge?.trim(),
+      recommended: form.recommended,
+      color: form.color.trim(),
+      icon: form.icon.trim(),
       displayOrder: Number(form.displayOrder),
     });
   };
@@ -115,6 +136,65 @@ export function PlanEditorDialog({
         </div>
         <div className="grid gap-4 sm:grid-cols-2 sm:items-end">
           <Input
+            id="plan-monthly-price"
+            label="Monthly price"
+            type="number"
+            min={0}
+            step="0.01"
+            value={form.monthlyPrice}
+            onChange={(event) => setForm((current) => ({ ...current, monthlyPrice: Number(event.target.value) }))}
+            required
+          />
+          <Input
+            id="plan-yearly-price"
+            label="Yearly price"
+            type="number"
+            min={0}
+            step="0.01"
+            value={form.yearlyPrice}
+            onChange={(event) => setForm((current) => ({ ...current, yearlyPrice: Number(event.target.value) }))}
+            required
+          />
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Input
+            id="plan-billing-period"
+            label="Billing period"
+            value={form.billingPeriod}
+            maxLength={30}
+            onChange={(event) => setForm((current) => ({ ...current, billingPeriod: event.target.value.toUpperCase() }))}
+            placeholder="MONTHLY"
+            required
+          />
+          <Input
+            id="plan-badge"
+            label="Badge"
+            value={form.badge}
+            maxLength={60}
+            onChange={(event) => setForm((current) => ({ ...current, badge: event.target.value }))}
+            placeholder="Recommended"
+          />
+        </div>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Input
+            id="plan-color"
+            label="Color"
+            value={form.color}
+            maxLength={30}
+            onChange={(event) => setForm((current) => ({ ...current, color: event.target.value }))}
+            placeholder="#2563eb"
+            required
+          />
+          <Input
+            id="plan-icon"
+            label="Icon"
+            value={form.icon}
+            maxLength={60}
+            onChange={(event) => setForm((current) => ({ ...current, icon: event.target.value }))}
+            placeholder="rocket"
+            required
+          />
+          <Input
             id="plan-order"
             label="Display order"
             type="number"
@@ -125,12 +205,21 @@ export function PlanEditorDialog({
             hint="Lower values appear first."
             required
           />
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
           <div className="rounded-xl border px-4 py-3" style={{ borderColor: "var(--border-default)", background: "var(--bg-muted)" }}>
             <Switch
               label="Available for assignment"
               checked={form.active}
               disabled={isFree}
               onChange={(event) => setForm((current) => ({ ...current, active: event.target.checked }))}
+            />
+          </div>
+          <div className="rounded-xl border px-4 py-3" style={{ borderColor: "var(--border-default)", background: "var(--bg-muted)" }}>
+            <Switch
+              label="Recommended package"
+              checked={form.recommended}
+              onChange={(event) => setForm((current) => ({ ...current, recommended: event.target.checked }))}
             />
           </div>
         </div>

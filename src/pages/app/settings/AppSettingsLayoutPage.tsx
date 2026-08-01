@@ -1,10 +1,11 @@
 import { NavLink, Outlet } from "react-router-dom";
-import { Building2, Shield, SlidersHorizontal, UserCircle2 } from "lucide-react";
+import { Building2, PackageCheck, Shield, SlidersHorizontal, UserCircle2 } from "lucide-react";
 import { tenantRoutes } from "@/utils/tenantRoutes";
 
 const SETTINGS_SECTIONS = [
   { label: "Profile", to: () => tenantRoutes.settingsProfile(), icon: <UserCircle2 size={16} /> },
   { label: "Workspace", to: () => tenantRoutes.settingsWorkspace(), icon: <Building2 size={16} /> },
+  { label: "Packages", to: () => tenantRoutes.settingsPackages(), icon: <PackageCheck size={16} /> },
   { label: "Preferences", to: () => tenantRoutes.settingsPreferences(), icon: <SlidersHorizontal size={16} /> },
   { label: "Security", to: () => tenantRoutes.settingsSecurity(), icon: <Shield size={16} /> },
 ];

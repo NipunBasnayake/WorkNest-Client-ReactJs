@@ -4,9 +4,12 @@ import { queryKeys } from "@/hooks/queries/queryKeys";
 import {
   assignTenantPlanApi,
   createSubscriptionPlanApi,
+  deleteSubscriptionPlanApi,
   deactivateTenantSubscriptionApi,
   getSubscriptionOverviewApi,
   getCurrentSubscriptionAccessApi,
+  getTenantPackageCatalogApi,
+  selectTenantPackageApi,
   setPlanFeatureApi,
   setSubscriptionPlanActiveApi,
   updateSubscriptionPlanApi,
@@ -45,6 +48,22 @@ export function useSubscriptionOverviewQuery(enabled = true) {
   });
 }
 
+export function useTenantPackageCatalogQuery(tenantKey: string | undefined, enabled = true) {
+  const authReady = useAuthStore((state) => state.authReady);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const sessionType = useAuthStore((state) => state.sessionType);
+
+  return useQuery({
+    queryKey: queryKeys.tenantPackageCatalog(tenantKey),
+    queryFn: () => {
+      if (!tenantKey) throw new Error("Tenant key is required.");
+      return getTenantPackageCatalogApi(tenantKey);
+    },
+    enabled: enabled && Boolean(tenantKey) && authReady && isAuthenticated && sessionType === "tenant",
+    staleTime: 30_000,
+  });
+}
+
 function useSubscriptionInvalidation() {
   const queryClient = useQueryClient();
   return async () => {
@@ -69,6 +88,14 @@ export function useUpdateSubscriptionPlanMutation() {
   return useMutation({
     mutationFn: ({ planId, payload }: { planId: number; payload: SubscriptionPlanInput }) =>
       updateSubscriptionPlanApi(planId, payload),
+    onSuccess: invalidate,
+  });
+}
+
+export function useDeleteSubscriptionPlanMutation() {
+  const invalidate = useSubscriptionInvalidation();
+  return useMutation({
+    mutationFn: deleteSubscriptionPlanApi,
     onSuccess: invalidate,
   });
 }
@@ -117,5 +144,21 @@ export function useDeactivateTenantSubscriptionMutation() {
   return useMutation({
     mutationFn: deactivateTenantSubscriptionApi,
     onSuccess: invalidate,
+  });
+}
+
+export function useSelectTenantPackageMutation(tenantKey: string | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (planCode: string) => {
+      if (!tenantKey) throw new Error("Tenant key is required.");
+      return selectTenantPackageApi(tenantKey, planCode);
+    },
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.currentSubscription(tenantKey) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.tenantPackageCatalog(tenantKey) }),
+      ]);
+    },
   });
 }

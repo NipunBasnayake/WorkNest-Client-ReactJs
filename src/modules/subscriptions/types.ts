@@ -5,6 +5,13 @@ export interface SubscriptionPlan {
   name: string;
   code: string;
   description?: string | null;
+  monthlyPrice: number;
+  yearlyPrice: number;
+  billingPeriod: string;
+  badge?: string | null;
+  recommended: boolean;
+  color?: string | null;
+  icon?: string | null;
   active: boolean;
   displayOrder: number;
   enabledFeatureCount: number;
@@ -16,6 +23,13 @@ export interface SubscriptionPlanInput {
   name: string;
   code: string;
   description?: string;
+  monthlyPrice: number;
+  yearlyPrice: number;
+  billingPeriod: string;
+  badge?: string;
+  recommended: boolean;
+  color: string;
+  icon: string;
   active: boolean;
   displayOrder: number;
 }
@@ -47,8 +61,12 @@ export interface FeatureMatrix {
 }
 
 export interface SubscriptionStatistics {
+  totalPackages: number;
+  activePackages: number;
   totalTenants: number;
+  subscribedTenants: number;
   planDistribution: Record<string, number>;
+  mostPopularPackage?: string | null;
   recentlyUpgraded: number;
   recentlyExpired: number;
 }
@@ -73,4 +91,10 @@ export interface CurrentSubscriptionAccess {
   active: boolean;
   status: SubscriptionStatus;
   features: string[];
+}
+
+export interface TenantPackageCatalog {
+  currentSubscription: CurrentSubscriptionAccess;
+  plans: SubscriptionPlan[];
+  featureMatrix: FeatureMatrix;
 }
