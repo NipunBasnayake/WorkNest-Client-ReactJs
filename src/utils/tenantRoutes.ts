@@ -95,6 +95,7 @@ export const tenantRoutes = {
   settings: (tenantOverride?: string) => tenantRoutes.path("/settings", tenantOverride),
   settingsProfile: (tenantOverride?: string) => tenantRoutes.path("/settings/profile", tenantOverride),
   settingsWorkspace: (tenantOverride?: string) => tenantRoutes.path("/settings/workspace", tenantOverride),
+  settingsPackages: (tenantOverride?: string) => tenantRoutes.path("/settings/packages", tenantOverride),
   settingsPreferences: (tenantOverride?: string) => tenantRoutes.path("/settings/preferences", tenantOverride),
   settingsSecurity: (tenantOverride?: string) => tenantRoutes.path("/settings/security", tenantOverride),
 };

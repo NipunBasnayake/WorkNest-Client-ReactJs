@@ -7,6 +7,7 @@ import type {
   SubscriptionOverview,
   SubscriptionPlan,
   SubscriptionPlanInput,
+  TenantPackageCatalog,
   TenantPlanAssignmentInput,
   TenantSubscription,
 } from "@/modules/subscriptions/types";
@@ -39,6 +40,13 @@ export async function updateSubscriptionPlanApi(
     payload,
   );
   return unwrapApiData<SubscriptionPlan>(data);
+}
+
+export async function deleteSubscriptionPlanApi(planId: number): Promise<void> {
+  const { data } = await apiClient.delete<ApiResponse<void> | void>(
+    `${BASE_PATH}/plans/${planId}`,
+  );
+  unwrapApiData<void>(data);
 }
 
 export async function setSubscriptionPlanActiveApi(
@@ -91,4 +99,24 @@ export async function getCurrentSubscriptionAccessApi(
     ApiResponse<CurrentSubscriptionAccess> | CurrentSubscriptionAccess
   >(`/api/${encodeURIComponent(tenantSlug)}/subscription`);
   return unwrapApiData<CurrentSubscriptionAccess>(data);
+}
+
+export async function getTenantPackageCatalogApi(
+  tenantSlug: string,
+): Promise<TenantPackageCatalog> {
+  const { data } = await apiClient.get<ApiResponse<TenantPackageCatalog> | TenantPackageCatalog>(
+    `/api/${encodeURIComponent(tenantSlug)}/subscription/packages`,
+  );
+  return unwrapApiData<TenantPackageCatalog>(data);
+}
+
+export async function selectTenantPackageApi(
+  tenantSlug: string,
+  planCode: string,
+): Promise<TenantSubscription> {
+  const { data } = await apiClient.put<ApiResponse<TenantSubscription> | TenantSubscription>(
+    `/api/${encodeURIComponent(tenantSlug)}/subscription/package`,
+    { planCode },
+  );
+  return unwrapApiData<TenantSubscription>(data);
 }
