@@ -1,14 +1,10 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import {
   BarChart3,
-  BriefcaseBusiness,
   Building2,
-  Check,
   CheckCircle2,
   CreditCard,
   Edit3,
-  Layers3,
-  MessageSquare,
   MoreHorizontal,
   PackageCheck,
   Plus,
@@ -16,8 +12,8 @@ import {
   Settings,
   Sparkles,
   Trash2,
-  Users,
 } from "lucide-react";
+import { Area, AreaChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Button } from "@/components/common/Button";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { EmptyState, ErrorState, LoadingSkeleton } from "@/components/common/AsyncStates";
@@ -38,7 +34,6 @@ import {
 } from "@/hooks/queries/useSubscriptionQueries";
 import { PlanEditorDialog } from "@/modules/subscriptions/components/PlanEditorDialog";
 import type {
-  FeatureMatrixRow,
   SubscriptionPlan,
   SubscriptionPlanInput,
   SubscriptionStatus,
@@ -46,48 +41,15 @@ import type {
 } from "@/modules/subscriptions/types";
 import { getErrorMessage } from "@/utils/errorHandler";
 
-type SubscriptionTab = "dashboard" | "packages" | "builder" | "tenants" | "usage";
-type FeatureCategory = "Overview" | "People" | "Work" | "Communication" | "Analytics" | "Administration" | "Future";
+type SubscriptionTab = "dashboard" | "packages" | "tenants" | "usage" | "settings";
 
-const tabs: Array<{ id: SubscriptionTab; label: string; icon: React.ReactNode }> = [
+const tabs: Array<{ id: SubscriptionTab; label: string; icon: ReactNode }> = [
   { id: "dashboard", label: "Dashboard", icon: <BarChart3 size={16} /> },
   { id: "packages", label: "Packages", icon: <CreditCard size={16} /> },
-  { id: "builder", label: "Package Builder", icon: <Layers3 size={16} /> },
   { id: "tenants", label: "Tenant Subscriptions", icon: <Building2 size={16} /> },
   { id: "usage", label: "Usage Statistics", icon: <MoreHorizontal size={16} /> },
+  { id: "settings", label: "Settings", icon: <Settings size={16} /> },
 ];
-
-const featureCategoryMap: Record<string, FeatureCategory> = {
-  DASHBOARD: "Overview",
-  EMPLOYEE: "People",
-  TEAMS: "People",
-  ATTENDANCE: "People",
-  LEAVE: "People",
-  PAYROLL: "People",
-  PROJECTS: "Work",
-  TASKS: "Work",
-  RECRUITMENT: "Work",
-  CHAT: "Communication",
-  NOTIFICATIONS: "Communication",
-  ANNOUNCEMENTS: "Communication",
-  REPORTS: "Analytics",
-  ANALYTICS: "Analytics",
-  AUDIT: "Administration",
-  SETTINGS: "Administration",
-  DOCUMENTS: "Administration",
-  ASSETS: "Future",
-  CALENDAR: "Future",
-};
-
-const categoryIcons: Record<FeatureCategory, React.ReactNode> = {
-  Overview: <Sparkles size={17} />,
-  People: <Users size={17} />,
-  Work: <BriefcaseBusiness size={17} />,
-  Communication: <MessageSquare size={17} />,
-  Analytics: <BarChart3 size={17} />,
-  Administration: <Settings size={17} />,
-  Future: <PackageCheck size={17} />,
-};
 
 export function PlatformSubscriptionsPage() {
   usePageMeta({ title: "Subscription Management", breadcrumb: ["Platform", "Subscriptions"] });
@@ -97,8 +59,6 @@ export function PlatformSubscriptionsPage() {
   const [selectedPlanId, setSelectedPlanId] = useState<number | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<SubscriptionPlan | null>(null);
   const [tenantSearch, setTenantSearch] = useState("");
-  const [featureSearch, setFeatureSearch] = useState("");
-  const [category, setCategory] = useState<FeatureCategory | "All">("All");
 
   const overviewQuery = useSubscriptionOverviewQuery(true);
   const createPlanMutation = useCreateSubscriptionPlanMutation();
@@ -128,22 +88,20 @@ export function PlatformSubscriptionsPage() {
       ].some((value) => value.toLowerCase().includes(query)));
   }, [data, tenantSearch]);
 
-  const filteredFeatures = useMemo(() => {
-    const query = featureSearch.trim().toLowerCase();
-    const features = data?.featureMatrix.features ?? [];
-    return features.filter((feature) => {
-      const featureCategory = categoryForFeature(feature.featureKey);
-      const matchesCategory = category === "All" || featureCategory === category;
-      const matchesSearch = !query || `${feature.displayName} ${feature.featureKey}`.toLowerCase().includes(query);
-      return matchesCategory && matchesSearch;
-    });
-  }, [category, data, featureSearch]);
-
-  const savePlan = async (input: SubscriptionPlanInput) => {
+  const savePlan = async (input: SubscriptionPlanInput, selectedFeatureKeys?: string[]) => {
     try {
       const saved = planEditorTarget
         ? await updatePlanMutation.mutateAsync({ planId: planEditorTarget.id, payload: input })
         : await createPlanMutation.mutateAsync(input);
+      if (selectedFeatureKeys && data?.featureMatrix.features) {
+        const selected = new Set(selectedFeatureKeys);
+        await Promise.all(data.featureMatrix.features.map((feature) =>
+          setFeatureMutation.mutateAsync({
+            planId: saved.id,
+            featureKey: feature.featureKey,
+            enabled: selected.has(feature.featureKey),
+          })));
+      }
       setSelectedPlanId(saved.id);
       setPlanEditorTarget(undefined);
       toast.success({
@@ -152,6 +110,36 @@ export function PlatformSubscriptionsPage() {
       });
     } catch (error) {
       toast.error({ title: "Package was not saved", description: getErrorMessage(error) });
+    }
+  };
+
+  const duplicatePlan = async (plan: SubscriptionPlan) => {
+    try {
+      const copy = await createPlanMutation.mutateAsync({
+        name: `${plan.name} Copy`,
+        code: `${plan.code}_COPY`,
+        description: plan.description ?? "",
+        monthlyPrice: plan.monthlyPrice,
+        yearlyPrice: plan.yearlyPrice,
+        billingPeriod: plan.billingPeriod,
+        badge: plan.badge ?? "",
+        recommended: false,
+        color: plan.color ?? "#2563eb",
+        icon: plan.icon ?? "package",
+        active: false,
+        displayOrder: plan.displayOrder + 1,
+      });
+      const sourceFeatures = data?.featureMatrix.features ?? [];
+      await Promise.all(sourceFeatures.map((feature) =>
+        setFeatureMutation.mutateAsync({
+          planId: copy.id,
+          featureKey: feature.featureKey,
+          enabled: Boolean(feature.plans[plan.code]),
+        })));
+      setSelectedPlanId(copy.id);
+      toast.success({ title: "Package duplicated", description: `${copy.name} was created as a hidden draft.` });
+    } catch (error) {
+      toast.error({ title: "Package was not duplicated", description: getErrorMessage(error) });
     }
   };
 
@@ -164,18 +152,6 @@ export function PlatformSubscriptionsPage() {
       });
     } catch (error) {
       toast.error({ title: "Package status was not changed", description: getErrorMessage(error) });
-    }
-  };
-
-  const setFeature = async (plan: SubscriptionPlan, featureKey: string, enabled: boolean) => {
-    try {
-      await setFeatureMutation.mutateAsync({ planId: plan.id, featureKey, enabled });
-      toast.success({
-        title: enabled ? "Feature included" : "Feature removed",
-        description: `${featureLabel(featureKey)} was updated for ${plan.name}.`,
-      });
-    } catch (error) {
-      toast.error({ title: "Feature was not updated", description: getErrorMessage(error) });
     }
   };
 
@@ -234,29 +210,12 @@ export function PlatformSubscriptionsPage() {
             <PackagesSection
               plans={data.plans}
               selectedPlan={selectedPlan}
-              onSelectPlan={(plan) => {
-                setSelectedPlanId(plan.id);
-                setActiveTab("builder");
-              }}
+              onSelectPlan={(plan) => setSelectedPlanId(plan.id)}
               onEditPlan={(plan) => setPlanEditorTarget(plan)}
+              onDuplicatePlan={(plan) => void duplicatePlan(plan)}
               onDeletePlan={setDeleteTarget}
               onSetActive={(plan, active) => void setPlanActive(plan, active)}
               statusPending={setPlanActiveMutation.isPending}
-            />
-          ) : null}
-
-          {activeTab === "builder" ? (
-            <PackageBuilderSection
-              plans={data.plans}
-              selectedPlan={selectedPlan}
-              features={filteredFeatures}
-              featureSearch={featureSearch}
-              category={category}
-              pending={setFeatureMutation.isPending}
-              onSelectPlan={(plan) => setSelectedPlanId(plan.id)}
-              onFeatureSearch={setFeatureSearch}
-              onCategory={setCategory}
-              onToggle={(plan, featureKey, enabled) => void setFeature(plan, featureKey, enabled)}
             />
           ) : null}
 
@@ -271,6 +230,10 @@ export function PlatformSubscriptionsPage() {
           {activeTab === "usage" ? (
             <UsageSection plans={data.plans} statistics={data.statistics} />
           ) : null}
+
+          {activeTab === "settings" ? (
+            <SubscriptionSettingsSection />
+          ) : null}
         </>
       ) : null}
 
@@ -279,7 +242,8 @@ export function PlatformSubscriptionsPage() {
           key={planEditorTarget?.id ?? "new"}
           open
           plan={planEditorTarget}
-          saving={createPlanMutation.isPending || updatePlanMutation.isPending}
+          features={data?.featureMatrix.features ?? []}
+          saving={createPlanMutation.isPending || updatePlanMutation.isPending || setFeatureMutation.isPending}
           onClose={() => setPlanEditorTarget(undefined)}
           onSave={savePlan}
         />
@@ -318,6 +282,19 @@ function DashboardSection({
     .slice()
     .sort((left, right) => new Date(right.assignedDate).getTime() - new Date(left.assignedDate).getTime())
     .slice(0, 5);
+  const distributionData = plans.map((plan) => ({
+    name: plan.name,
+    value: statistics.planDistribution[plan.code] ?? 0,
+    color: planColor(plan),
+  }));
+  const trendData = subscriptions
+    .slice()
+    .sort((left, right) => new Date(left.assignedDate).getTime() - new Date(right.assignedDate).getTime())
+    .reduce<Array<{ label: string; subscriptions: number }>>((points, subscription, index) => {
+      points.push({ label: shortDate(subscription.assignedDate), subscriptions: index + 1 });
+      return points;
+    }, [])
+    .slice(-8);
 
   return (
     <div className="space-y-6">
@@ -329,22 +306,34 @@ function DashboardSection({
       </div>
       <div className="grid gap-5 xl:grid-cols-[1.1fr_.9fr]">
         <SectionCard title="Package Distribution" subtitle="Live tenant count by current package.">
-          <div className="space-y-4">
-            {plans.map((plan) => {
-              const count = statistics.planDistribution[plan.code] ?? 0;
-              const percent = statistics.totalTenants > 0 ? Math.round((count / statistics.totalTenants) * 100) : 0;
-              return (
-                <div key={plan.id}>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="font-semibold" style={{ color: "var(--text-primary)" }}>{plan.name}</span>
-                    <span style={{ color: "var(--text-secondary)" }}>{count} tenants</span>
+          <div className="grid gap-5 md:grid-cols-[220px_1fr]">
+            <div className="h-56">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Tooltip contentStyle={tooltipStyle()} />
+                  <Pie data={distributionData} dataKey="value" nameKey="name" innerRadius={58} outerRadius={92} paddingAngle={2}>
+                    {distributionData.map((entry) => <Cell key={entry.name} fill={entry.color} />)}
+                  </Pie>
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="space-y-4">
+              {plans.map((plan) => {
+                const count = statistics.planDistribution[plan.code] ?? 0;
+                const percent = statistics.totalTenants > 0 ? Math.round((count / statistics.totalTenants) * 100) : 0;
+                return (
+                  <div key={plan.id}>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="font-semibold" style={{ color: "var(--text-primary)" }}>{plan.name}</span>
+                      <span style={{ color: "var(--text-secondary)" }}>{count} tenants</span>
+                    </div>
+                    <div className="mt-2 h-2 rounded-full" style={{ background: "var(--bg-muted)" }}>
+                      <div className="h-2 rounded-full" style={{ width: `${percent}%`, background: planColor(plan) }} />
+                    </div>
                   </div>
-                  <div className="mt-2 h-2 rounded-full" style={{ background: "var(--bg-muted)" }}>
-                    <div className="h-2 rounded-full" style={{ width: `${percent}%`, background: planColor(plan) }} />
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         </SectionCard>
         <SectionCard title="Latest Upgrades" subtitle="Recent package activation changes.">
@@ -361,6 +350,25 @@ function DashboardSection({
           </div>
         </SectionCard>
       </div>
+      <SectionCard title="Subscription Trend" subtitle="Recent subscription growth based on activation dates.">
+        <div className="h-72">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={trendData} margin={{ top: 8, right: 12, left: -12, bottom: 0 }}>
+              <defs>
+                <linearGradient id="subscriptionTrendFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="var(--brand-action)" stopOpacity={0.32} />
+                  <stop offset="95%" stopColor="var(--brand-action)" stopOpacity={0.02} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid stroke="var(--border-default)" strokeDasharray="3 3" vertical={false} />
+              <XAxis dataKey="label" tick={{ fill: "var(--text-tertiary)", fontSize: 12 }} tickLine={false} axisLine={false} />
+              <YAxis tick={{ fill: "var(--text-tertiary)", fontSize: 12 }} tickLine={false} axisLine={false} allowDecimals={false} />
+              <Tooltip contentStyle={tooltipStyle()} />
+              <Area type="monotone" dataKey="subscriptions" stroke="var(--brand-action)" strokeWidth={2.5} fill="url(#subscriptionTrendFill)" />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      </SectionCard>
     </div>
   );
 }
@@ -370,6 +378,7 @@ function PackagesSection({
   selectedPlan,
   onSelectPlan,
   onEditPlan,
+  onDuplicatePlan,
   onDeletePlan,
   onSetActive,
   statusPending,
@@ -378,6 +387,7 @@ function PackagesSection({
   selectedPlan: SubscriptionPlan | null;
   onSelectPlan: (plan: SubscriptionPlan) => void;
   onEditPlan: (plan: SubscriptionPlan) => void;
+  onDuplicatePlan: (plan: SubscriptionPlan) => void;
   onDeletePlan: (plan: SubscriptionPlan) => void;
   onSetActive: (plan: SubscriptionPlan, active: boolean) => void;
   statusPending: boolean;
@@ -390,23 +400,22 @@ function PackagesSection({
         return (
           <article
             key={plan.id}
-            className="relative flex min-h-[320px] flex-col overflow-hidden rounded-2xl border p-5 transition-all hover:-translate-y-0.5 hover:shadow-md"
+            className="relative flex min-h-[320px] flex-col rounded-2xl border p-5 transition-all duration-200 hover:-translate-y-1 hover:border-[var(--border-strong)] hover:shadow-lg"
             style={{
               background: "var(--bg-surface)",
-              borderColor: selected ? accent : "var(--border-default)",
-              boxShadow: selected ? `0 0 0 2px ${accent}24` : "var(--shadow-sm)",
+              borderColor: selected ? "var(--brand-border)" : "var(--border-default)",
+              boxShadow: selected ? "0 12px 32px color-mix(in srgb, var(--brand-action) 12%, transparent)" : "var(--shadow-sm)",
             }}
           >
-            <div className="absolute inset-x-0 top-0 h-1" style={{ background: accent }} />
             <div className="flex items-start justify-between gap-3">
-              <span className="grid h-11 w-11 place-items-center rounded-xl" style={{ background: `${accent}16`, color: accent }}>
+              <span className="grid h-11 w-11 place-items-center rounded-xl" style={{ background: tint(accent, 9), color: accent }}>
                 <PackageCheck size={20} />
               </span>
               <PlanState active={plan.active} />
             </div>
             <div className="mt-5 flex items-center gap-2">
               <h3 className="text-lg font-semibold" style={{ color: "var(--text-primary)" }}>{plan.name}</h3>
-              {plan.badge ? <span className="rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ background: `${accent}18`, color: accent }}>{plan.badge}</span> : null}
+              {plan.badge ? <span className="rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ background: tint(accent, 10), color: accent }}>{plan.badge}</span> : null}
             </div>
             <p className="mt-1 font-mono text-xs font-semibold" style={{ color: accent }}>{plan.code}</p>
             <p className="mt-3 min-h-12 text-sm leading-5" style={{ color: "var(--text-secondary)" }}>
@@ -419,11 +428,14 @@ function PackagesSection({
               <Metric label="Features" value={`${plan.enabledFeatureCount}/${plan.totalFeatureCount}`} />
             </div>
             <div className="mt-auto flex gap-2 pt-5">
-              <Button size="sm" variant="secondary" className="flex-1" onClick={() => onSelectPlan(plan)}>
-                <Layers3 size={15} /> Build
+              <Button size="sm" variant="secondary" className="flex-1" onClick={() => { onSelectPlan(plan); onEditPlan(plan); }}>
+                <Edit3 size={15} /> Edit
               </Button>
               <Button size="icon" variant="ghost" onClick={() => onEditPlan(plan)} aria-label={`Edit ${plan.name}`}>
                 <Edit3 size={16} />
+              </Button>
+              <Button size="icon" variant="ghost" onClick={() => onDuplicatePlan(plan)} aria-label={`Duplicate ${plan.name}`}>
+                <PackageCheck size={16} />
               </Button>
               <Button size="icon" variant="ghost" onClick={() => onDeletePlan(plan)} disabled={plan.code === "FREE" || plan.tenantCount > 0} aria-label={`Delete ${plan.name}`}>
                 <Trash2 size={16} className="text-red-500" />
@@ -440,136 +452,6 @@ function PackagesSection({
           </article>
         );
       })}
-    </div>
-  );
-}
-
-function PackageBuilderSection({
-  plans,
-  selectedPlan,
-  features,
-  featureSearch,
-  category,
-  pending,
-  onSelectPlan,
-  onFeatureSearch,
-  onCategory,
-  onToggle,
-}: {
-  plans: SubscriptionPlan[];
-  selectedPlan: SubscriptionPlan | null;
-  features: FeatureMatrixRow[];
-  featureSearch: string;
-  category: FeatureCategory | "All";
-  pending: boolean;
-  onSelectPlan: (plan: SubscriptionPlan) => void;
-  onFeatureSearch: (value: string) => void;
-  onCategory: (value: FeatureCategory | "All") => void;
-  onToggle: (plan: SubscriptionPlan, featureKey: string, enabled: boolean) => void;
-}) {
-  const grouped = groupFeatures(features);
-  if (!selectedPlan) {
-    return <EmptyState icon={<PackageCheck size={26} />} title="No packages yet" description="Create a package before assigning features." />;
-  }
-
-  return (
-    <div className="grid gap-5 xl:grid-cols-[300px_1fr]">
-      <SectionCard title="Packages" subtitle="Choose a package to configure.">
-        <div className="space-y-2">
-          {plans.map((plan) => (
-            <button
-              key={plan.id}
-              type="button"
-              onClick={() => onSelectPlan(plan)}
-              className="flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left transition-colors"
-              style={{
-                borderColor: selectedPlan.id === plan.id ? planColor(plan) : "var(--border-default)",
-                background: selectedPlan.id === plan.id ? `${planColor(plan)}12` : "var(--bg-muted)",
-              }}
-            >
-              <span>
-                <span className="block text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{plan.name}</span>
-                <span className="text-xs" style={{ color: "var(--text-tertiary)" }}>{plan.enabledFeatureCount} features</span>
-              </span>
-              {selectedPlan.id === plan.id ? <Check size={16} style={{ color: planColor(plan) }} /> : null}
-            </button>
-          ))}
-        </div>
-      </SectionCard>
-
-      <SectionCard
-        title={`${selectedPlan.name} Package Builder`}
-        subtitle="Select feature groups with large controls. Changes apply immediately across subscribed tenants."
-        action={(
-          <SearchField
-            label="Search features"
-            value={featureSearch}
-            onChange={(event) => onFeatureSearch(event.target.value)}
-            onClear={() => onFeatureSearch("")}
-            placeholder="Search features..."
-            className="w-full sm:w-72"
-          />
-        )}
-      >
-        <div className="mb-5 flex flex-wrap gap-2">
-          {(["All", "Overview", "People", "Work", "Communication", "Analytics", "Administration", "Future"] as Array<FeatureCategory | "All">).map((item) => (
-            <button
-              key={item}
-              type="button"
-              onClick={() => onCategory(item)}
-              className="inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold transition-colors"
-              style={{
-                borderColor: category === item ? planColor(selectedPlan) : "var(--border-default)",
-                background: category === item ? `${planColor(selectedPlan)}12` : "var(--bg-muted)",
-                color: category === item ? planColor(selectedPlan) : "var(--text-secondary)",
-              }}
-            >
-              {item === "All" ? <Layers3 size={16} /> : categoryIcons[item]}
-              {item}
-            </button>
-          ))}
-        </div>
-
-        <div className="space-y-5">
-          {Object.entries(grouped).map(([groupName, groupFeatures]) => (
-            <section key={groupName}>
-              <div className="mb-3 flex items-center gap-2">
-                <span className="grid h-8 w-8 place-items-center rounded-lg" style={{ background: `${planColor(selectedPlan)}14`, color: planColor(selectedPlan) }}>
-                  {categoryIcons[groupName as FeatureCategory]}
-                </span>
-                <h3 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{groupName}</h3>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                {groupFeatures.map((feature) => {
-                  const enabled = Boolean(feature.plans[selectedPlan.code]);
-                  return (
-                    <button
-                      key={feature.featureId}
-                      type="button"
-                      disabled={pending}
-                      onClick={() => onToggle(selectedPlan, feature.featureKey, !enabled)}
-                      className="flex min-h-[76px] items-center gap-3 rounded-xl border p-4 text-left transition-all disabled:opacity-60"
-                      style={{
-                        borderColor: enabled ? planColor(selectedPlan) : "var(--border-default)",
-                        background: enabled ? `${planColor(selectedPlan)}10` : "var(--bg-muted)",
-                      }}
-                    >
-                      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg" style={{ background: enabled ? planColor(selectedPlan) : "var(--bg-surface)", color: enabled ? "white" : "var(--text-tertiary)" }}>
-                        {enabled ? <Check size={17} /> : <Plus size={17} />}
-                      </span>
-                      <span>
-                        <span className="block text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{feature.displayName}</span>
-                        <span className="font-mono text-[11px]" style={{ color: "var(--text-tertiary)" }}>{feature.featureKey}</span>
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </section>
-          ))}
-        </div>
-        {features.length === 0 ? <EmptyState icon={<Search size={26} />} title="No matching features" description="Try another search or category." /> : null}
-      </SectionCard>
     </div>
   );
 }
@@ -677,12 +559,36 @@ function UsageSection({
   );
 }
 
-function groupFeatures(features: FeatureMatrixRow[]): Partial<Record<FeatureCategory, FeatureMatrixRow[]>> {
-  return features.reduce<Partial<Record<FeatureCategory, FeatureMatrixRow[]>>>((groups, feature) => {
-    const featureCategory = categoryForFeature(feature.featureKey);
-    groups[featureCategory] = [...(groups[featureCategory] ?? []), feature];
-    return groups;
-  }, {});
+function SubscriptionSettingsSection() {
+  return (
+    <div className="grid gap-5 xl:grid-cols-2">
+      <SectionCard title="Payment Readiness" subtitle="Connectors can be introduced later without changing package authorization.">
+        <div className="space-y-3">
+          {["Stripe", "PayHere", "PayPal", "Invoices", "Coupons", "Trials", "Renewals"].map((item) => (
+            <div key={item} className="flex items-center justify-between rounded-xl border px-4 py-3" style={{ borderColor: "var(--border-default)", background: "var(--bg-muted)" }}>
+              <span className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{item}</span>
+              <span className="rounded-full bg-slate-500/10 px-2.5 py-1 text-xs font-semibold text-slate-500">Future</span>
+            </div>
+          ))}
+        </div>
+      </SectionCard>
+      <SectionCard title="Feature Authorization" subtitle="All tenant modules stay guarded by centralized subscription feature checks.">
+        <div className="rounded-2xl border p-5" style={{ borderColor: "var(--border-default)", background: "var(--bg-muted)" }}>
+          <div className="flex items-center gap-3">
+            <span className="grid h-11 w-11 place-items-center rounded-xl" style={{ background: "var(--brand-soft)", color: "var(--brand-action)" }}>
+              <CheckCircle2 size={20} />
+            </span>
+            <div>
+              <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Central access service active</p>
+              <p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>
+                Package feature changes apply immediately through the existing feature access service and route-level guarded modules.
+              </p>
+            </div>
+          </div>
+        </div>
+      </SectionCard>
+    </div>
+  );
 }
 
 function Metric({ label, value, spacious = false }: { label: string; value: string | number; spacious?: boolean }) {
@@ -718,18 +624,8 @@ function SubscriptionStatusBadge({ status }: { status: SubscriptionStatus }) {
   );
 }
 
-function categoryForFeature(featureKey: string): FeatureCategory {
-  return featureCategoryMap[featureKey] ?? "Future";
-}
-
 function planColor(plan: SubscriptionPlan): string {
   return plan.color || "#2563eb";
-}
-
-function featureLabel(featureKey: string): string {
-  return featureKey.toLowerCase().split("_")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
 }
 
 function formatMoney(value: number): string {
@@ -744,4 +640,24 @@ function formatDate(value: string): string {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(date);
+}
+
+function shortDate(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(date);
+}
+
+function tooltipStyle() {
+  return {
+    background: "var(--bg-surface)",
+    border: "1px solid var(--border-default)",
+    borderRadius: 12,
+    color: "var(--text-primary)",
+    boxShadow: "var(--shadow-sm)",
+  };
+}
+
+function tint(color: string, percent: number): string {
+  return `color-mix(in srgb, ${color} ${percent}%, transparent)`;
 }
