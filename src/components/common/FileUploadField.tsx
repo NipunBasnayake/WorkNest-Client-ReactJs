@@ -45,10 +45,10 @@ export function FileUploadField({
   const [deletingUrl, setDeletingUrl] = useState<string | null>(null);
   const [replacingUrl, setReplacingUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [retryFiles, setRetryFiles] = useState<File[]>([]);
   const [previewFile, setPreviewFile] = useState<UploadedFileAsset | null>(null);
 
-  async function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(event.target.files ?? []);
+  async function uploadSelectedFiles(files: File[]) {
     if (files.length === 0) return;
 
     setUploading(true);
@@ -67,15 +67,22 @@ export function FileUploadField({
         title: kind === "image" ? "Image uploaded" : "File uploaded",
         description: `${uploaded.length} file${uploaded.length === 1 ? "" : "s"} ready.`,
       });
+      setRetryFiles([]);
     } catch (uploadError: unknown) {
       const message = uploadError instanceof Error ? uploadError.message : "Upload failed.";
       setError(message);
+      setRetryFiles(files);
       toast.error({ title: "Upload failed", description: message });
     } finally {
       setUploading(false);
       setProgress(0);
-      event.target.value = "";
     }
+  }
+
+  async function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(event.target.files ?? []);
+    await uploadSelectedFiles(files);
+    event.target.value = "";
   }
 
   async function handleRemove(asset: UploadedFileAsset) {
@@ -171,7 +178,21 @@ export function FileUploadField({
       </label>
 
       {error ? (
-        <p className="text-xs text-red-500">{error}</p>
+        <div className="flex flex-wrap items-center gap-2 text-xs text-red-500">
+          <span>{error}</span>
+          {retryFiles.length > 0 ? (
+            <button
+              type="button"
+              className="inline-flex items-center gap-1 font-semibold"
+              style={{ color: "var(--color-primary-600)" }}
+              disabled={uploading || disabled}
+              onClick={() => void uploadSelectedFiles(retryFiles)}
+            >
+              <RefreshCw size={12} />
+              Retry
+            </button>
+          ) : null}
+        </div>
       ) : null}
 
       {value.length > 0 ? (

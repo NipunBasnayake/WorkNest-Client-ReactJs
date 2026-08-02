@@ -1,10 +1,16 @@
-interface AppEnv {
+export interface AppEnv {
   apiBaseUrl: string;
+  websocketUrl?: string;
+  realtimeDisabled: boolean;
   mode: string;
   isDevelopment: boolean;
 }
 
-const DEFAULT_LOCAL_API_BASE_URL = "http://localhost:8080";
+declare global {
+  interface Window {
+    __WORKNEST_CONFIG__?: Partial<Record<"API_BASE_URL" | "WS_URL" | "REALTIME_DISABLED", string>>;
+  }
+}
 
 function normalizeBaseUrl(raw: string): string {
   const trimmed = raw.trim();
@@ -27,14 +33,21 @@ function normalizeBaseUrl(raw: string): string {
   return normalized;
 }
 
-function readApiBaseUrl(): string {
-  const value = import.meta.env.VITE_API_BASE_URL;
-  if (typeof value === "string" && value.trim()) {
-    return normalizeBaseUrl(value);
-  }
+function readRuntimeConfig(key: "API_BASE_URL" | "WS_URL" | "REALTIME_DISABLED"): string | undefined {
+  if (typeof window === "undefined") return undefined;
+  const value = window.__WORKNEST_CONFIG__?.[key];
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
 
-  if (import.meta.env.MODE === "test" || import.meta.env.DEV) {
-    return DEFAULT_LOCAL_API_BASE_URL;
+function readViteEnv(key: "VITE_API_BASE_URL" | "VITE_WS_URL" | "VITE_REALTIME_DISABLED"): string | undefined {
+  const value = import.meta.env[key];
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+function readApiBaseUrl(): string {
+  const value = readRuntimeConfig("API_BASE_URL") ?? readViteEnv("VITE_API_BASE_URL");
+  if (value) {
+    return normalizeBaseUrl(value);
   }
 
   throw new Error(
@@ -42,14 +55,34 @@ function readApiBaseUrl(): string {
   );
 }
 
+function readOptionalAbsoluteUrl(
+  runtimeKey: "WS_URL",
+  viteKey: "VITE_WS_URL",
+): string | undefined {
+  const value = readRuntimeConfig(runtimeKey) ?? readViteEnv(viteKey);
+  if (!value) return undefined;
+  return normalizeBaseUrl(value);
+}
+
+function readBoolean(runtimeKey: "REALTIME_DISABLED", viteKey: "VITE_REALTIME_DISABLED"): boolean {
+  const value = readRuntimeConfig(runtimeKey) ?? readViteEnv(viteKey);
+  return value?.toLowerCase() === "true";
+}
+
 function buildEnv(): AppEnv {
   const mode = import.meta.env.MODE ?? "development";
 
   return {
     apiBaseUrl: readApiBaseUrl(),
+    websocketUrl: readOptionalAbsoluteUrl("WS_URL", "VITE_WS_URL"),
+    realtimeDisabled: readBoolean("REALTIME_DISABLED", "VITE_REALTIME_DISABLED"),
     mode,
     isDevelopment: mode === "development",
   };
 }
 
-export const ENV: AppEnv = buildEnv();
+export function readAppEnv(): AppEnv {
+  return buildEnv();
+}
+
+export const ENV: AppEnv = readAppEnv();
