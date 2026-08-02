@@ -40,7 +40,7 @@ describe("leaveService", () => {
       endDate: "2026-04-15",
       reason: "Family event and travel",
       attachments: [
-        { name: "note.pdf", url: "/uploads/note.pdf", mimeType: "application/pdf", size: 1200 },
+        { name: "note.pdf", url: "/api/acme/files/101/preview", mimeType: "application/pdf", size: 1200 },
       ],
     };
 
@@ -53,7 +53,7 @@ describe("leaveService", () => {
       reason: "Family event and travel",
       attachments: [
         {
-          fileUrl: "/uploads/note.pdf",
+          fileUrl: "/api/acme/files/101/preview",
           fileName: "note.pdf",
           fileType: "application/pdf",
           fileSize: 1200,
@@ -105,7 +105,7 @@ describe("leaveService", () => {
       endDate: "2026-04-15",
       reason: "Family event and travel",
       attachments: [
-        { name: "note.pdf", url: "/uploads/note.pdf", mimeType: "application/pdf", size: 1200 },
+        { name: "note.pdf", url: "/api/acme/files/101/preview", mimeType: "application/pdf", size: 1200 },
       ],
     };
 
@@ -118,7 +118,7 @@ describe("leaveService", () => {
       reason: "Family event and travel",
       attachments: [
         {
-          fileUrl: "/uploads/note.pdf",
+          fileUrl: "/api/acme/files/101/preview",
           fileName: "note.pdf",
           fileType: "application/pdf",
           fileSize: 1200,

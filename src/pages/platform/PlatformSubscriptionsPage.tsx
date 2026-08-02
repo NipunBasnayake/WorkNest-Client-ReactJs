@@ -1,19 +1,19 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import {
-  ArrowDownRight,
-  ArrowUpRight,
+  BarChart3,
   Building2,
-  CalendarClock,
+  CheckCircle2,
   CreditCard,
   Edit3,
-  Eye,
-  Layers3,
+  MoreHorizontal,
+  PackageCheck,
   Plus,
-  Power,
   Search,
-  ShieldCheck,
+  Settings,
   Sparkles,
+  Trash2,
 } from "lucide-react";
+import { Area, AreaChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Button } from "@/components/common/Button";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { EmptyState, ErrorState, LoadingSkeleton } from "@/components/common/AsyncStates";
@@ -25,66 +25,55 @@ import { Switch } from "@/components/common/Switch";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { useToast } from "@/hooks/useToast";
 import {
-  useAssignTenantPlanMutation,
   useCreateSubscriptionPlanMutation,
-  useDeactivateTenantSubscriptionMutation,
+  useDeleteSubscriptionPlanMutation,
   useSetPlanFeatureMutation,
   useSetSubscriptionPlanActiveMutation,
   useSubscriptionOverviewQuery,
   useUpdateSubscriptionPlanMutation,
 } from "@/hooks/queries/useSubscriptionQueries";
 import { PlanEditorDialog } from "@/modules/subscriptions/components/PlanEditorDialog";
-import { TenantPlanDialog } from "@/modules/subscriptions/components/TenantPlanDialog";
 import type {
   SubscriptionPlan,
   SubscriptionPlanInput,
   SubscriptionStatus,
-  TenantPlanAssignmentInput,
   TenantSubscription,
 } from "@/modules/subscriptions/types";
 import { getErrorMessage } from "@/utils/errorHandler";
 
-type SubscriptionTab = "plans" | "tenants" | "matrix";
+type SubscriptionTab = "dashboard" | "packages" | "tenants" | "usage" | "settings";
 
-const tabs: Array<{ id: SubscriptionTab; label: string; icon: React.ReactNode }> = [
-  { id: "plans", label: "Subscription Plans", icon: <CreditCard size={16} /> },
+const tabs: Array<{ id: SubscriptionTab; label: string; icon: ReactNode }> = [
+  { id: "dashboard", label: "Dashboard", icon: <BarChart3 size={16} /> },
+  { id: "packages", label: "Packages", icon: <CreditCard size={16} /> },
   { id: "tenants", label: "Tenant Subscriptions", icon: <Building2 size={16} /> },
-  { id: "matrix", label: "Feature Matrix", icon: <Layers3 size={16} /> },
+  { id: "usage", label: "Usage Statistics", icon: <MoreHorizontal size={16} /> },
+  { id: "settings", label: "Settings", icon: <Settings size={16} /> },
 ];
-
-const planAccents: Record<string, string> = {
-  FREE: "#64748b",
-  STARTER: "#2563eb",
-  PROFESSIONAL: "#9332ea",
-  ENTERPRISE: "#059669",
-};
 
 export function PlatformSubscriptionsPage() {
   usePageMeta({ title: "Subscription Management", breadcrumb: ["Platform", "Subscriptions"] });
   const toast = useToast();
-  const [activeTab, setActiveTab] = useState<SubscriptionTab>("plans");
+  const [activeTab, setActiveTab] = useState<SubscriptionTab>("dashboard");
   const [planEditorTarget, setPlanEditorTarget] = useState<SubscriptionPlan | null | undefined>(undefined);
   const [selectedPlanId, setSelectedPlanId] = useState<number | null>(null);
-  const [tenantDialogTarget, setTenantDialogTarget] = useState<TenantSubscription | null>(null);
-  const [deactivateTarget, setDeactivateTarget] = useState<TenantSubscription | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<SubscriptionPlan | null>(null);
   const [tenantSearch, setTenantSearch] = useState("");
 
   const overviewQuery = useSubscriptionOverviewQuery(true);
   const createPlanMutation = useCreateSubscriptionPlanMutation();
   const updatePlanMutation = useUpdateSubscriptionPlanMutation();
+  const deletePlanMutation = useDeleteSubscriptionPlanMutation();
   const setPlanActiveMutation = useSetSubscriptionPlanActiveMutation();
   const setFeatureMutation = useSetPlanFeatureMutation();
-  const assignPlanMutation = useAssignTenantPlanMutation();
-  const deactivateMutation = useDeactivateTenantSubscriptionMutation();
 
   const data = overviewQuery.data;
-  const errorMessage = overviewQuery.error
-    ? getErrorMessage(overviewQuery.error, "Could not load subscription management data.")
-    : null;
-
   const selectedPlan = data?.plans.find((plan) => plan.id === selectedPlanId)
     ?? data?.plans[0]
     ?? null;
+  const errorMessage = overviewQuery.error
+    ? getErrorMessage(overviewQuery.error, "Could not load subscription management data.")
+    : null;
 
   const filteredSubscriptions = useMemo(() => {
     const query = tenantSearch.trim().toLowerCase();
@@ -99,19 +88,58 @@ export function PlatformSubscriptionsPage() {
       ].some((value) => value.toLowerCase().includes(query)));
   }, [data, tenantSearch]);
 
-  const savePlan = async (input: SubscriptionPlanInput) => {
+  const savePlan = async (input: SubscriptionPlanInput, selectedFeatureKeys?: string[]) => {
     try {
       const saved = planEditorTarget
         ? await updatePlanMutation.mutateAsync({ planId: planEditorTarget.id, payload: input })
         : await createPlanMutation.mutateAsync(input);
+      if (selectedFeatureKeys && data?.featureMatrix.features) {
+        const selected = new Set(selectedFeatureKeys);
+        await Promise.all(data.featureMatrix.features.map((feature) =>
+          setFeatureMutation.mutateAsync({
+            planId: saved.id,
+            featureKey: feature.featureKey,
+            enabled: selected.has(feature.featureKey),
+          })));
+      }
       setSelectedPlanId(saved.id);
       setPlanEditorTarget(undefined);
       toast.success({
-        title: planEditorTarget ? "Plan updated" : "Plan created",
-        description: `${saved.name} is ready for subscription management.`,
+        title: planEditorTarget ? "Package updated" : "Package created",
+        description: `${saved.name} is ready for package management.`,
       });
     } catch (error) {
-      toast.error({ title: "Plan was not saved", description: getErrorMessage(error) });
+      toast.error({ title: "Package was not saved", description: getErrorMessage(error) });
+    }
+  };
+
+  const duplicatePlan = async (plan: SubscriptionPlan) => {
+    try {
+      const copy = await createPlanMutation.mutateAsync({
+        name: `${plan.name} Copy`,
+        code: `${plan.code}_COPY`,
+        description: plan.description ?? "",
+        monthlyPrice: plan.monthlyPrice,
+        yearlyPrice: plan.yearlyPrice,
+        billingPeriod: plan.billingPeriod,
+        badge: plan.badge ?? "",
+        recommended: false,
+        color: plan.color ?? "#2563eb",
+        icon: plan.icon ?? "package",
+        active: false,
+        displayOrder: plan.displayOrder + 1,
+      });
+      const sourceFeatures = data?.featureMatrix.features ?? [];
+      await Promise.all(sourceFeatures.map((feature) =>
+        setFeatureMutation.mutateAsync({
+          planId: copy.id,
+          featureKey: feature.featureKey,
+          enabled: Boolean(feature.plans[plan.code]),
+        })));
+      setSelectedPlanId(copy.id);
+      toast.success({ title: "Package duplicated", description: `${copy.name} was created as a hidden draft.` });
+    } catch (error) {
+      toast.error({ title: "Package was not duplicated", description: getErrorMessage(error) });
     }
   };
 
@@ -119,55 +147,22 @@ export function PlatformSubscriptionsPage() {
     try {
       await setPlanActiveMutation.mutateAsync({ planId: plan.id, active });
       toast.success({
-        title: active ? "Plan enabled" : "Plan disabled",
-        description: `${plan.name} ${active ? "can now" : "can no longer"} be assigned.`,
+        title: active ? "Package enabled" : "Package disabled",
+        description: `${plan.name} ${active ? "is visible to tenant admins" : "is hidden from new tenant selections"}.`,
       });
     } catch (error) {
-      toast.error({ title: "Plan status was not changed", description: getErrorMessage(error) });
+      toast.error({ title: "Package status was not changed", description: getErrorMessage(error) });
     }
   };
 
-  const setFeature = async (plan: SubscriptionPlan, featureKey: string, enabled: boolean) => {
+  const deletePackage = async () => {
+    if (!deleteTarget) return;
     try {
-      await setFeatureMutation.mutateAsync({ planId: plan.id, featureKey, enabled });
-      toast.success({
-        title: enabled ? "Feature enabled" : "Feature disabled",
-        description: `${featureLabel(featureKey)} was updated for ${plan.name}.`,
-      });
+      await deletePlanMutation.mutateAsync(deleteTarget.id);
+      setDeleteTarget(null);
+      toast.success({ title: "Package deleted", description: `${deleteTarget.name} was removed from the catalogue.` });
     } catch (error) {
-      toast.error({ title: "Feature was not updated", description: getErrorMessage(error) });
-    }
-  };
-
-  const assignPlan = async (input: TenantPlanAssignmentInput) => {
-    if (!tenantDialogTarget) return;
-    try {
-      const previous = tenantDialogTarget.planCode;
-      const updated = await assignPlanMutation.mutateAsync({
-        tenantKey: tenantDialogTarget.tenantKey,
-        payload: input,
-      });
-      setTenantDialogTarget(null);
-      toast.success({
-        title: previous === updated.planCode ? "Subscription renewed" : "Plan assigned",
-        description: `${updated.tenantName} now uses ${updated.planName}.`,
-      });
-    } catch (error) {
-      toast.error({ title: "Subscription was not changed", description: getErrorMessage(error) });
-    }
-  };
-
-  const deactivateSubscription = async () => {
-    if (!deactivateTarget) return;
-    try {
-      await deactivateMutation.mutateAsync(deactivateTarget.tenantKey);
-      toast.success({
-        title: "Subscription deactivated",
-        description: `${deactivateTarget.tenantName} no longer has feature access.`,
-      });
-      setDeactivateTarget(null);
-    } catch (error) {
-      toast.error({ title: "Subscription was not deactivated", description: getErrorMessage(error) });
+      toast.error({ title: "Package was not deleted", description: getErrorMessage(error) });
     }
   };
 
@@ -175,10 +170,10 @@ export function PlatformSubscriptionsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Subscription Management"
-        description="Control SaaS plans, tenant assignments, and feature access independently from payment providers."
+        description="Build SaaS packages, control feature access, and monitor tenant subscriptions without payment-provider coupling."
         primaryActions={(
           <Button onClick={() => setPlanEditorTarget(null)}>
-            <Plus size={16} /> Create plan
+            <Plus size={16} /> Create package
           </Button>
         )}
       />
@@ -188,21 +183,6 @@ export function PlatformSubscriptionsPage() {
 
       {!overviewQuery.isLoading && !errorMessage && data ? (
         <>
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <StatCard label="Total tenants" value={data.statistics.totalTenants} icon={<Building2 size={20} />} accentColor="#9332ea" />
-            {data.plans.slice(0, 4).map((plan) => (
-              <StatCard
-                key={plan.id}
-                label={plan.name}
-                value={data.statistics.planDistribution[plan.code] ?? 0}
-                icon={<CreditCard size={20} />}
-                accentColor={planAccents[plan.code] ?? "#7c3aed"}
-              />
-            ))}
-            <StatCard label="Recently upgraded" value={data.statistics.recentlyUpgraded} icon={<ArrowUpRight size={20} />} accentColor="#059669" />
-            <StatCard label="Recently expired" value={data.statistics.recentlyExpired} icon={<CalendarClock size={20} />} accentColor="#d97706" />
-          </div>
-
           <div className="overflow-x-auto">
             <div className="inline-flex min-w-full gap-1 rounded-2xl border p-1.5 sm:min-w-0" style={{ background: "var(--bg-surface)", borderColor: "var(--border-default)" }}>
               {tabs.map((tab) => (
@@ -222,12 +202,18 @@ export function PlatformSubscriptionsPage() {
             </div>
           </div>
 
-          {activeTab === "plans" ? (
-            <PlansSection
+          {activeTab === "dashboard" ? (
+            <DashboardSection plans={data.plans} subscriptions={data.tenantSubscriptions} statistics={data.statistics} />
+          ) : null}
+
+          {activeTab === "packages" ? (
+            <PackagesSection
               plans={data.plans}
               selectedPlan={selectedPlan}
               onSelectPlan={(plan) => setSelectedPlanId(plan.id)}
               onEditPlan={(plan) => setPlanEditorTarget(plan)}
+              onDuplicatePlan={(plan) => void duplicatePlan(plan)}
+              onDeletePlan={setDeleteTarget}
               onSetActive={(plan, active) => void setPlanActive(plan, active)}
               statusPending={setPlanActiveMutation.isPending}
             />
@@ -236,21 +222,17 @@ export function PlatformSubscriptionsPage() {
           {activeTab === "tenants" ? (
             <TenantSubscriptionsSection
               subscriptions={filteredSubscriptions}
-              plans={data.plans}
               search={tenantSearch}
               onSearch={setTenantSearch}
-              onManage={setTenantDialogTarget}
-              onDeactivate={setDeactivateTarget}
             />
           ) : null}
 
-          {activeTab === "matrix" ? (
-            <FeatureMatrixSection
-              plans={data.featureMatrix.plans}
-              features={data.featureMatrix.features}
-              pending={setFeatureMutation.isPending}
-              onToggle={(plan, featureKey, enabled) => void setFeature(plan, featureKey, enabled)}
-            />
+          {activeTab === "usage" ? (
+            <UsageSection plans={data.plans} statistics={data.statistics} />
+          ) : null}
+
+          {activeTab === "settings" ? (
+            <SubscriptionSettingsSection />
           ) : null}
         </>
       ) : null}
@@ -260,40 +242,144 @@ export function PlatformSubscriptionsPage() {
           key={planEditorTarget?.id ?? "new"}
           open
           plan={planEditorTarget}
-          saving={createPlanMutation.isPending || updatePlanMutation.isPending}
+          features={data?.featureMatrix.features ?? []}
+          saving={createPlanMutation.isPending || updatePlanMutation.isPending || setFeatureMutation.isPending}
           onClose={() => setPlanEditorTarget(undefined)}
           onSave={savePlan}
         />
       ) : null}
-      {tenantDialogTarget ? (
-        <TenantPlanDialog
-          key={tenantDialogTarget.tenantKey}
-          open
-          subscription={tenantDialogTarget}
-          plans={data?.plans ?? []}
-          saving={assignPlanMutation.isPending}
-          onClose={() => setTenantDialogTarget(null)}
-          onSave={assignPlan}
-        />
-      ) : null}
       <ConfirmDialog
-        open={Boolean(deactivateTarget)}
-        title="Deactivate tenant subscription?"
-        description={`${deactivateTarget?.tenantName ?? "This tenant"} will immediately lose access to subscription-controlled features. You can reactivate it by assigning a plan again.`}
-        confirmLabel="Deactivate"
-        loading={deactivateMutation.isPending}
-        onConfirm={() => void deactivateSubscription()}
-        onCancel={() => setDeactivateTarget(null)}
+        open={Boolean(deleteTarget)}
+        title="Delete package?"
+        description={`${deleteTarget?.name ?? "This package"} will be removed from the package catalogue. Packages assigned to tenants cannot be deleted.`}
+        confirmLabel="Delete"
+        loading={deletePlanMutation.isPending}
+        onConfirm={() => void deletePackage()}
+        onCancel={() => setDeleteTarget(null)}
       />
     </div>
   );
 }
 
-function PlansSection({
+function DashboardSection({
+  plans,
+  subscriptions,
+  statistics,
+}: {
+  plans: SubscriptionPlan[];
+  subscriptions: TenantSubscription[];
+  statistics: {
+    totalPackages: number;
+    activePackages: number;
+    totalTenants: number;
+    subscribedTenants: number;
+    planDistribution: Record<string, number>;
+    mostPopularPackage?: string | null;
+    recentlyUpgraded: number;
+  };
+}) {
+  const latestChanges = subscriptions
+    .slice()
+    .sort((left, right) => new Date(right.assignedDate).getTime() - new Date(left.assignedDate).getTime())
+    .slice(0, 5);
+  const distributionData = plans.map((plan) => ({
+    name: plan.name,
+    value: statistics.planDistribution[plan.code] ?? 0,
+    color: planColor(plan),
+  }));
+  const trendData = subscriptions
+    .slice()
+    .sort((left, right) => new Date(left.assignedDate).getTime() - new Date(right.assignedDate).getTime())
+    .reduce<Array<{ label: string; subscriptions: number }>>((points, subscription, index) => {
+      points.push({ label: shortDate(subscription.assignedDate), subscriptions: index + 1 });
+      return points;
+    }, [])
+    .slice(-8);
+
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard label="Total packages" value={statistics.totalPackages} icon={<PackageCheck size={20} />} accentColor="#2563eb" />
+        <StatCard label="Active packages" value={statistics.activePackages} icon={<CheckCircle2 size={20} />} accentColor="#059669" />
+        <StatCard label="Subscribed tenants" value={statistics.subscribedTenants} icon={<Building2 size={20} />} accentColor="#7c3aed" />
+        <StatCard label="Most popular" value={statistics.mostPopularPackage ?? "None"} icon={<Sparkles size={20} />} accentColor="#d97706" />
+      </div>
+      <div className="grid gap-5 xl:grid-cols-[1.1fr_.9fr]">
+        <SectionCard title="Package Distribution" subtitle="Live tenant count by current package.">
+          <div className="grid gap-5 md:grid-cols-[220px_1fr]">
+            <div className="h-56">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Tooltip contentStyle={tooltipStyle()} />
+                  <Pie data={distributionData} dataKey="value" nameKey="name" innerRadius={58} outerRadius={92} paddingAngle={2}>
+                    {distributionData.map((entry) => <Cell key={entry.name} fill={entry.color} />)}
+                  </Pie>
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="space-y-4">
+              {plans.map((plan) => {
+                const count = statistics.planDistribution[plan.code] ?? 0;
+                const percent = statistics.totalTenants > 0 ? Math.round((count / statistics.totalTenants) * 100) : 0;
+                return (
+                  <div key={plan.id}>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="font-semibold" style={{ color: "var(--text-primary)" }}>{plan.name}</span>
+                      <span style={{ color: "var(--text-secondary)" }}>{count} tenants</span>
+                    </div>
+                    <div className="mt-2 h-2 rounded-full" style={{ background: "var(--bg-muted)" }}>
+                      <div className="h-2 rounded-full" style={{ width: `${percent}%`, background: planColor(plan) }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </SectionCard>
+        <SectionCard title="Latest Upgrades" subtitle="Recent package activation changes.">
+          <div className="space-y-3">
+            {latestChanges.map((subscription) => (
+              <div key={subscription.id} className="flex items-center justify-between rounded-xl border px-4 py-3" style={{ borderColor: "var(--border-default)", background: "var(--bg-muted)" }}>
+                <div>
+                  <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{subscription.tenantName}</p>
+                  <p className="text-xs" style={{ color: "var(--text-secondary)" }}>{subscription.planName} package</p>
+                </div>
+                <span className="text-xs" style={{ color: "var(--text-tertiary)" }}>{formatDate(subscription.assignedDate)}</span>
+              </div>
+            ))}
+          </div>
+        </SectionCard>
+      </div>
+      <SectionCard title="Subscription Trend" subtitle="Recent subscription growth based on activation dates.">
+        <div className="h-72">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={trendData} margin={{ top: 8, right: 12, left: -12, bottom: 0 }}>
+              <defs>
+                <linearGradient id="subscriptionTrendFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="var(--brand-action)" stopOpacity={0.32} />
+                  <stop offset="95%" stopColor="var(--brand-action)" stopOpacity={0.02} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid stroke="var(--border-default)" strokeDasharray="3 3" vertical={false} />
+              <XAxis dataKey="label" tick={{ fill: "var(--text-tertiary)", fontSize: 12 }} tickLine={false} axisLine={false} />
+              <YAxis tick={{ fill: "var(--text-tertiary)", fontSize: 12 }} tickLine={false} axisLine={false} allowDecimals={false} />
+              <Tooltip contentStyle={tooltipStyle()} />
+              <Area type="monotone" dataKey="subscriptions" stroke="var(--brand-action)" strokeWidth={2.5} fill="url(#subscriptionTrendFill)" />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      </SectionCard>
+    </div>
+  );
+}
+
+function PackagesSection({
   plans,
   selectedPlan,
   onSelectPlan,
   onEditPlan,
+  onDuplicatePlan,
+  onDeletePlan,
   onSetActive,
   statusPending,
 }: {
@@ -301,143 +387,109 @@ function PlansSection({
   selectedPlan: SubscriptionPlan | null;
   onSelectPlan: (plan: SubscriptionPlan) => void;
   onEditPlan: (plan: SubscriptionPlan) => void;
+  onDuplicatePlan: (plan: SubscriptionPlan) => void;
+  onDeletePlan: (plan: SubscriptionPlan) => void;
   onSetActive: (plan: SubscriptionPlan, active: boolean) => void;
   statusPending: boolean;
 }) {
   return (
-    <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {plans.map((plan) => {
-          const accent = planAccents[plan.code] ?? "#7c3aed";
-          const isSelected = selectedPlan?.id === plan.id;
-          return (
-            <article
-              key={plan.id}
-              className="relative overflow-hidden rounded-2xl border p-5 transition-all hover:-translate-y-0.5 hover:shadow-md"
-              style={{
-                background: "var(--bg-surface)",
-                borderColor: isSelected ? accent : "var(--border-default)",
-                boxShadow: isSelected ? `0 0 0 2px ${accent}20` : "var(--shadow-sm)",
-              }}
-            >
-              <div className="absolute inset-x-0 top-0 h-1" style={{ background: accent }} />
-              <div className="flex items-start justify-between gap-3">
-                <span className="grid h-10 w-10 place-items-center rounded-xl" style={{ background: `${accent}14`, color: accent }}>
-                  <CreditCard size={19} />
-                </span>
-                <PlanState active={plan.active} />
-              </div>
-              <h3 className="mt-5 text-lg font-semibold" style={{ color: "var(--text-primary)" }}>{plan.name}</h3>
-              <p className="font-mono text-xs font-semibold tracking-wider" style={{ color: accent }}>{plan.code}</p>
-              <p className="mt-3 min-h-10 text-sm leading-5" style={{ color: "var(--text-secondary)" }}>
-                {plan.description ?? "No plan description provided."}
-              </p>
-              <div className="mt-5 grid grid-cols-2 gap-2">
-                <Metric label="Tenants" value={plan.tenantCount} />
-                <Metric label="Features" value={`${plan.enabledFeatureCount}/${plan.totalFeatureCount}`} />
-              </div>
-              <div className="mt-5 flex gap-2">
-                <Button size="sm" variant={isSelected ? "primary" : "secondary"} className="flex-1" onClick={() => onSelectPlan(plan)}>
-                  <Eye size={15} /> Details
-                </Button>
-                <Button size="icon" variant="ghost" onClick={() => onEditPlan(plan)} aria-label={`Edit ${plan.name}`}>
-                  <Edit3 size={16} />
-                </Button>
-              </div>
-            </article>
-          );
-        })}
-      </div>
-
-      {selectedPlan ? (
-        <SectionCard
-          title="Plan Details"
-          subtitle="Configuration summary and assignment availability."
-          action={<Button size="sm" variant="secondary" onClick={() => onEditPlan(selectedPlan)}><Edit3 size={15} /> Edit plan</Button>}
-        >
-          <div className="grid gap-6 lg:grid-cols-[1.25fr_.75fr]">
-            <div>
-              <div className="flex flex-wrap items-center gap-3">
-                <h3 className="text-2xl font-semibold" style={{ color: "var(--text-primary)" }}>{selectedPlan.name}</h3>
-                <span className="rounded-lg px-2 py-1 font-mono text-xs font-semibold" style={{ background: "var(--brand-soft)", color: "var(--brand-action)" }}>{selectedPlan.code}</span>
-              </div>
-              <p className="mt-3 max-w-2xl text-sm leading-6" style={{ color: "var(--text-secondary)" }}>
-                {selectedPlan.description ?? "No description has been added to this plan."}
-              </p>
-              <div className="mt-6 grid gap-3 sm:grid-cols-3">
-                <Metric label="Assigned tenants" value={selectedPlan.tenantCount} spacious />
-                <Metric label="Enabled features" value={selectedPlan.enabledFeatureCount} spacious />
-                <Metric label="Display order" value={selectedPlan.displayOrder} spacious />
-              </div>
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      {plans.map((plan) => {
+        const accent = planColor(plan);
+        const selected = selectedPlan?.id === plan.id;
+        return (
+          <article
+            key={plan.id}
+            className="relative flex min-h-[320px] flex-col rounded-2xl border p-5 transition-all duration-200 hover:-translate-y-1 hover:border-[var(--border-strong)] hover:shadow-lg"
+            style={{
+              background: "var(--bg-surface)",
+              borderColor: selected ? "var(--brand-border)" : "var(--border-default)",
+              boxShadow: selected ? "0 12px 32px color-mix(in srgb, var(--brand-action) 12%, transparent)" : "var(--shadow-sm)",
+            }}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <span className="grid h-11 w-11 place-items-center rounded-xl" style={{ background: tint(accent, 9), color: accent }}>
+                <PackageCheck size={20} />
+              </span>
+              <PlanState active={plan.active} />
             </div>
-            <div className="space-y-4 rounded-2xl border p-5" style={{ borderColor: "var(--border-default)", background: "var(--bg-muted)" }}>
-              <div className="flex items-center gap-3">
-                <ShieldCheck size={20} style={{ color: "var(--brand-action)" }} />
-                <div>
-                  <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Assignment status</p>
-                  <p className="text-xs" style={{ color: "var(--text-secondary)" }}>Controls future manual and billing assignments.</p>
-                </div>
-              </div>
+            <div className="mt-5 flex items-center gap-2">
+              <h3 className="text-lg font-semibold" style={{ color: "var(--text-primary)" }}>{plan.name}</h3>
+              {plan.badge ? <span className="rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ background: tint(accent, 10), color: accent }}>{plan.badge}</span> : null}
+            </div>
+            <p className="mt-1 font-mono text-xs font-semibold" style={{ color: accent }}>{plan.code}</p>
+            <p className="mt-3 min-h-12 text-sm leading-5" style={{ color: "var(--text-secondary)" }}>
+              {plan.description ?? "No package description provided."}
+            </p>
+            <div className="mt-5 grid grid-cols-2 gap-2">
+              <Metric label="Monthly" value={formatMoney(plan.monthlyPrice)} />
+              <Metric label="Yearly" value={formatMoney(plan.yearlyPrice)} />
+              <Metric label="Tenants" value={plan.tenantCount} />
+              <Metric label="Features" value={`${plan.enabledFeatureCount}/${plan.totalFeatureCount}`} />
+            </div>
+            <div className="mt-auto flex gap-2 pt-5">
+              <Button size="sm" variant="secondary" className="flex-1" onClick={() => { onSelectPlan(plan); onEditPlan(plan); }}>
+                <Edit3 size={15} /> Edit
+              </Button>
+              <Button size="icon" variant="ghost" onClick={() => onEditPlan(plan)} aria-label={`Edit ${plan.name}`}>
+                <Edit3 size={16} />
+              </Button>
+              <Button size="icon" variant="ghost" onClick={() => onDuplicatePlan(plan)} aria-label={`Duplicate ${plan.name}`}>
+                <PackageCheck size={16} />
+              </Button>
+              <Button size="icon" variant="ghost" onClick={() => onDeletePlan(plan)} disabled={plan.code === "FREE" || plan.tenantCount > 0} aria-label={`Delete ${plan.name}`}>
+                <Trash2 size={16} className="text-red-500" />
+              </Button>
+            </div>
+            <div className="mt-4 rounded-xl border px-3 py-2.5" style={{ borderColor: "var(--border-default)", background: "var(--bg-muted)" }}>
               <Switch
-                label={selectedPlan.active ? "Available for assignment" : "Plan disabled"}
-                checked={selectedPlan.active}
-                disabled={statusPending || selectedPlan.code === "FREE"}
-                onChange={(event) => onSetActive(selectedPlan, event.target.checked)}
+                label={plan.active ? "Available" : "Hidden"}
+                checked={plan.active}
+                disabled={statusPending || plan.code === "FREE"}
+                onChange={(event) => onSetActive(plan, event.target.checked)}
               />
-              {selectedPlan.code === "FREE" ? (
-                <p className="text-xs leading-5" style={{ color: "var(--text-tertiary)" }}>
-                  FREE remains enabled because every new tenant receives it automatically.
-                </p>
-              ) : null}
             </div>
-          </div>
-        </SectionCard>
-      ) : null}
+          </article>
+        );
+      })}
     </div>
   );
 }
 
 function TenantSubscriptionsSection({
   subscriptions,
-  plans,
   search,
   onSearch,
-  onManage,
-  onDeactivate,
 }: {
   subscriptions: TenantSubscription[];
-  plans: SubscriptionPlan[];
   search: string;
   onSearch: (value: string) => void;
-  onManage: (subscription: TenantSubscription) => void;
-  onDeactivate: (subscription: TenantSubscription) => void;
 }) {
   return (
     <SectionCard
       title="Tenant Subscriptions"
-      subtitle="Assign plans manually today; payment services can use the same subscription workflow later."
+      subtitle="Each tenant has exactly one current package. Tenant admins select upgrades and downgrades from their workspace."
       action={(
         <SearchField
           label="Search subscriptions"
           value={search}
           onChange={(event) => onSearch(event.target.value)}
           onClear={() => onSearch("")}
-          placeholder="Tenant, plan, status..."
+          placeholder="Tenant, package, status..."
           className="w-full sm:w-72"
         />
       )}
       variant="table"
     >
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[920px] text-left">
+        <table className="w-full min-w-[820px] text-left">
           <thead>
             <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-tertiary)", background: "var(--bg-muted)" }}>
               <th className="px-5 py-3">Tenant</th>
-              <th className="px-4 py-3">Current plan</th>
-              <th className="px-4 py-3">Assigned date</th>
-              <th className="px-4 py-3">Expiry</th>
+              <th className="px-4 py-3">Current Package</th>
               <th className="px-4 py-3">Status</th>
-              <th className="px-5 py-3 text-right">Actions</th>
+              <th className="px-4 py-3">Activated Date</th>
+              <th className="px-4 py-3">Expires</th>
             </tr>
           </thead>
           <tbody>
@@ -445,7 +497,7 @@ function TenantSubscriptionsSection({
               <tr key={subscription.id} className="transition-colors hover:bg-primary-50/30 dark:hover:bg-primary-950/10">
                 <td className="px-5 py-4">
                   <div className="flex items-center gap-3">
-                    <span className="grid h-9 w-9 place-items-center rounded-xl bg-purple-500/10 text-sm font-bold text-purple-600">
+                    <span className="grid h-9 w-9 place-items-center rounded-xl bg-blue-500/10 text-sm font-bold text-blue-600">
                       {subscription.tenantName[0]?.toUpperCase() ?? "T"}
                     </span>
                     <div>
@@ -455,100 +507,87 @@ function TenantSubscriptionsSection({
                   </div>
                 </td>
                 <td className="px-4 py-4">
-                  <p className="text-sm font-semibold" style={{ color: planAccents[subscription.planCode] ?? "var(--brand-action)" }}>{subscription.planName}</p>
+                  <p className="text-sm font-semibold" style={{ color: "var(--brand-action)" }}>{subscription.planName}</p>
                   <p className="font-mono text-xs" style={{ color: "var(--text-tertiary)" }}>{subscription.planCode}</p>
                 </td>
+                <td className="px-4 py-4"><SubscriptionStatusBadge status={subscription.status} /></td>
                 <td className="px-4 py-4 text-sm" style={{ color: "var(--text-secondary)" }}>{formatDate(subscription.assignedDate)}</td>
                 <td className="px-4 py-4 text-sm" style={{ color: "var(--text-secondary)" }}>{subscription.expiresAt ? formatDate(subscription.expiresAt) : "Unlimited"}</td>
-                <td className="px-4 py-4"><SubscriptionStatusBadge status={subscription.status} /></td>
-                <td className="px-5 py-4">
-                  <div className="flex justify-end gap-2">
-                    <Button size="sm" variant="secondary" onClick={() => onManage(subscription)}>
-                      {assignmentIcon(subscription, plans)} Manage plan
-                    </Button>
-                    {subscription.active ? (
-                      <Button size="icon" variant="ghost" onClick={() => onDeactivate(subscription)} aria-label={`Deactivate ${subscription.tenantName} subscription`}>
-                        <Power size={16} className="text-red-500" />
-                      </Button>
-                    ) : null}
-                  </div>
-                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
       {subscriptions.length === 0 ? (
-        <EmptyState
-          icon={<Search size={26} />}
-          title="No matching subscriptions"
-          description="Try a different tenant, plan, or status search."
-        />
+        <EmptyState icon={<Search size={26} />} title="No matching subscriptions" description="Try a different tenant, package, or status search." />
       ) : null}
     </SectionCard>
   );
 }
 
-function FeatureMatrixSection({
+function UsageSection({
   plans,
-  features,
-  pending,
-  onToggle,
+  statistics,
 }: {
   plans: SubscriptionPlan[];
-  features: Array<{ featureId: number; featureKey: string; displayName: string; plans: Record<string, boolean> }>;
-  pending: boolean;
-  onToggle: (plan: SubscriptionPlan, featureKey: string, enabled: boolean) => void;
+  statistics: { totalTenants: number; planDistribution: Record<string, number>; recentlyUpgraded: number; recentlyExpired: number };
 }) {
   return (
-    <SectionCard
-      title="Feature Matrix"
-      subtitle="Feature keys remain stable while availability can change independently for every plan."
-      action={(
-        <span className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-600">
-          <Sparkles size={14} /> All changes apply immediately
-        </span>
-      )}
-      variant="table"
-    >
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[760px] text-left">
-          <thead>
-            <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-tertiary)", background: "var(--bg-muted)" }}>
-              <th className="sticky left-0 z-10 min-w-56 px-5 py-3" style={{ background: "var(--bg-muted)" }}>Feature</th>
-              {plans.map((plan) => (
-                <th key={plan.id} className="min-w-36 px-4 py-3 text-center">
-                  <span style={{ color: planAccents[plan.code] ?? "var(--text-secondary)" }}>{plan.name}</span>
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {features.map((feature) => (
-              <tr key={feature.featureId} className="transition-colors hover:bg-primary-50/20 dark:hover:bg-primary-950/10">
-                <td className="sticky left-0 z-10 px-5 py-3.5" style={{ background: "var(--bg-surface)" }}>
-                  <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>{feature.displayName}</p>
-                  <p className="font-mono text-[11px]" style={{ color: "var(--text-tertiary)" }}>{feature.featureKey}</p>
-                </td>
-                {plans.map((plan) => {
-                  const enabled = Boolean(feature.plans[plan.code]);
-                  return (
-                    <td key={plan.id} className="px-4 py-3.5 text-center">
-                      <Switch
-                        aria-label={`${enabled ? "Disable" : "Enable"} ${feature.displayName} for ${plan.name}`}
-                        checked={enabled}
-                        disabled={pending}
-                        onChange={(event) => onToggle(plan, feature.featureKey, event.target.checked)}
-                      />
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </SectionCard>
+    <div className="grid gap-5 xl:grid-cols-[.8fr_1.2fr]">
+      <SectionCard title="Usage Snapshot" subtitle="Subscription signals separated from payments.">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Metric label="Total tenants" value={statistics.totalTenants} spacious />
+          <Metric label="Recent upgrades" value={statistics.recentlyUpgraded} spacious />
+          <Metric label="Recently expired" value={statistics.recentlyExpired} spacious />
+          <Metric label="Packages" value={plans.length} spacious />
+        </div>
+      </SectionCard>
+      <SectionCard title="Package Mix" subtitle="Current tenant distribution by package.">
+        <div className="grid gap-3 md:grid-cols-2">
+          {plans.map((plan) => (
+            <div key={plan.id} className="rounded-xl border p-4" style={{ borderColor: "var(--border-default)", background: "var(--bg-muted)" }}>
+              <div className="flex items-center justify-between">
+                <span className="font-semibold" style={{ color: "var(--text-primary)" }}>{plan.name}</span>
+                <span className="text-xl font-semibold" style={{ color: planColor(plan) }}>{statistics.planDistribution[plan.code] ?? 0}</span>
+              </div>
+              <p className="mt-1 text-xs" style={{ color: "var(--text-tertiary)" }}>{plan.enabledFeatureCount} enabled features</p>
+            </div>
+          ))}
+        </div>
+      </SectionCard>
+    </div>
+  );
+}
+
+function SubscriptionSettingsSection() {
+  return (
+    <div className="grid gap-5 xl:grid-cols-2">
+      <SectionCard title="Payment Readiness" subtitle="Connectors can be introduced later without changing package authorization.">
+        <div className="space-y-3">
+          {["Stripe", "PayHere", "PayPal", "Invoices", "Coupons", "Trials", "Renewals"].map((item) => (
+            <div key={item} className="flex items-center justify-between rounded-xl border px-4 py-3" style={{ borderColor: "var(--border-default)", background: "var(--bg-muted)" }}>
+              <span className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{item}</span>
+              <span className="rounded-full bg-slate-500/10 px-2.5 py-1 text-xs font-semibold text-slate-500">Future</span>
+            </div>
+          ))}
+        </div>
+      </SectionCard>
+      <SectionCard title="Feature Authorization" subtitle="All tenant modules stay guarded by centralized subscription feature checks.">
+        <div className="rounded-2xl border p-5" style={{ borderColor: "var(--border-default)", background: "var(--bg-muted)" }}>
+          <div className="flex items-center gap-3">
+            <span className="grid h-11 w-11 place-items-center rounded-xl" style={{ background: "var(--brand-soft)", color: "var(--brand-action)" }}>
+              <CheckCircle2 size={20} />
+            </span>
+            <div>
+              <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Central access service active</p>
+              <p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>
+                Package feature changes apply immediately through the existing feature access service and route-level guarded modules.
+              </p>
+            </div>
+          </div>
+        </div>
+      </SectionCard>
+    </div>
   );
 }
 
@@ -565,7 +604,7 @@ function PlanState({ active }: { active: boolean }) {
   return (
     <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${active ? "bg-emerald-500/10 text-emerald-600" : "bg-slate-500/10 text-slate-500"}`}>
       <span className={`h-1.5 w-1.5 rounded-full ${active ? "bg-emerald-500" : "bg-slate-400"}`} />
-      {active ? "Active" : "Disabled"}
+      {active ? "Active" : "Hidden"}
     </span>
   );
 }
@@ -585,16 +624,13 @@ function SubscriptionStatusBadge({ status }: { status: SubscriptionStatus }) {
   );
 }
 
-function assignmentIcon(subscription: TenantSubscription, plans: SubscriptionPlan[]) {
-  const currentOrder = plans.find((plan) => plan.code === subscription.planCode)?.displayOrder ?? 0;
-  const hasHigherPlan = plans.some((plan) => plan.active && plan.displayOrder > currentOrder);
-  return hasHigherPlan ? <ArrowUpRight size={15} /> : <ArrowDownRight size={15} />;
+function planColor(plan: SubscriptionPlan): string {
+  return plan.color || "#2563eb";
 }
 
-function featureLabel(featureKey: string): string {
-  return featureKey.toLowerCase().split("_")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
+function formatMoney(value: number): string {
+  if (!value) return "Free";
+  return new Intl.NumberFormat(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(value);
 }
 
 function formatDate(value: string): string {
@@ -604,4 +640,24 @@ function formatDate(value: string): string {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(date);
+}
+
+function shortDate(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(date);
+}
+
+function tooltipStyle() {
+  return {
+    background: "var(--bg-surface)",
+    border: "1px solid var(--border-default)",
+    borderRadius: 12,
+    color: "var(--text-primary)",
+    boxShadow: "var(--shadow-sm)",
+  };
+}
+
+function tint(color: string, percent: number): string {
+  return `color-mix(in srgb, ${color} ${percent}%, transparent)`;
 }

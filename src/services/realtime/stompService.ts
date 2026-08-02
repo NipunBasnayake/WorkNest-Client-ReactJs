@@ -4,6 +4,7 @@ import {
   type IMessage,
   type StompSubscription,
 } from "@stomp/stompjs";
+import { ENV, readAppEnv } from "@/config/env";
 import { tokenStorage } from "@/services/http/client";
 import { unwrapApiData } from "@/services/http/response";
 
@@ -36,21 +37,17 @@ function toNativeWebSocketUrl(rawUrl: string, source: string): string {
 }
 
 export function resolveWebSocketUrl(): string {
-  const configured = import.meta.env.VITE_WS_URL as string | undefined;
-  if (configured?.trim()) {
-    return toNativeWebSocketUrl(configured.trim(), "VITE_WS_URL");
+  const env = readAppEnv();
+  if (env.websocketUrl) {
+    return toNativeWebSocketUrl(env.websocketUrl, "VITE_WS_URL");
   }
 
-  const apiBase = ((import.meta.env.VITE_API_BASE_URL as string | undefined) ?? "http://localhost:8080")
-    .trim()
-    .replace(/\/+$/, "");
+  const apiBase = env.apiBaseUrl.replace(/\/+$/, "");
   return toNativeWebSocketUrl(`${apiBase}/ws`, "VITE_API_BASE_URL");
 }
 
 export function resolveBackendHealthUrl(): string {
-  const apiBase = ((import.meta.env.VITE_API_BASE_URL as string | undefined) ?? "http://localhost:8080")
-    .trim()
-    .replace(/\/+$/, "");
+  const apiBase = readAppEnv().apiBaseUrl.replace(/\/+$/, "");
   const url = new URL(apiBase);
   if (url.protocol !== "http:" && url.protocol !== "https:") {
     throw new Error("VITE_API_BASE_URL must use http or https for backend readiness checks.");
@@ -150,7 +147,7 @@ class RealtimeStompClient {
   }
 
   private ensureClient() {
-    if (import.meta.env.VITE_REALTIME_DISABLED === "true") return;
+    if (ENV.realtimeDisabled) return;
     if (this.client) return;
     if (!this.hasConnectContext()) return;
 

@@ -90,6 +90,7 @@ const recruitmentEmailTemplatesPage = lazyElement(() => import("@/modules/recrui
 const appSettingsLayoutPage = lazyElement(() => import("@/pages/app/settings/AppSettingsLayoutPage"), "AppSettingsLayoutPage");
 const appSettingsProfilePage = lazyElement(() => import("@/pages/app/settings/AppSettingsProfilePage"), "AppSettingsProfilePage");
 const appSettingsWorkspacePage = lazyElement(() => import("@/pages/app/settings/AppSettingsWorkspacePage"), "AppSettingsWorkspacePage");
+const appSettingsPackagesPage = lazyElement(() => import("@/pages/app/settings/AppSettingsPackagesPage"), "AppSettingsPackagesPage");
 const appSettingsPreferencesPage = lazyElement(() => import("@/pages/app/settings/AppSettingsPreferencesPage"), "AppSettingsPreferencesPage");
 const appSettingsSecurityPage = lazyElement(() => import("@/pages/app/settings/AppSettingsSecurityPage"), "AppSettingsSecurityPage");
 
@@ -309,6 +310,7 @@ const router = createBrowserRouter([
               { index: true, element: <Navigate to="profile" replace /> },
               { path: "profile", element: appSettingsProfilePage },
               { path: "workspace", element: appSettingsWorkspacePage },
+              { path: "packages", element: appSettingsPackagesPage },
               { path: "preferences", element: appSettingsPreferencesPage },
               { path: "security", element: appSettingsSecurityPage },
             ],

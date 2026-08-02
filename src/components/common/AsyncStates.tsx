@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
-import { AlertTriangle, Inbox } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Inbox, LockKeyhole, PackageCheck } from "lucide-react";
 import { Button } from "@/components/common/Button";
+import { tenantRoutes } from "@/utils/tenantRoutes";
 
 interface LoadingSkeletonProps {
   lines?: number;
@@ -32,6 +33,42 @@ interface ErrorStateProps {
 }
 
 export function ErrorState({ message, title = "Something went wrong", onRetry }: ErrorStateProps) {
+  if (/Subscription plan does not include this feature/i.test(message)) {
+    return (
+      <div
+        className="overflow-hidden rounded-2xl border p-6 sm:p-8"
+        style={{
+          borderColor: "color-mix(in srgb, var(--brand-action) 22%, var(--border-default))",
+          backgroundColor: "color-mix(in srgb, var(--bg-surface) 96%, var(--brand-soft))",
+          boxShadow: "var(--shadow-sm)",
+        }}
+      >
+        <div className="grid gap-6 lg:grid-cols-[1fr_220px] lg:items-center">
+          <div>
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold" style={{ background: "var(--brand-soft)", color: "var(--brand-action)" }}>
+              <LockKeyhole size={14} /> Module locked
+            </div>
+            <h2 className="text-2xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>Upgrade required</h2>
+            <p className="mt-2 max-w-xl text-sm leading-6" style={{ color: "var(--text-secondary)" }}>
+              This module is not included in the workspace subscription package. Compare packages or choose an upgrade to unlock it.
+            </p>
+            <div className="mt-5 flex flex-wrap gap-2">
+              <Button to={tenantRoutes.settingsPackages()}><PackageCheck size={16} /> Compare plans</Button>
+              <Button type="button" variant="secondary" onClick={() => window.history.back()}><ArrowLeft size={16} /> Return</Button>
+            </div>
+          </div>
+          <div className="relative hidden h-44 rounded-2xl border lg:block" style={{ borderColor: "var(--border-default)", background: "var(--bg-surface)" }}>
+            <div className="absolute left-8 top-8 grid h-20 w-20 place-items-center rounded-2xl" style={{ background: "var(--brand-soft)", color: "var(--brand-action)" }}>
+              <LockKeyhole size={34} />
+            </div>
+            <div className="absolute bottom-7 right-7 h-16 w-28 rounded-xl border" style={{ borderColor: "var(--border-default)", background: "var(--bg-muted)" }} />
+            <div className="absolute bottom-11 right-12 h-2 w-16 rounded-full" style={{ background: "var(--brand-action)" }} />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       className="rounded-2xl border p-5 sm:p-6"

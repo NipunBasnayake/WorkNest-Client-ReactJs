@@ -10,6 +10,7 @@ export const queryKeys = {
   platformTenantDetail: (tenantKey: string | undefined) => ["platform-tenant", tenantKey ?? ""] as const,
   subscriptionOverview: () => ["platform-subscriptions"] as const,
   currentSubscription: (tenantKey: string | undefined) => ["tenant-subscription", tenantKey ?? ""] as const,
+  tenantPackageCatalog: (tenantKey: string | undefined) => ["tenant-package-catalog", tenantKey ?? ""] as const,
   projects: () => ["projects"] as const,
   myProjects: () => ["projects", "mine"] as const,
   projectDetail: (projectId: string | undefined) => ["project", projectId ?? ""] as const,
