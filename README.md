@@ -368,3 +368,496 @@ WorkNest-Client
 
 ---
 
+# 📂 Project Structure
+
+WorkNest follows a feature-first architecture that separates business domains from shared infrastructure. Each module owns its own components, pages, services, hooks, and types, making the codebase scalable and easier to maintain.
+
+```text
+src
+│
+├── app/
+│   ├── layouts/
+│   ├── providers/
+│   ├── router/
+│   ├── guards/
+│   └── App.tsx
+│
+├── assets/
+│   ├── images/
+│   ├── icons/
+│   └── illustrations/
+│
+├── components/
+│   ├── common/
+│   ├── layout/
+│   ├── ui/
+│   ├── forms/
+│   ├── feedback/
+│   └── navigation/
+│
+├── hooks/
+│
+├── modules/
+│   ├── analytics/
+│   ├── announcements/
+│   ├── attendance/
+│   ├── auth/
+│   ├── chat/
+│   ├── dashboard/
+│   ├── employees/
+│   ├── leave/
+│   ├── notifications/
+│   ├── platform/
+│   ├── profile/
+│   ├── projects/
+│   ├── reports/
+│   ├── settings/
+│   ├── tasks/
+│   └── teams/
+│
+├── services/
+│   ├── api/
+│   ├── auth/
+│   ├── realtime/
+│   ├── uploads/
+│   └── storage/
+│
+├── store/
+│
+├── styles/
+│
+├── types/
+│
+├── utils/
+│
+└── main.tsx
+```
+
+---
+
+# 🏛 Architecture Overview
+
+The client follows a layered architecture to separate presentation, business logic, infrastructure, and shared utilities.
+
+```text
+┌─────────────────────────────┐
+│        React Pages          │
+└─────────────┬───────────────┘
+              │
+              ▼
+┌─────────────────────────────┐
+│    Feature Components       │
+└─────────────┬───────────────┘
+              │
+              ▼
+┌─────────────────────────────┐
+│     Custom Hooks            │
+└─────────────┬───────────────┘
+              │
+              ▼
+┌─────────────────────────────┐
+│ Feature Services / Queries  │
+└─────────────┬───────────────┘
+              │
+              ▼
+┌─────────────────────────────┐
+│ Axios API Client            │
+└─────────────┬───────────────┘
+              │
+              ▼
+       Spring Boot Backend
+```
+
+Each layer has a single responsibility and communicates only with the layer directly below it.
+
+---
+
+# 🧩 Module-Based Development
+
+Instead of grouping files by type, WorkNest groups them by business domain.
+
+Example:
+
+```text
+modules/
+└── employees/
+    ├── components/
+    ├── hooks/
+    ├── pages/
+    ├── services/
+    ├── types/
+    ├── utils/
+    └── index.ts
+```
+
+Benefits:
+
+- High cohesion
+- Better scalability
+- Easier onboarding
+- Independent feature evolution
+- Reduced coupling
+
+---
+
+# 🔐 Authentication
+
+Authentication is handled using JWT access and refresh tokens.
+
+## Login Flow
+
+```text
+User
+ │
+ │ Login
+ ▼
+React Form
+ │
+ ▼
+Axios Client
+ │
+ ▼
+Spring Boot API
+ │
+ ▼
+Validate Credentials
+ │
+ ▼
+Access Token
+Refresh Token
+User Details
+ │
+ ▼
+Frontend Session
+```
+
+After authentication:
+
+- User profile is loaded
+- Permissions are resolved
+- Tenant information is initialized
+- Navigation is generated dynamically
+
+---
+
+# 🔄 Session Lifecycle
+
+```text
+Application Starts
+        │
+        ▼
+Check Existing Session
+        │
+        ▼
+Access Token Valid?
+     │         │
+     │         │
+    Yes       No
+     │         │
+     │         ▼
+     │   Refresh Token
+     │         │
+     │         ▼
+     │  New Access Token
+     │
+     ▼
+Continue Application
+```
+
+If refresh fails:
+
+```text
+Clear Session
+        │
+        ▼
+Redirect Login
+```
+
+---
+
+# 🛡 Authorization
+
+WorkNest uses **Permission-Based Authorization** instead of relying only on user roles.
+
+Every page, button, menu item, API request, and action is validated against permissions.
+
+```text
+User
+ │
+ ▼
+Permissions
+ │
+ ▼
+PermissionGuard
+ │
+ ▼
+Page Visible?
+ │
+ ├── Yes
+ │
+ └── No
+        │
+        ▼
+Unauthorized Screen
+```
+
+---
+
+# 👥 Supported Roles
+
+| Role | Description |
+|------|-------------|
+| PLATFORM_ADMIN | Platform management |
+| TENANT_ADMIN | Company administration |
+| HR | Human resource operations |
+| MANAGER | Team management |
+| EMPLOYEE | Daily workspace access |
+
+---
+
+# 🔑 Permission System
+
+Permissions are more granular than roles.
+
+Examples include:
+
+- Employee.Read
+- Employee.Create
+- Employee.Update
+- Employee.Delete
+
+- Project.Read
+- Project.Manage
+
+- Announcement.Manage
+
+- Team.Manage
+
+- Attendance.View
+
+This enables flexible tenant-specific access policies.
+
+---
+
+# 🏢 Multi-Tenant Architecture
+
+WorkNest is built around complete tenant isolation.
+
+```text
+                    WorkNest Platform
+                           │
+        ┌──────────────────┼──────────────────┐
+        │                  │                  │
+        ▼                  ▼                  ▼
+     Company A         Company B         Company C
+        │                  │                  │
+ Employees          Employees         Employees
+ Projects           Projects          Projects
+ Tasks              Tasks             Tasks
+ Chat               Chat              Chat
+ Reports            Reports           Reports
+```
+
+Each tenant operates independently while sharing the same frontend application.
+
+---
+
+# 🧭 Routing Architecture
+
+The application is divided into three major route groups.
+
+```text
+/
+│
+├── Public
+│
+├── Authentication
+│
+├── Tenant Workspace
+│
+└── Platform Console
+```
+
+Example:
+
+```text
+/
+
+/login
+
+/register
+
+/reset-password
+
+/app/dashboard
+
+/app/employees
+
+/app/projects
+
+/app/tasks
+
+/app/chat
+
+/app/reports
+
+/platform/dashboard
+
+/platform/tenants
+
+/platform/users
+```
+
+---
+
+# 🚪 Route Guards
+
+Routes are protected using dedicated guard components.
+
+```text
+Request Route
+      │
+      ▼
+Authentication Guard
+      │
+      ▼
+Permission Guard
+      │
+      ▼
+Tenant Guard
+      │
+      ▼
+Page
+```
+
+This prevents unauthorized content from rendering.
+
+---
+
+# 🌐 API Communication
+
+All backend communication passes through a centralized Axios client.
+
+Responsibilities include:
+
+- Base URL configuration
+- JWT injection
+- Tenant header injection
+- Automatic token refresh
+- Error normalization
+- Request retries
+- File uploads
+- Download helpers
+
+---
+
+# 🔄 API Flow
+
+```text
+React Component
+       │
+       ▼
+Feature Service
+       │
+       ▼
+Axios Instance
+       │
+       ▼
+Request Interceptors
+       │
+       ▼
+Spring Boot API
+       │
+       ▼
+Response Interceptors
+       │
+       ▼
+TanStack Query
+       │
+       ▼
+React UI
+```
+
+---
+
+# 📦 State Management
+
+WorkNest uses **Zustand** for lightweight global state.
+
+Examples include:
+
+- Authentication
+- Current User
+- Active Tenant
+- Theme
+- Notifications
+- Sidebar State
+- Preferences
+
+Feature-specific server state is managed with **TanStack Query**, keeping API data synchronized with the backend.
+
+---
+
+# ⚡ Data Fetching
+
+TanStack Query provides:
+
+- Automatic caching
+- Background refetching
+- Loading states
+- Error handling
+- Request deduplication
+- Optimistic updates (where applicable)
+- Mutation management
+
+This significantly reduces boilerplate while improving responsiveness.
+
+---
+
+# 🧠 Custom Hooks
+
+The application exposes reusable hooks for common functionality.
+
+Examples include:
+
+```text
+useAuth()
+
+useCurrentUser()
+
+usePermission()
+
+useTheme()
+
+useNotifications()
+
+useRealtime()
+
+useDebounce()
+
+usePagination()
+
+usePageTitle()
+```
+
+These hooks encapsulate reusable logic and keep components focused on rendering.
+
+---
+
+# 📚 Design Principles
+
+WorkNest follows these engineering principles throughout the frontend:
+
+- Feature-first architecture
+- Separation of concerns
+- Composition over inheritance
+- Reusable UI primitives
+- Strong typing with TypeScript
+- Centralized API communication
+- Predictable state management
+- Lazy-loaded modules
+- Permission-driven rendering
+- Clean and maintainable codebase
+
+---
+
