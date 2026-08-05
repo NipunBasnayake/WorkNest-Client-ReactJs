@@ -1784,3 +1784,417 @@ Before deploying to production, verify:
 
 ---
 
+# 🧪 Testing
+
+WorkNest Client includes a modern testing setup to ensure application reliability and maintainability.
+
+## Testing Stack
+
+| Tool | Purpose |
+|------|---------|
+| Vitest | Unit Testing |
+| Testing Library | Component Testing |
+| jsdom | Browser Environment |
+| ESLint | Static Analysis |
+| TypeScript | Type Safety |
+
+---
+
+## Running Tests
+
+Run all tests:
+
+```bash
+npm test
+```
+
+Run tests once:
+
+```bash
+npm run test:run
+```
+
+Watch mode:
+
+```bash
+npm run test
+```
+
+---
+
+## Linting
+
+Run ESLint:
+
+```bash
+npm run lint
+```
+
+---
+
+## Production Build Verification
+
+Before every deployment:
+
+```bash
+npm install
+
+npm run lint
+
+npm run test:run
+
+npm run build
+```
+
+The production build should complete without warnings or errors.
+
+---
+
+# 📋 Recommended Development Workflow
+
+```text
+Issue
+   │
+   ▼
+Create Feature Branch
+   │
+   ▼
+Development
+   │
+   ▼
+Testing
+   │
+   ▼
+Code Review
+   │
+   ▼
+Merge
+   │
+   ▼
+Production Build
+   │
+   ▼
+Docker Image
+   │
+   ▼
+Deployment
+```
+
+---
+
+# 🌱 Branch Strategy
+
+Recommended Git workflow:
+
+```text
+main
+│
+├── develop
+│
+├── feature/auth
+│
+├── feature/chat
+│
+├── feature/tasks
+│
+├── feature/dashboard
+│
+└── hotfix/*
+```
+
+---
+
+# 📦 Release Strategy
+
+Recommended versioning:
+
+```text
+v1.0.0
+
+v1.1.0
+
+v1.2.0
+
+v2.0.0
+```
+
+Semantic Versioning:
+
+- MAJOR – Breaking changes
+- MINOR – New features
+- PATCH – Bug fixes
+
+---
+
+# 🛣 Roadmap
+
+The following improvements are planned for future releases.
+
+## User Experience
+
+- [ ] Personalized dashboards
+- [ ] Calendar integration
+- [ ] Drag-and-drop dashboard widgets
+- [ ] Dark mode enhancements
+- [ ] Theme customization
+- [ ] Multi-language support
+
+---
+
+## Collaboration
+
+- [ ] Typing indicators
+- [ ] Voice messages
+- [ ] Video meetings
+- [ ] File previews
+- [ ] Presence indicators
+- [ ] Message reactions
+
+---
+
+## Productivity
+
+- [ ] Calendar module
+- [ ] Meeting scheduling
+- [ ] Notes
+- [ ] Personal reminders
+- [ ] Recurring tasks
+- [ ] Task templates
+
+---
+
+## Reporting
+
+- [ ] Interactive reports
+- [ ] Scheduled reports
+- [ ] PDF exports
+- [ ] Excel exports
+- [ ] Dashboard widgets
+- [ ] KPI customization
+
+---
+
+## HR
+
+- [ ] Recruitment portal
+- [ ] Performance reviews
+- [ ] Training management
+- [ ] Asset management
+- [ ] Payroll integration
+- [ ] Employee onboarding wizard
+
+---
+
+## Platform
+
+- [ ] Marketplace
+- [ ] Plugin system
+- [ ] Audit dashboards
+- [ ] API keys
+- [ ] Webhooks
+- [ ] Public APIs
+
+---
+
+# 🤝 Contributing
+
+Contributions are welcome.
+
+If you would like to improve WorkNest:
+
+1. Fork the repository.
+2. Create a feature branch.
+
+```bash
+git checkout -b feature/new-feature
+```
+
+3. Commit your changes.
+
+```bash
+git commit -m "Add new feature"
+```
+
+4. Push your branch.
+
+```bash
+git push origin feature/new-feature
+```
+
+5. Open a Pull Request.
+
+Please ensure that:
+
+- Code is formatted consistently.
+- Tests pass.
+- The project builds successfully.
+- Documentation is updated when necessary.
+
+---
+
+# 📖 Documentation
+
+Additional documentation may include:
+
+```text
+docs/
+
+├── architecture/
+├── deployment/
+├── api/
+├── screenshots/
+├── assets/
+├── diagrams/
+├── contributing.md
+├── coding-standards.md
+└── changelog.md
+```
+
+---
+
+# 📷 Screenshots
+
+The following screenshots are recommended for this repository:
+
+```
+docs/screenshots/
+
+dashboard.png
+
+employees.png
+
+projects.png
+
+tasks.png
+
+kanban.png
+
+chat.png
+
+notifications.png
+
+analytics.png
+
+reports.png
+
+attendance.png
+
+leave.png
+
+settings.png
+
+profile.png
+
+platform-dashboard.png
+
+tenant-management.png
+
+mobile-dashboard.png
+```
+
+---
+
+# 📚 Learning Resources
+
+Useful technologies used in this project:
+
+- React
+- TypeScript
+- Vite
+- Tailwind CSS
+- Zustand
+- TanStack Query
+- Axios
+- WebSocket
+- STOMP
+- Docker
+- Nginx
+
+---
+
+# 🛡 Security Policy
+
+If you discover a security vulnerability, please avoid opening a public issue.
+
+Instead:
+
+- Contact the maintainers privately.
+- Include reproduction steps.
+- Provide logs if available.
+- Allow time for remediation before public disclosure.
+
+---
+
+# 📄 License
+
+This project is licensed under the **MIT License**.
+
+See the [LICENSE](LICENSE) file for details.
+
+---
+
+# 🙏 Acknowledgements
+
+WorkNest is built using several outstanding open-source technologies.
+
+Special thanks to the communities behind:
+
+- React
+- TypeScript
+- Vite
+- Tailwind CSS
+- TanStack Query
+- Zustand
+- Lucide
+- Axios
+- Docker
+- Nginx
+- Spring Boot
+- MySQL
+- Supabase
+
+Without these projects, WorkNest would not be possible.
+
+---
+
+# ⭐ Support the Project
+
+If you find this project useful:
+
+- ⭐ Star the repository
+- 🐛 Report issues
+- 💡 Suggest improvements
+- 🔀 Submit pull requests
+- 📢 Share the project
+
+Every contribution helps make WorkNest better.
+
+---
+
+# 📬 Contact
+
+For questions, feature requests, or collaboration:
+
+- Create a GitHub Issue
+- Open a GitHub Discussion
+- Submit a Pull Request
+
+---
+
+<div align="center">
+
+## 🏢 WorkNest Client
+
+**Modern Multi-Tenant ERP Frontend**
+
+Built with ❤️ using
+
+**React • TypeScript • Vite • Tailwind CSS • Zustand • TanStack Query**
+
+---
+
+**Designed for scalable SaaS platforms with enterprise-grade architecture.**
+
+⭐ **If you like this project, consider giving it a star!**
+
+</div>
