@@ -861,3 +861,496 @@ WorkNest follows these engineering principles throughout the frontend:
 
 ---
 
+# ⚡ Realtime Architecture
+
+WorkNest provides a realtime experience for collaboration, communication, and operational awareness.
+
+The frontend communicates with the backend using **native WebSockets** with the **STOMP protocol**, allowing instant updates without polling.
+
+Current realtime features include:
+
+- 💬 Team Chat
+- 🔔 Live Notifications
+- 📢 Announcement Events
+- 📋 Task Updates
+- 👥 Presence (Roadmap)
+- ✍️ Typing Indicators (Roadmap)
+- 📁 Live File Events (Roadmap)
+
+---
+
+# 🛰 Realtime Architecture
+
+```text
+                     Browser
+                        │
+                        ▼
+              STOMP Client Service
+                        │
+                        ▼
+                Native WebSocket
+                        │
+                        ▼
+               Spring Boot Backend
+                        │
+              Simple Message Broker
+                        │
+        ┌───────────────┼────────────────┐
+        │               │                │
+        ▼               ▼                ▼
+   Notifications      Chat          Task Events
+```
+
+The client maintains a single WebSocket connection and subscribes to multiple STOMP destinations depending on the authenticated user and active tenant.
+
+---
+
+# 💬 Chat System
+
+The chat module enables real-time communication between team members.
+
+Current capabilities include:
+
+- Team conversations
+- Direct messaging
+- Live message delivery
+- Automatic reconnection
+- Message history
+- Read status
+- Attachment-ready architecture
+
+Future enhancements:
+
+- Voice messages
+- Emoji reactions
+- Message editing
+- Message deletion synchronization
+- Online presence
+- Typing indicators
+- File previews
+
+---
+
+## Chat Flow
+
+```text
+User Types Message
+        │
+        ▼
+React Component
+        │
+        ▼
+Chat Service
+        │
+        ▼
+STOMP SEND
+        │
+        ▼
+Spring Boot
+        │
+        ▼
+Broker
+        │
+        ▼
+Subscribed Clients
+        │
+        ▼
+React UI Updates
+```
+
+---
+
+# 🔔 Notification System
+
+Notifications are system-generated events triggered by backend business logic.
+
+Examples:
+
+- New task assigned
+- Leave approved
+- Leave rejected
+- Announcement published
+- Project updated
+- Team invitation
+- Password changed
+- Employee onboarded
+
+Notifications are delivered instantly over WebSocket and displayed within the application's notification center.
+
+---
+
+## Notification Flow
+
+```text
+Backend Event
+      │
+      ▼
+Notification Service
+      │
+      ▼
+STOMP Topic
+      │
+      ▼
+Frontend Subscription
+      │
+      ▼
+Notification Store
+      │
+      ▼
+Notification Center
+```
+
+---
+
+# 📁 File Upload System
+
+WorkNest follows a backend-mediated upload architecture.
+
+The browser never communicates directly with object storage.
+
+Instead, uploads flow through the backend to ensure validation, authorization, and centralized storage management.
+
+---
+
+## Upload Architecture
+
+```text
+User
+ │
+ ▼
+Choose File
+ │
+ ▼
+React Upload Component
+ │
+ ▼
+Axios Multipart Request
+ │
+ ▼
+Spring Boot Upload API
+ │
+ ▼
+Supabase Storage
+ │
+ ▼
+Metadata Returned
+ │
+ ▼
+Database Record Updated
+```
+
+---
+
+Supported upload types include:
+
+- Profile images
+- Leave documents
+- Project attachments
+- Task attachments
+- Organization logos
+- Future media uploads
+
+---
+
+# 🪣 Storage Integration
+
+The frontend is storage-provider agnostic.
+
+It never embeds storage credentials or bucket logic.
+
+Instead, it consumes URLs returned by the backend.
+
+Benefits:
+
+- Storage provider can change without frontend changes
+- Better security
+- Consistent upload validation
+- Centralized access control
+- Simplified browser code
+
+Current production target:
+
+- Supabase Storage
+
+Future supported providers:
+
+- Amazon S3
+- Cloudflare R2
+- MinIO
+- Azure Blob Storage
+
+---
+
+# 🌐 Environment Configuration
+
+WorkNest uses Vite environment variables for runtime configuration.
+
+Example:
+
+```env
+VITE_API_BASE_URL=http://localhost:8080
+
+VITE_WS_URL=ws://localhost:8080/ws
+
+VITE_REALTIME_DISABLED=false
+
+VITE_CHAT_TOPICS=/topic/chat.global,/user/queue/chat
+
+VITE_NOTIFICATIONS_TOPICS=/topic/notifications.global,/user/queue/notifications
+```
+
+---
+
+## Production Example
+
+```env
+VITE_API_BASE_URL=https://api.worknest.example
+
+VITE_WS_URL=wss://api.worknest.example/ws
+
+VITE_REALTIME_DISABLED=false
+```
+
+Never expose secrets inside VITE_* variables.
+
+The frontend should never contain:
+
+- Database passwords
+- JWT signing keys
+- SMTP credentials
+- Service-role keys
+- Cloud provider secrets
+
+---
+
+# ⚙ Runtime Configuration
+
+The frontend supports runtime configuration without rebuilding Docker images.
+
+Configuration values are injected through a generated runtime configuration file, allowing deployments to update API endpoints and related settings without creating a new frontend build.
+
+Typical runtime settings include:
+
+- API Base URL
+- WebSocket URL
+- Feature Flags
+- Environment Name
+
+---
+
+# 🐳 Docker Support
+
+The frontend is fully containerized.
+
+Production image stack:
+
+```text
+Node.js
+     │
+npm build
+     │
+Vite Production Build
+     │
+Static Assets
+     │
+Nginx
+```
+
+---
+
+## Docker Architecture
+
+```text
+Docker Build
+      │
+      ▼
+Node Builder Stage
+      │
+      ▼
+npm install
+      │
+      ▼
+npm run build
+      │
+      ▼
+dist/
+      │
+      ▼
+Nginx Runtime Image
+```
+
+Benefits:
+
+- Small production image
+- Fast startup
+- Static asset serving
+- Efficient caching
+- Easy deployment
+
+---
+
+# 🖥 Local Development
+
+## Install dependencies
+
+```bash
+npm install
+```
+
+---
+
+## Start development server
+
+```bash
+npm run dev
+```
+
+Default development server:
+
+```text
+http://localhost:5173
+```
+
+---
+
+## Production build
+
+```bash
+npm run build
+```
+
+---
+
+## Preview production build
+
+```bash
+npm run preview
+```
+
+---
+
+## Lint
+
+```bash
+npm run lint
+```
+
+---
+
+## Run Tests
+
+```bash
+npm test
+```
+
+or
+
+```bash
+npm run test:run
+```
+
+---
+
+# 📦 Build Pipeline
+
+```text
+Git Pull
+    │
+    ▼
+npm install
+    │
+    ▼
+TypeScript Compile
+    │
+    ▼
+Vite Production Build
+    │
+    ▼
+Static Assets Generated
+    │
+    ▼
+Docker Image
+    │
+    ▼
+Nginx
+```
+
+---
+
+# 🚀 Deployment Targets
+
+The frontend has been designed to deploy consistently across multiple platforms.
+
+Supported deployment targets include:
+
+| Platform | Status |
+|----------|--------|
+| Docker | ✅ |
+| Dokploy | ✅ |
+| Nginx | ✅ |
+| Vercel | ✅ |
+| Netlify | ✅ |
+| Azure Static Web Apps | ✅ |
+| GitHub Pages *(static only)* | ✅ |
+
+---
+
+# 🔧 Recommended Development Tools
+
+For the best development experience, the following tools are recommended:
+
+| Tool | Purpose |
+|------|----------|
+| Visual Studio Code | Editor |
+| Node.js 20+ | Runtime |
+| npm | Package Manager |
+| Docker Desktop | Containers |
+| Postman | API Testing |
+| Chrome DevTools | Debugging |
+| React Developer Tools | Component Inspection |
+
+---
+
+# 📈 Development Workflow
+
+```text
+Feature Branch
+      │
+      ▼
+Development
+      │
+      ▼
+Code Review
+      │
+      ▼
+Testing
+      │
+      ▼
+Production Build
+      │
+      ▼
+Docker Image
+      │
+      ▼
+Dokploy Deployment
+```
+
+---
+
+# 💡 Engineering Goals
+
+The frontend is designed around the following engineering principles:
+
+- Clean Architecture
+- Component Reusability
+- Feature Isolation
+- Strong Type Safety
+- Responsive UI
+- Accessibility
+- Maintainability
+- Scalability
+- Performance
+- Enterprise Readiness
+
+---
+
