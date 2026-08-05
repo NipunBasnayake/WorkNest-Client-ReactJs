@@ -1354,3 +1354,433 @@ The frontend is designed around the following engineering principles:
 
 ---
 
+# 🚀 Production Deployment
+
+WorkNest Client is designed to be deployed as a stateless frontend application behind a reverse proxy.
+
+The recommended production stack is:
+
+```text
+                 Internet
+                     │
+                     ▼
+              Traefik / Nginx
+                     │
+                     ▼
+              WorkNest Client
+             (React + Nginx)
+                     │
+        HTTPS REST & WebSocket
+                     │
+                     ▼
+          WorkNest Spring Backend
+                     │
+                     ▼
+            Multi-Tenant MySQL
+```
+
+The frontend does **not** communicate directly with the database or object storage. Every request flows through the backend API.
+
+---
+
+# 🐳 Docker Deployment
+
+The application is distributed as a lightweight Docker container.
+
+Production container:
+
+```text
+Node.js
+     │
+     ▼
+npm install
+     │
+     ▼
+npm run build
+     │
+     ▼
+Static Assets
+     │
+     ▼
+Nginx
+```
+
+The final runtime image only contains static files and Nginx.
+
+No Node.js runtime is required in production.
+
+---
+
+# 📦 Production Build
+
+Generate an optimized production bundle.
+
+```bash
+npm install
+
+npm run build
+```
+
+Preview locally:
+
+```bash
+npm run preview
+```
+
+Output:
+
+```text
+dist/
+```
+
+This directory is copied into the production Nginx image.
+
+---
+
+# 🌍 Deployment Platforms
+
+WorkNest Client has been designed to run on multiple hosting platforms.
+
+| Platform | Supported |
+|-----------|-----------|
+| Dokploy | ✅ |
+| Docker | ✅ |
+| Nginx | ✅ |
+| Vercel | ✅ |
+| Netlify | ✅ |
+| Azure Static Web Apps | ✅ |
+| GitHub Pages* | ✅ |
+
+> GitHub Pages is suitable only for static deployments and requires API endpoints to be publicly accessible.
+
+---
+
+# 🚢 Dokploy Deployment
+
+Recommended production deployment:
+
+```text
+GitHub Repository
+        │
+        ▼
+Dokploy
+        │
+        ▼
+Docker Build
+        │
+        ▼
+Nginx Container
+        │
+        ▼
+Traefik
+        │
+        ▼
+HTTPS
+```
+
+Typical deployment process:
+
+1. Connect the GitHub repository.
+2. Configure environment variables.
+3. Deploy the application.
+4. Assign a domain.
+5. Enable HTTPS.
+6. Verify runtime configuration.
+
+---
+
+# 🌐 Runtime Environment
+
+Instead of rebuilding for every environment, WorkNest supports runtime configuration.
+
+Typical production configuration:
+
+```env
+VITE_API_BASE_URL=https://api.worknest.com
+
+VITE_WS_URL=wss://api.worknest.com/ws
+
+VITE_REALTIME_DISABLED=false
+```
+
+The frontend reads these values during startup, allowing the same Docker image to be reused across environments.
+
+---
+
+# 🔄 Request Lifecycle
+
+```text
+Browser
+   │
+   ▼
+React Component
+   │
+   ▼
+Axios Client
+   │
+   ▼
+JWT Interceptor
+   │
+   ▼
+HTTPS Request
+   │
+   ▼
+Spring Boot API
+   │
+   ▼
+JSON Response
+   │
+   ▼
+TanStack Query Cache
+   │
+   ▼
+React UI
+```
+
+---
+
+# 🔐 Security
+
+Security is built into every layer of the frontend.
+
+## Authentication
+
+✔ JWT Authentication
+
+✔ Automatic Session Restoration
+
+✔ Token Refresh
+
+✔ Route Protection
+
+---
+
+## Authorization
+
+Permission-based UI rendering.
+
+Every page validates:
+
+- Authentication
+- Active Tenant
+- Permissions
+- Feature Access
+
+Unauthorized pages never render protected content.
+
+---
+
+## API Protection
+
+The frontend automatically:
+
+- Attaches Bearer Tokens
+- Adds Tenant Headers
+- Refreshes expired sessions
+- Handles unauthorized responses
+- Normalizes API errors
+
+---
+
+## Storage Security
+
+Uploads are always backend-mediated.
+
+The frontend never contains:
+
+❌ Database Passwords
+
+❌ SMTP Credentials
+
+❌ JWT Signing Keys
+
+❌ Storage Service Role Keys
+
+Only public runtime configuration belongs inside the browser bundle.
+
+---
+
+# ⚡ Performance Optimizations
+
+WorkNest is optimized for enterprise-scale applications.
+
+Current optimizations include:
+
+✅ Route-based code splitting
+
+✅ Lazy-loaded modules
+
+✅ Dynamic imports
+
+✅ Shared component reuse
+
+✅ React.memo where appropriate
+
+✅ Efficient state updates
+
+✅ TanStack Query caching
+
+✅ Request deduplication
+
+✅ Background refetching
+
+✅ Optimized production builds
+
+---
+
+# 📈 Bundle Strategy
+
+```text
+Application
+      │
+      ▼
+Route Splitting
+      │
+      ▼
+Lazy Components
+      │
+      ▼
+Shared Vendor Chunks
+      │
+      ▼
+Browser Cache
+```
+
+Only required JavaScript is downloaded when a page is visited.
+
+---
+
+# 🧠 Caching Strategy
+
+The frontend uses TanStack Query to reduce unnecessary API requests.
+
+Benefits include:
+
+- Automatic caching
+- Background synchronization
+- Optimistic updates
+- Request deduplication
+- Automatic retries
+- Cache invalidation
+
+---
+
+# 📱 Responsive Design
+
+WorkNest is responsive across modern devices.
+
+Supported layouts:
+
+| Device | Supported |
+|----------|-----------|
+| Desktop | ✅ |
+| Laptop | ✅ |
+| Tablet | ✅ |
+| Mobile | ✅ |
+
+Responsive techniques include:
+
+- CSS Grid
+- Flexbox
+- Responsive breakpoints
+- Adaptive navigation
+- Mobile-friendly layouts
+
+---
+
+# 🌍 Browser Support
+
+| Browser | Status |
+|-----------|--------|
+| Chrome | ✅ |
+| Edge | ✅ |
+| Firefox | ✅ |
+| Safari | ✅ |
+
+Modern evergreen browsers are fully supported.
+
+---
+
+# ♿ Accessibility
+
+WorkNest aims to provide an accessible user experience.
+
+Features include:
+
+- Semantic HTML
+- Keyboard navigation
+- Visible focus indicators
+- Accessible form controls
+- Responsive typography
+- ARIA attributes where appropriate
+
+Accessibility improvements will continue as the platform evolves.
+
+---
+
+# 🎨 UI & UX Principles
+
+The interface is designed around modern SaaS best practices.
+
+Core principles:
+
+- Minimal visual clutter
+- Consistent spacing
+- Predictable navigation
+- Fast interactions
+- Responsive layouts
+- Smooth animations
+- Reusable design system
+- User-centered workflows
+
+---
+
+# 📊 Monitoring & Error Handling
+
+The frontend includes centralized error handling.
+
+Capabilities:
+
+- API error normalization
+- Loading states
+- Empty states
+- Retry handling
+- Graceful fallbacks
+- Toast notifications
+- Authentication failure recovery
+
+---
+
+# 🔮 Future Enhancements
+
+Planned improvements include:
+
+- Offline support
+- Progressive Web App (PWA)
+- Push Notifications
+- Theme customization
+- Multi-language support
+- Calendar integration
+- AI-powered insights
+- Advanced analytics
+- Real-time collaboration enhancements
+
+---
+
+# 🛡 Production Checklist
+
+Before deploying to production, verify:
+
+- [ ] Environment variables configured
+- [ ] API endpoint uses HTTPS
+- [ ] WebSocket endpoint uses WSS
+- [ ] Production build succeeds
+- [ ] Runtime configuration verified
+- [ ] Backend is reachable
+- [ ] HTTPS certificate configured
+- [ ] Docker image built successfully
+- [ ] Health checks pass
+- [ ] Browser console is free of errors
+
+---
+
